@@ -1,0 +1,7 @@
+# Xcode & iOS build outputs
+ios/build/
+dist/
+*.ipa
+
+# macOS system files
+.DS_Store
