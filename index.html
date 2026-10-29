@@ -89,6 +89,11 @@
 						WordChainMultitouch.install();
 					}
 
+					// 3) Shadow Shader: Soft GLSL FBO drop shadow on desired layers
+					if (window.WordChainShadowShader) {
+						WordChainShadowShader.install();
+					}
+
 					// Start the game
 					engine.play();
 				});
@@ -96,7 +101,8 @@
 		}(window));
 	</script>
 	<script type="text/javascript" src="js/haptics-bridge.js?v=20261027_4"></script>
-	<script type="text/javascript" src="js/multitouch-bridge.js?v=20261027_5"></script>
+	<script type="text/javascript" src="js/multitouch-bridge.js?v=20261028_3"></script>
+	<script type="text/javascript" src="js/shadow-shader-bridge.js?v=20261028_4"></script>
 	<script type="text/javascript" src="js/gse/gse-export.js" onload="onEngineLoad()"></script>
 </body>
 

@@ -25,17 +25,30 @@
 	'use strict';
 
 	// Ensure GameSalad prototype definitions remain configurable and writable for extensions
+	// Guards against browser extension conflicts (e.g. crypto wallets, devtools redefining prototype/ethereum)
 	(function () {
 		try {
 			var origDefineProperty = Object.defineProperty;
 			Object.defineProperty = function (obj, prop, descriptor) {
-				if (descriptor && typeof descriptor === 'object') {
-					descriptor.configurable = true;
-					if (descriptor.value !== undefined && descriptor.writable === undefined) {
-						descriptor.writable = true;
-					}
+				if (descriptor && typeof descriptor === 'object' && prop !== 'prototype' && prop !== 'ethereum') {
+					try {
+						var existing = Object.getOwnPropertyDescriptor(obj, prop);
+						if (!existing || existing.configurable !== false) {
+							descriptor.configurable = true;
+							if (descriptor.value !== undefined && descriptor.writable === undefined) {
+								descriptor.writable = true;
+							}
+						}
+					} catch (e) {}
 				}
-				return origDefineProperty.call(Object, obj, prop, descriptor);
+				try {
+					return origDefineProperty.call(Object, obj, prop, descriptor);
+				} catch (err) {
+					if (prop === 'prototype' || prop === 'ethereum') {
+						return obj;
+					}
+					throw err;
+				}
 			};
 
 			var origDefineProperties = Object.defineProperties;
@@ -43,15 +56,24 @@
 				if (props && typeof props === 'object') {
 					for (var key in props) {
 						var desc = props[key];
-						if (desc && typeof desc === 'object') {
-							desc.configurable = true;
-							if (desc.value !== undefined && desc.writable === undefined) {
-								desc.writable = true;
-							}
+						if (desc && typeof desc === 'object' && key !== 'prototype' && key !== 'ethereum') {
+							try {
+								var existing = Object.getOwnPropertyDescriptor(obj, key);
+								if (!existing || existing.configurable !== false) {
+									desc.configurable = true;
+									if (desc.value !== undefined && desc.writable === undefined) {
+										desc.writable = true;
+									}
+								}
+							} catch (e) {}
 						}
 					}
 				}
-				return origDefineProperties.call(Object, obj, props);
+				try {
+					return origDefineProperties.call(Object, obj, props);
+				} catch (err) {
+					return obj;
+				}
 			};
 		} catch (e) {}
 	})();
