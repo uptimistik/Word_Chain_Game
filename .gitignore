@@ -3,5 +3,12 @@ ios/build/
 dist/
 *.ipa
 
+# Android build outputs
+android/build/
+android/app/build/
+android/app/src/main/assets/www/
+*.apk
+*.idsig
+
 # macOS system files
 .DS_Store
