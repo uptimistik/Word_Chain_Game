@@ -334,6 +334,10 @@
 		}
 		// Web Vibration API fallback (Android Chrome, mobile Firefox, etc.)
 		if (global.navigator && typeof global.navigator.vibrate === 'function') {
+			// Suppress browser intervention warning before first user gesture
+			if (global.navigator.userActivation && !global.navigator.userActivation.hasBeenActive) {
+				return;
+			}
 			var pattern = [];
 			var cursor = 0;
 			for (var i = 0; i < events.length; i++) {

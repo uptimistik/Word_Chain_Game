@@ -120,7 +120,7 @@
 			'  -webkit-touch-callout: none;',
 			'  touch-action: manipulation;',
 			'  cursor: pointer;',
-			'  z-index: 950;',
+			'  z-index: 9999;',
 			'  display: none;',
 			'  transform-origin: center center;',
 			'  pointer-events: auto;',
@@ -328,15 +328,24 @@
 			'</div>'
 		].join('');
 
-		// Attach tap / click handler with event isolation
+		// Attach tap / click handler with event isolation & touch debounce
+		var lastToggleTime = 0;
 		var handleToggle = function (e) {
+			var now = Date.now();
+			if (now - lastToggleTime < 250) {
+				if (e) {
+					try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
+				}
+				return;
+			}
+			lastToggleTime = now;
 			if (e) {
-				e.preventDefault();
-				e.stopPropagation();
+				try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
 			}
 			toggleTrain();
 		};
 
+		container.addEventListener('pointerup', handleToggle, false);
 		container.addEventListener('click', handleToggle, false);
 		container.addEventListener('pointerdown', function (e) {
 			e.stopPropagation();
@@ -477,6 +486,69 @@
 	}
 
 	/**
+	 * Check whether the active GameSalad scene has the train on the table.
+	 */
+	function isTrainGameplayScene(game) {
+		if (!game) return false;
+
+		// 1. Scene key from engine context or game
+		var sceneKey = '';
+		if (typeof game.getCurrentSceneKey === 'function') {
+			try { sceneKey = game.getCurrentSceneKey() || ''; } catch (e) {}
+		}
+		if (!sceneKey && game._currentSceneKey) {
+			sceneKey = game._currentSceneKey;
+		}
+
+		// Strictly hide on Menus and Selection screens
+		if (/scenes\/[1234]\b|id155744|id167564|id171180|id112121/.test(sceneKey)) {
+			return false;
+		}
+
+		// 2. Current scene object from GameSalad
+		var scene = null;
+		if (typeof game.getCurrentScene === 'function') {
+			try { scene = game.getCurrentScene(); } catch (e) {}
+		}
+		if (!scene && game.currentScene) {
+			scene = game.currentScene;
+		}
+
+		if (scene) {
+			var sceneId = scene.id || scene.key || scene._objectKey || '';
+			// Scene 5 (Solo Play) or Scene 6 (PvP)
+			if (sceneId === 'id136667' || sceneId === 'id113015' || sceneId === 'scenes/5' || sceneId === 'scenes/6') {
+				return true;
+			}
+			var sceneName = '';
+			try {
+				if (scene.attributes && scene.attributes.name) {
+					sceneName = typeof scene.attributes.name.getValue === 'function' ?
+						scene.attributes.name.getValue() : scene.attributes.name;
+				}
+			} catch (e) {}
+			if (/play|pvp|solo/i.test(sceneName)) {
+				return true;
+			}
+			if (/menu|tile select|level.*select|tray.*select/i.test(sceneName)) {
+				return false;
+			}
+		}
+
+		// 3. Match keys for Solo Play or PvP
+		if (sceneKey === 'scenes/5' || sceneKey === 'id136667' || sceneKey === 'scenes/6' || sceneKey === 'id113015') {
+			return true;
+		}
+
+		// 4. Fallback: if we have the Train attribute and are past the initial menus
+		if (game.attributes && game.attributes.id128260 && sceneKey && !/scenes\/1\b/.test(sceneKey)) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Continuous sync loop:
 	 *   - Checks if train gameplay scene is active.
 	 *   - Shows or hides the switch element.
@@ -487,18 +559,7 @@
 		try {
 			var game = window.gs && gs.Game && gs.Game.current;
 			if (game && switchElement) {
-				var scene = game.scene;
-				var isTrainScene = false;
-
-				if (scene) {
-					var sceneId = scene.id || '';
-					var sceneName = (scene.attributes && scene.attributes.name) || '';
-
-					// Show switch on Scene 5 (Solo Play) and Scene 6 (PvP), or any scene with TrainP1
-					if (sceneId === 'id136667' || sceneId === 'id113015' || /play|pvp/i.test(sceneName)) {
-						isTrainScene = true;
-					}
-				}
+				var isTrainScene = isTrainGameplayScene(game);
 
 				if (isTrainScene) {
 					if (switchElement.style.display !== 'block') {
@@ -554,3 +615,4 @@
 	global.WordChainTrainSwitch = WordChainTrainSwitch;
 
 })(window);
+
