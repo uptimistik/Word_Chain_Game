@@ -1,32 +1,26 @@
 /*
- * Word Chain Game - Tactile Train Switch Control Bridge
- * -----------------------------------------------------
- * Adds a vintage mechanical brass toggle switch on the wooden table
- * on the right side of the screen (under the golden bell) to start and stop
- * the train:
+ * Word Chain Game - Tactile Train Switch Control Bridge (Isometric Edition)
+ * --------------------------------------------------------------------------
+ * Adds an isometric vintage mechanical brass console switch on the wooden table
+ * on the LEFT side of the letter trays to start and stop the train:
  *   - Press once -> Train accelerates along the track ('z' / TrainP1Run = true),
  *     plays whistle, flips switch to UP/RUN, illuminates glowing emerald LED.
  *   - Press again -> Train gently decelerates to a halt ('x' / TrainP1Run = false),
  *     flips switch to DOWN/STOP, extinguishes LED to dark ruby.
  *
- * Features:
- *   1. Authentic Physical Aesthetic:
- *      - Beveled brushed brass plate with 4 corner slotted screws.
- *      - Stamped vintage "TRAIN" typography and "RUN / STOP" status indicators.
- *      - Radiant jewel pilot lamp with realistic glass lens reflection.
- *      - 3D tactile toggle lever with metallic chrome specular highlights.
- *   2. Responsive Geometry Lock:
- *      - Anchored at (gameX: 912, gameY: 175) on the right wooden tabletop.
- *      - Tracks GameSalad canvas scaling, letterboxing, and resize events in real-time.
+ * Visual & Geometry Features:
+ *   1. True Isometric Tabletop Projection:
+ *      - 3D chassis box angled at rotateX(48deg) rotateY(10deg) rotateZ(-3deg)
+ *        matching the recession and perspective of the wooden table plane.
+ *      - Extruded front and side metallic bevel facets giving real physical thickness.
+ *      - Soft contact drop-shadow casting onto the wood grain behind and under the box.
+ *   2. Left Tabletop Placement:
+ *      - Anchored at (gameX: 108, gameY: 175), resting cleanly in the open wooden
+ *        table space to the LEFT of the main letter tray rack.
  *   3. Intelligent Scene Awareness:
  *      - Automatically shows during gameplay scenes with the train (Scene 5 Solo Play & Scene 6 PvP).
  *      - Hides during menus, level select, and tile select screens.
- *   4. Zero Project File / Hash Modification:
- *      - Operates via clean DOM overlay attached to #gse-player.
- *      - Preserves GameSalad JSON hashes (zero risk of project corruption).
- *   5. Bidirectional State Sync:
- *      - Reflects keyboard shortcuts ('z' and 'x') and engine state changes automatically.
- *   6. Multi-Sensory Feedback:
+ *   4. Multi-Sensory Feedback:
  *      - Synthesized heavy mechanical switch click (Web Audio API).
  *      - Haptic feedback integration via WordChainHaptics.
  */
@@ -37,11 +31,11 @@
 		// GameSalad virtual coordinate space (1024 x 768)
 		gameWidth: 1024,
 		gameHeight: 768,
-		// Target position on the wooden tabletop on the right (below the bell)
-		targetGameX: 912,
+		// Target position on the open wooden tabletop on the LEFT of the trays
+		targetGameX: 108,
 		targetGameY: 175,
-		// Switch plate base size in virtual pixels
-		baseWidth: 72,
+		// Base dimensions in virtual pixels
+		baseWidth: 84,
 		baseHeight: 96
 	};
 
@@ -104,7 +98,7 @@
 	}
 
 	/**
-	 * Inject CSS styling for the vintage train switch.
+	 * Inject CSS styling for the isometric train switch.
 	 */
 	function injectStyles() {
 		if (document.getElementById('wc-train-switch-styles')) return;
@@ -112,8 +106,8 @@
 		var css = [
 			'#wc-train-switch {',
 			'  position: absolute;',
-			'  width: 72px;',
-			'  height: 96px;',
+			'  width: 90px;',
+			'  height: 104px;',
 			'  box-sizing: border-box;',
 			'  user-select: none;',
 			'  -webkit-user-select: none;',
@@ -124,25 +118,73 @@
 			'  display: none;',
 			'  transform-origin: center center;',
 			'  pointer-events: auto;',
+			'  perspective: 550px;',
+			'  perspective-origin: 50% 120%;',
 			'}',
+			'/* Soft isometric drop shadow cast on wooden table surface */',
+			'.wc-iso-shadow {',
+			'  position: absolute;',
+			'  left: 2px;',
+			'  top: 18px;',
+			'  width: 88px;',
+			'  height: 76px;',
+			'  background: radial-gradient(ellipse at 45% 45%, rgba(12, 6, 2, 0.78) 0%, rgba(20, 10, 3, 0.45) 55%, transparent 78%);',
+			'  transform: rotateX(50deg) skewX(-14deg);',
+			'  filter: blur(5px);',
+			'  pointer-events: none;',
+			'}',
+			'/* 3D Isometric Console Box */',
+			'.wc-iso-box {',
+			'  position: relative;',
+			'  width: 82px;',
+			'  height: 94px;',
+			'  transform-style: preserve-3d;',
+			'  transform: rotateX(46deg) rotateY(8deg) rotateZ(-2deg);',
+			'  transform-origin: center bottom;',
+			'  transition: transform 0.08s ease;',
+			'}',
+			'#wc-train-switch:active .wc-iso-box {',
+			'  transform: rotateX(46deg) rotateY(8deg) rotateZ(-2deg) translateY(2px);',
+			'}',
+			'/* Top Slanted Control Panel Face */',
 			'.wc-switch-plate {',
 			'  width: 100%;',
 			'  height: 100%;',
 			'  position: relative;',
-			'  border-radius: 9px;',
-			'  background: linear-gradient(145deg, #f3cf88 0%, #caa05b 28%, #8e652a 75%, #593e16 100%);',
-			'  border: 1.5px solid #efd297;',
-			'  box-shadow: 0 7px 16px rgba(0, 0, 0, 0.72), 0 2px 4px rgba(0, 0, 0, 0.4), inset 1px 1px 1px rgba(255,255,255,0.7), inset -1.5px -1.5px 2px rgba(0,0,0,0.6);',
+			'  border-radius: 9px 9px 4px 4px;',
+			'  background: linear-gradient(145deg, #f7d28c 0%, #caa15c 28%, #8e652a 75%, #593e16 100%);',
+			'  border: 1.5px solid #ffdfa3;',
+			'  box-shadow: inset 1px 1px 1.5px rgba(255,255,255,0.7), inset -1.5px -1.5px 2px rgba(0,0,0,0.6);',
 			'  display: flex;',
 			'  flex-direction: column;',
 			'  align-items: center;',
-			'  padding: 6px 4px 4px 4px;',
+			'  padding: 5px 4px 3px 4px;',
 			'  box-sizing: border-box;',
-			'  transition: transform 0.08s ease, box-shadow 0.08s ease;',
 			'}',
-			'#wc-train-switch:active .wc-switch-plate {',
-			'  transform: scale(0.96) translateY(1px);',
-			'  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.8), inset 1px 1px 1px rgba(255,255,255,0.5), inset -1px -1px 2px rgba(0,0,0,0.7);',
+			'/* Front Beveled Extrusion (shows 3D metal thickness/depth) */',
+			'.wc-iso-front {',
+			'  position: absolute;',
+			'  left: 0;',
+			'  bottom: -12px;',
+			'  width: 100%;',
+			'  height: 13px;',
+			'  background: linear-gradient(to bottom, #8e652a 0%, #593e16 60%, #30200a 100%);',
+			'  border-radius: 0 0 6px 6px;',
+			'  border: 1px solid #4a3313;',
+			'  border-top: none;',
+			'  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);',
+			'}',
+			'/* Right Side Facet in perspective */',
+			'.wc-iso-right {',
+			'  position: absolute;',
+			'  right: -7px;',
+			'  top: 3px;',
+			'  width: 8px;',
+			'  height: 96%;',
+			'  background: linear-gradient(to right, #6a491c, #38240a);',
+			'  transform: skewY(-42deg);',
+			'  border-radius: 0 4px 4px 0;',
+			'  opacity: 0.95;',
 			'}',
 			'.wc-screw {',
 			'  position: absolute;',
@@ -180,7 +222,7 @@
 			'  display: flex;',
 			'  align-items: center;',
 			'  gap: 4px;',
-			'  margin-bottom: 3px;',
+			'  margin-bottom: 2px;',
 			'}',
 			'.wc-switch-led-bezel {',
 			'  width: 11px;',
@@ -218,7 +260,7 @@
 			'  line-height: 1;',
 			'}',
 			'.wc-switch-slot-container {',
-			'  width: 26px;',
+			'  width: 25px;',
 			'  height: 48px;',
 			'  position: relative;',
 			'  border-radius: 13px;',
@@ -232,7 +274,7 @@
 			'}',
 			'.wc-switch-indicator-text-top {',
 			'  position: absolute;',
-			'  top: -1px;',
+			'  top: 0px;',
 			'  font-family: monospace;',
 			'  font-size: 6.5px;',
 			'  font-weight: bold;',
@@ -262,11 +304,11 @@
 			'}',
 			'/* Lever Off Position (Tilted Down) */',
 			'.wc-state-off .wc-switch-lever {',
-			'  transform: translateY(8px) rotateX(24deg);',
+			'  transform: translateY(8px) rotateX(26deg);',
 			'}',
 			'/* Lever On Position (Tilted Up) */',
 			'.wc-state-on .wc-switch-lever {',
-			'  transform: translateY(-8px) rotateX(-24deg);',
+			'  transform: translateY(-8px) rotateX(-26deg);',
 			'}',
 			'.wc-lever-shaft {',
 			'  width: 7px;',
@@ -292,7 +334,7 @@
 	}
 
 	/**
-	 * Build the switch DOM structure.
+	 * Build the 3D isometric switch DOM structure.
 	 */
 	function createDOM() {
 		if (document.getElementById('wc-train-switch')) {
@@ -305,26 +347,34 @@
 		container.setAttribute('title', 'Train Switch: Click to Start / Stop Train');
 
 		container.innerHTML = [
-			'<div class="wc-switch-plate">',
-			'  <div class="wc-screw wc-screw-tl"></div>',
-			'  <div class="wc-screw wc-screw-tr"></div>',
-			'  <div class="wc-screw wc-screw-bl"></div>',
-			'  <div class="wc-screw wc-screw-br"></div>',
-			'  <div class="wc-switch-title">TRAIN</div>',
-			'  <div class="wc-switch-led-row">',
-			'    <div class="wc-switch-led-bezel">',
-			'      <div class="wc-switch-led-lamp"></div>',
+			'<!-- Isometric Contact Shadow on wooden table -->',
+			'<div class="wc-iso-shadow"></div>',
+			'<!-- 3D Console Box -->',
+			'<div class="wc-iso-box">',
+			'  <div class="wc-switch-plate">',
+			'    <div class="wc-screw wc-screw-tl"></div>',
+			'    <div class="wc-screw wc-screw-tr"></div>',
+			'    <div class="wc-screw wc-screw-bl"></div>',
+			'    <div class="wc-screw wc-screw-br"></div>',
+			'    <div class="wc-switch-title">TRAIN</div>',
+			'    <div class="wc-switch-led-row">',
+			'      <div class="wc-switch-led-bezel">',
+			'        <div class="wc-switch-led-lamp"></div>',
+			'      </div>',
+			'      <span class="wc-switch-status-label">STOP</span>',
 			'    </div>',
-			'    <span class="wc-switch-status-label">STOP</span>',
-			'  </div>',
-			'  <div class="wc-switch-slot-container">',
-			'    <span class="wc-switch-indicator-text-top">RUN</span>',
-			'    <div class="wc-switch-lever">',
-			'      <div class="wc-lever-ball"></div>',
-			'      <div class="wc-lever-shaft"></div>',
+			'    <div class="wc-switch-slot-container">',
+			'      <span class="wc-switch-indicator-text-top">RUN</span>',
+			'      <div class="wc-switch-lever">',
+			'        <div class="wc-lever-ball"></div>',
+			'        <div class="wc-lever-shaft"></div>',
+			'      </div>',
+			'      <span class="wc-switch-indicator-text-bot">OFF</span>',
 			'    </div>',
-			'    <span class="wc-switch-indicator-text-bot">OFF</span>',
 			'  </div>',
+			'  <!-- Front & Side Extrusions for real physical 3D thickness -->',
+			'  <div class="wc-iso-front"></div>',
+			'  <div class="wc-iso-right"></div>',
 			'</div>'
 		].join('');
 
@@ -603,7 +653,7 @@
 			// Start sync loop
 			syncRafId = requestAnimationFrame(syncLoop);
 
-			console.log('[WordChainTrainSwitch] Installed successfully: Train tabletop switch active at (912, 175).');
+			console.log('[WordChainTrainSwitch] Installed successfully: Isometric train switch active at (' + CONFIG.targetGameX + ', ' + CONFIG.targetGameY + ').');
 		},
 
 		toggle: toggleTrain,
@@ -615,4 +665,3 @@
 	global.WordChainTrainSwitch = WordChainTrainSwitch;
 
 })(window);
-
