@@ -45,6 +45,30 @@
 	var isWrappingTransition = false;
 	var steamOverlay = null;
 
+	function safeOverride(obj, prop, newFn) {
+		if (!obj) return false;
+		try {
+			var desc = Object.getOwnPropertyDescriptor(obj, prop);
+			if (desc && !desc.configurable && !desc.writable) {
+				return false;
+			}
+			Object.defineProperty(obj, prop, {
+				value: newFn,
+				writable: true,
+				configurable: true,
+				enumerable: desc ? desc.enumerable : false
+			});
+			return true;
+		} catch (e) {
+			try {
+				obj[prop] = newFn;
+				return true;
+			} catch (e2) {
+				return false;
+			}
+		}
+	}
+
 	/**
 	 * Create soft steam transition overlay for seamless camera shifts.
 	 */
@@ -87,10 +111,14 @@
 	 */
 	function isRealTrain(actor) {
 		if (!actor) return false;
-		if (actor.prototype && actor.prototype.id === 'id130972') return true;
-		if (actor.id === 'id117918') return true;
-		var name = (actor.attributes && actor.attributes.name) || actor.name || '';
-		return name === 'Real Train P1';
+		var protoId = actor._prototypeID || actor.prototypeID || actor._objectKey || (actor.prototype && actor.prototype.id);
+		if (protoId === 'id130972' || actor.id === 'id117918') return true;
+		try {
+			var nameAttr = actor.attributes && actor.attributes.name;
+			var name = (nameAttr && typeof nameAttr.getValue === 'function') ? nameAttr.getValue() : (nameAttr || actor.name || '');
+			if (name === 'Real Train P1') return true;
+		} catch (e) {}
+		return false;
 	}
 
 	/**
@@ -155,8 +183,8 @@
 		var gs = global.gs;
 		if (!gs || !gs.MotionAspect) return false;
 
-		// 1. Override checkWrapPositionX on MotionAspect
-		var origCheckWrapPositionX = gs.MotionAspect.prototype.checkWrapPositionX || gs.MotionAspect.checkWrapPositionX;
+		var MA = gs.MotionAspect;
+		var origCheckWrapPositionX = MA.checkWrapPositionX || (MA.prototype && MA.prototype.checkWrapPositionX);
 
 		var customCheckWrapPositionX = function (actor, body) {
 			if (isRealTrain(actor)) {
@@ -181,14 +209,13 @@
 					return;
 				}
 
-				// If train wrapped past right edge, wrap to max
-				if (currentX > CONFIG.sceneWidth + 600) {
-					this.currentPosition[0] = CONFIG.sceneWidth;
+				// If train wrapped past right edge, keep it within entry bounds
+				if (currentX > CONFIG.sceneWidth && currentX <= CONFIG.entryX + 100) {
 					if (actor.attributes && actor.attributes.position && actor.attributes.position.x) {
-						actor.attributes.position.x.setValue(this.currentPosition[0]);
+						actor.attributes.position.x.setValue(currentX);
 					}
 					if (body && typeof body.setPositionAndAngle === 'function') {
-						body.setPositionAndAngle(this.currentPosition[0], this.currentPosition[1], this.currentRotation || 0);
+						body.setPositionAndAngle(currentX, this.currentPosition[1], this.currentRotation || 0);
 					}
 					return;
 				}
@@ -200,15 +227,15 @@
 			}
 		};
 
-		if (gs.MotionAspect.prototype) {
-			gs.MotionAspect.prototype.checkWrapPositionX = customCheckWrapPositionX;
+		safeOverride(MA, 'checkWrapPositionX', customCheckWrapPositionX);
+		if (MA.prototype && MA.prototype !== MA) {
+			safeOverride(MA.prototype, 'checkWrapPositionX', customCheckWrapPositionX);
 		}
-		gs.MotionAspect.checkWrapPositionX = customCheckWrapPositionX;
 
 		// 2. Smooth camera tracking near the wrap boundary
 		if (gs.ControlCameraBehavior && gs.ControlCameraBehavior.everyFrame) {
 			var origCameraEveryFrame = gs.ControlCameraBehavior.everyFrame;
-			gs.ControlCameraBehavior.everyFrame = function (actor, timestamp) {
+			safeOverride(gs.ControlCameraBehavior, 'everyFrame', function (actor, timestamp) {
 				// While wrapping transition is active, keep camera stable
 				if (isWrappingTransition) return;
 
@@ -231,7 +258,7 @@
 				}
 
 				return origCameraEveryFrame.apply(this, arguments);
-			};
+			});
 		}
 
 		return true;
@@ -242,10 +269,13 @@
 			if (installed) return;
 			installed = true;
 
-			steamOverlay = createSteamOverlay();
-			hookEngine();
-
-			console.log('[WordChainTrainLoop] Installed successfully: Smooth train exit/entry loop active.');
+			try {
+				steamOverlay = createSteamOverlay();
+				hookEngine();
+				console.log('[WordChainTrainLoop] Installed successfully: Smooth train exit/entry loop active.');
+			} catch (err) {
+				console.warn('[WordChainTrainLoop] Error installing hook:', err);
+			}
 		}
 	};
 
