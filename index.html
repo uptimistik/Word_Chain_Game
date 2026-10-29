@@ -97,6 +97,11 @@
 						WordChainShadowShader.install();
 					}
 
+					// 4) Train Switch: Tactile tabletop switch to start/stop the train
+					if (window.WordChainTrainSwitch) {
+						WordChainTrainSwitch.install();
+					}
+
 					// Start the game
 					engine.play();
 				});
@@ -106,6 +111,7 @@
 	<script type="text/javascript" src="js/haptics-bridge.js?v=20261028_6"></script>
 	<script type="text/javascript" src="js/multitouch-bridge.js?v=20261028_7"></script>
 	<script type="text/javascript" src="js/shadow-shader-bridge.js?v=20261028_4"></script>
+	<script type="text/javascript" src="js/train-switch-bridge.js?v=20261028_1"></script>
 	<script type="text/javascript" src="js/gse/gse-export.js" onload="onEngineLoad()"></script>
 </body>
 
