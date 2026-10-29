@@ -322,6 +322,19 @@
 		heldTiles.set(actor, index);
 		touchToActor.set(index, actor);
 
+		// Trigger on-touch haptic tap directly upon confirmed tile grab
+		if (global.WordChainHaptics) {
+			if (typeof global.WordChainHaptics.resetStartup === 'function') {
+				global.WordChainHaptics.resetStartup();
+			}
+			if (typeof global.WordChainHaptics.resetWordCompleted === 'function') {
+				global.WordChainHaptics.resetWordCompleted();
+			}
+			if (typeof global.WordChainHaptics.triggerTouch === 'function') {
+				global.WordChainHaptics.triggerTouch(actor, index);
+			}
+		}
+
 		try {
 			var posX = locationInViewX;
 			var posY = locationInViewY;

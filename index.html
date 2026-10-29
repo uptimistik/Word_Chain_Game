@@ -62,6 +62,9 @@
 						onLoadingEnd: function () {
 							if (loadingElement) loadingElement.style.visibility = 'hidden';
 							engine.hideOverlay();
+							if (window.WordChainHaptics && typeof window.WordChainHaptics.triggerStartup === 'function') {
+								window.WordChainHaptics.triggerStartup(4000);
+							}
 						},
 
 						onWindowResize: function () {
@@ -79,7 +82,7 @@
 					});
 					engine.loadOptionsFromURL();
 
-					// 1) Haptics: tile collision bumps & lower vibration for fake tile soundfx
+					// 1) Haptics: on-touch tile haptics + tile soundfx active on Game Start & WordCompleted
 					if (window.WordChainHaptics) {
 						WordChainHaptics.install();
 					}
@@ -100,8 +103,8 @@
 			};
 		}(window));
 	</script>
-	<script type="text/javascript" src="js/haptics-bridge.js?v=20261027_4"></script>
-	<script type="text/javascript" src="js/multitouch-bridge.js?v=20261028_3"></script>
+	<script type="text/javascript" src="js/haptics-bridge.js?v=20261028_6"></script>
+	<script type="text/javascript" src="js/multitouch-bridge.js?v=20261028_7"></script>
 	<script type="text/javascript" src="js/shadow-shader-bridge.js?v=20261028_4"></script>
 	<script type="text/javascript" src="js/gse/gse-export.js" onload="onEngineLoad()"></script>
 </body>
