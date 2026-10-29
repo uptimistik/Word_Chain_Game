@@ -97,9 +97,14 @@
 						WordChainShadowShader.install();
 					}
 
-					// 4) Train Switch: Tactile tabletop switch to start/stop the train
-					if (window.WordChainTrainSwitch) {
-						WordChainTrainSwitch.install();
+					// 4) Train Loop Smoother: Seamless train exit/entry loop without scene X jerk
+					if (window.WordChainTrainLoop) {
+						WordChainTrainLoop.install();
+					}
+
+					// 5) Train Distance Tracker: Live HUD mini-map tracking journey to 2 stations
+					if (window.WordChainTrainTracker) {
+						WordChainTrainTracker.install();
 					}
 
 					// Start the game
@@ -111,7 +116,8 @@
 	<script type="text/javascript" src="js/haptics-bridge.js?v=20261028_7"></script>
 	<script type="text/javascript" src="js/multitouch-bridge.js?v=20261028_7"></script>
 	<script type="text/javascript" src="js/shadow-shader-bridge.js?v=20261028_4"></script>
-	<script type="text/javascript" src="js/train-switch-bridge.js?v=20261028_3"></script>
+	<script type="text/javascript" src="js/train-loop-bridge.js?v=20261028_1"></script>
+	<script type="text/javascript" src="js/train-tracker-bridge.js?v=20261028_1"></script>
 	<script type="text/javascript" src="js/gse/gse-export.js" onload="onEngineLoad()"></script>
 </body>
 
