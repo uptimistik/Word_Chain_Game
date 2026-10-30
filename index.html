@@ -97,6 +97,16 @@
 						WordChainShadowShader.install();
 					}
 
+					// 4) Infinite Train: Unclamp camera & recycle scenery for never-ending leftward run
+					if (window.WordChainInfiniteTrain) {
+						WordChainInfiniteTrain.install();
+					}
+
+					// 5) Graphic Waterfall: Alto's Adventure graphic waterfall in dead space with dynamic gap sizing
+					if (window.WordChainWaterfall) {
+						WordChainWaterfall.install();
+					}
+
 					// Start the game
 					engine.play();
 				});
@@ -106,6 +116,8 @@
 	<script type="text/javascript" src="js/haptics-bridge.js?v=20261028_7"></script>
 	<script type="text/javascript" src="js/multitouch-bridge.js?v=20261028_7"></script>
 	<script type="text/javascript" src="js/shadow-shader-bridge.js?v=20261028_4"></script>
+	<script type="text/javascript" src="js/train-infinite-scroll-bridge.js?v=20261030_3"></script>
+	<script type="text/javascript" src="js/waterfall-bridge.js?v=20261030_3"></script>
 	<script type="text/javascript" src="js/gse/gse-export.js" onload="onEngineLoad()"></script>
 </body>
 
