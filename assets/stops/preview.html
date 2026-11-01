@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Chain Game - Train Stop Silhouettes Showcase</title>
+  <style>
+    :root {
+      --bg-sky: linear-gradient(180deg, #5b9bd5 0%, #a4c8e8 60%, #e0eeff 100%);
+      --accent: #ffb834;
+      --card-bg: #1e222d;
+      --card-border: #2e3547;
+      --text-main: #f0f3f8;
+      --text-dim: #9aa4b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0f1219;
+      color: var(--text-main);
+      padding: 32px 20px 60px;
+    }
+    header {
+      max-width: 1200px;
+      margin: 0 auto 30px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #ffd166, #f78c6c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p.subtitle {
+      color: var(--text-dim);
+      font-size: 1.05rem;
+      max-width: 700px;
+      margin: 0 auto 20px;
+    }
+    .theme-toolbar {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .theme-btn {
+      background: #1e2433;
+      border: 1px solid #364159;
+      color: #cbd5e1;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .theme-btn:hover {
+      background: #283247;
+      color: #fff;
+    }
+    .theme-btn.active {
+      background: #ffb834;
+      color: #111;
+      border-color: #ffb834;
+      box-shadow: 0 0 12px rgba(255, 184, 52, 0.4);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(540px, 1fr));
+      gap: 28px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .station-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+    }
+    .stage-container {
+      position: relative;
+      height: 290px;
+      width: 100%;
+      background: var(--bg-sky);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      overflow: hidden;
+      border-bottom: 1px solid #282f40;
+      transition: background 0.4s ease;
+    }
+    .stage-container.theme-sunset {
+      background: linear-gradient(180deg, #6c3272 0%, #b8435d 40%, #e87b48 75%, #ffc067 100%);
+    }
+    .stage-container.theme-night {
+      background: linear-gradient(180deg, #090e1c 0%, #151e36 60%, #1f2b4d 100%);
+    }
+    .stage-container.theme-grid {
+      background: repeating-conic-gradient(#202533 0% 25%, #2a3142 0% 50%) 50% / 20px 20px;
+    }
+    .station-img {
+      max-width: 92%;
+      max-height: 250px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+      position: relative;
+      z-index: 2;
+      bottom: 0;
+    }
+    .card-body {
+      padding: 18px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .card-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #2b3447;
+      color: #8da2c0;
+      letter-spacing: 0.5px;
+    }
+    .card-features {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.45;
+    }
+    .card-footer {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid #282f40;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      color: #828ea2;
+    }
+    .code-badge {
+      background: #141822;
+      border: 1px solid #2c3345;
+      padding: 4px 8px;
+      border-radius: 5px;
+      font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+      color: #ffd166;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🚂 Train Stop Silhouettes Collection</h1>
+    <p class="subtitle">
+      6 whimsical, pure-silhouette train stops designed with transparent alpha cutouts (windows, clocks, fretwork) for seamless GameSalad side-scrolling integration.
+    </p>
+
+    <div class="theme-toolbar">
+      <button class="theme-btn active" onclick="setTheme('')">☀️ Daytime Sky</button>
+      <button class="theme-btn" onclick="setTheme('theme-sunset')">🌅 Sunset Glow</button>
+      <button class="theme-btn" onclick="setTheme('theme-night')">🌌 Twilight / Night</button>
+      <button class="theme-btn" onclick="setTheme('theme-grid')">🏁 Alpha Transparency Grid</button>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- Card 1 -->
+    <div class="station-card">
+      <div class="stage-container" id="stage-1">
+        <img class="station-img" src="station_victorian_depot.png" alt="Victorian Grand Depot">
+      </div>
+      <div class="card-body">
+        <div class="card-title-row">
+          <h2 class="card-title">1. Victorian Grand Depot</h2>
+          <span class="card-tag">Historic City</span>
+        </div>
+        <p class="card-features">
+          Steep gabled roof with delicate wrought-iron cresting, high clocktower with direction-marker weathervane, arched platform canopy brackets, hanging station clock, platform waiting bench, and antique gas street lamp post.
+        </p>
+        <div class="card-footer">
+          <span>Game Size: <strong>600 × 326</strong></span>
+          <span class="code-badge">station_victorian_depot.png</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="station-card">
+      <div class="stage-container" id="stage-2">
+        <img class="station-img" src="station_water_tower.png" alt="Clover Creek Water Stop">
+      </div>
+      <div class="card-body">
+        <div class="card-title-row">
+          <h2 class="card-title">2. Clover Creek Water Stop</h2>
+          <span class="card-tag">Steam Servicing</span>
+        </div>
+        <p class="card-features">
+          Classic wooden stave water tank on tall timber trestle legs, counterbalanced pull-down water spout with chain, adjacent telegraph shack with smoking stovepipe, platform deck with milk cans and cargo crates, telegraph pole, and tall semaphore signal arm.
+        </p>
+        <div class="card-footer">
+          <span>Game Size: <strong>600 × 314</strong></span>
+          <span class="code-badge">station_water_tower.png</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="station-card">
+      <div class="stage-container" id="stage-3">
+        <img class="station-img" src="station_alpine_chalet.png" alt="Pinecrest Alpine Chalet">
+      </div>
+      <div class="card-body">
+        <div class="card-title-row">
+          <h2 class="card-title">3. Pinecrest Alpine Chalet</h2>
+          <span class="card-tag">Mountain Pass</span>
+        </div>
+        <p class="card-features">
+          Swiss A-frame chalet station with carved timber rafter brackets, roof belfry bell tower with wind flag, decorative shutters, platform timber awning with carved "ALPENDORF" mountain sign, rustic platform bench, and majestic evergreen pine trees.
+        </p>
+        <div class="card-footer">
+          <span>Game Size: <strong>600 × 304</strong></span>
+          <span class="code-badge">station_alpine_chalet.png</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="station-card">
+      <div class="stage-container" id="stage-4">
+        <img class="station-img" src="station_windmill_crossing.png" alt="Windmill Crossing Halt">
+      </div>
+      <div class="card-body">
+        <div class="card-title-row">
+          <h2 class="card-title">4. Windmill Crossing Halt</h2>
+          <span class="card-tag">Rural Farmland</span>
+        </div>
+        <p class="card-features">
+          Iconic lattice-blade windmill in silhouette, curved tin passenger waiting shed with bench, railway crossing crossbuck ("RAILROAD CROSSING 2 TRACKS") with twin signal flashers, low post-and-rail picket fence, and trackside luggage handcart.
+        </p>
+        <div class="card-footer">
+          <span>Game Size: <strong>600 × 304</strong></span>
+          <span class="code-badge">station_windmill_crossing.png</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 5 -->
+    <div class="station-card">
+      <div class="stage-container" id="stage-5">
+        <img class="station-img" src="station_forest_pavilion.png" alt="Whispering Pines Forest Pavilion">
+      </div>
+      <div class="card-body">
+        <div class="card-title-row">
+          <h2 class="card-title">5. Whispering Pines Pavilion</h2>
+          <span class="card-tag">National Park</span>
+        </div>
+        <p class="card-features">
+          Rustic timber park shelter canopy supported by stone masonry pillars and rough-hewn log posts, fieldstone hearth fireplace chimney, hanging trail lantern, cedar log benches, national park "TRAILHEAD / LAKE / CAMPGROUND" signpost, and dense fir/pine tree silhouettes.
+        </p>
+        <div class="card-footer">
+          <span>Game Size: <strong>600 × 335</strong></span>
+          <span class="code-badge">station_forest_pavilion.png</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 6 -->
+    <div class="station-card">
+      <div class="stage-container" id="stage-6">
+        <img class="station-img" src="station_seaside_wharf.png" alt="Seaside Wharf Halt">
+      </div>
+      <div class="card-body">
+        <div class="card-title-row">
+          <h2 class="card-title">6. Seaside Wharf Halt</h2>
+          <span class="card-tag">Coastal Harbor</span>
+        </div>
+        <p class="card-features">
+          Vintage coastal lighthouse tower with round lantern gallery room and dome, open maritime wooden wharf shelter resting on rustic pier pilings with cross-bracing, dockside mooring bollards with coiled marine ropes, nautical lantern post, and perched seagulls.
+        </p>
+        <div class="card-footer">
+          <span>Game Size: <strong>600 × 324</strong></span>
+          <span class="code-badge">station_seaside_wharf.png</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function setTheme(themeClass) {
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      document.querySelectorAll('.stage-container').forEach(stage => {
+        stage.className = 'stage-container ' + themeClass;
+      });
+    }
+  </script>
+
+</body>
+</html>
