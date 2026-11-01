@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport"
+		content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<title>Scruffle 3D Chain</title>
+	<link rel="stylesheet" href="css/word-chain-3d.css">
+	<style>
+		/* 1. Minimized Homepage Speedometer Badge */
+		.title-speed-rank-card.compact-speed-card {
+			padding: 8px 14px;
+			margin: 8px auto 10px;
+			max-width: 340px;
+			border-radius: 999px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			background: rgba(18, 14, 28, 0.78);
+			border: 1px solid rgba(255, 215, 0, 0.3);
+			box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+		}
+
+		.compact-speed-left {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-weight: 800;
+			font-size: 0.78rem;
+			color: #ffd700;
+			white-space: nowrap;
+		}
+
+		.compact-speed-stats {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			font-size: 0.74rem;
+			color: #e5e0f0;
+		}
+
+		.compact-speed-stats strong {
+			color: #00e5ff;
+			font-weight: 800;
+		}
+
+		/* 2. Homepage Level Select Widget */
+		.title-level-select {
+			margin: 8px auto 14px;
+			padding: 10px 14px;
+			max-width: 340px;
+			background: rgba(18, 14, 28, 0.75);
+			border: 1px solid rgba(255, 255, 255, 0.16);
+			border-radius: 16px;
+			backdrop-filter: blur(8px);
+		}
+
+		.title-level-header {
+			font-size: 0.7rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			color: rgba(255, 255, 255, 0.7);
+			margin-bottom: 6px;
+			font-weight: 700;
+		}
+
+		.title-level-controls {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+		}
+
+		.title-lvl-btn {
+			background: rgba(255, 255, 255, 0.12);
+			border: 1px solid rgba(255, 255, 255, 0.2);
+			color: #fff;
+			width: 36px;
+			height: 36px;
+			border-radius: 10px;
+			font-weight: 800;
+			cursor: pointer;
+			transition: transform 0.12s ease, background 0.15s ease;
+		}
+
+		.title-lvl-btn:active {
+			transform: scale(0.92);
+		}
+
+		.title-lvl-Readout {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.title-lvl-num-text {
+			font-size: 1.05rem;
+			font-weight: 800;
+			color: #fff;
+		}
+
+		.title-lvl-best {
+			font-size: 0.72rem;
+			color: #ffd700;
+		}
+
+		/* 3. Fix Floating SVG Speedometer Needle */
+		.speedo-svg {
+			overflow: visible;
+			display: block;
+		}
+
+		#speedo-needle {
+			transform-box: view-box !important;
+			transform-origin: 50px 50px !important;
+			transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+		}
+
+		/* 4. Top Speedometer End-of-Round Highlight (Replaces Floating Win Card) */
+		#win-speed-card {
+			display: none !important;
+		}
+
+		#hud-speedometer {
+			position: relative;
+			transition: transform 0.3s ease, box-shadow 0.3s ease;
+		}
+
+		#hud-speedometer.win-highlight {
+			transform: scale(1.08);
+			box-shadow: 0 0 22px rgba(255, 215, 0, 0.75), 0 0 40px rgba(0, 229, 255, 0.45);
+			border-radius: 16px;
+		}
+
+		.hud-win-speed-banner {
+			display: none;
+			position: absolute;
+			top: calc(100% + 6px);
+			left: 50%;
+			transform: translateX(-50%);
+			background: linear-gradient(135deg, rgba(22, 16, 38, 0.96), rgba(40, 24, 68, 0.96));
+			border: 1.5px solid #ffd700;
+			border-radius: 999px;
+			padding: 4px 10px;
+			white-space: nowrap;
+			align-items: center;
+			gap: 8px;
+			box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+			z-index: 120;
+			font-size: 0.75rem;
+			color: #fff;
+		}
+
+		#hud-speedometer.win-highlight .hud-win-speed-banner {
+			display: inline-flex;
+		}
+
+		.hud-win-record-pill {
+			background: #ffd700;
+			color: #120e1c;
+			font-weight: 900;
+			padding: 1px 6px;
+			border-radius: 999px;
+			font-size: 0.66rem;
+		}
+
+		.hud-win-replay-mini {
+			background: rgba(0, 229, 255, 0.2);
+			border: 1px solid #00e5ff;
+			color: #00e5ff;
+			border-radius: 999px;
+			padding: 2px 8px;
+			font-size: 0.7rem;
+			font-weight: 700;
+			cursor: pointer;
+		}
+
+		/* 5. Key Counter Badge & Ad Recharge Button */
+		#btn-hint {
+			position: relative;
+		}
+
+		.key-count-badge {
+			position: absolute;
+			top: -6px;
+			right: -6px;
+			background: linear-gradient(135deg, #ffd700, #ff9900);
+			color: #1a1025;
+			font-weight: 900;
+			font-size: 0.74rem;
+			min-width: 24px;
+			height: 22px;
+			padding: 0 6px;
+			border-radius: 999px;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			border: 2px solid #120e1c;
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+			z-index: 5;
+		}
+
+		.key-count-badge.empty {
+			background: linear-gradient(135deg, #ff3b30, #c81e1e);
+			color: #fff;
+		}
+
+		.btn-recharge-keys {
+			display: none;
+			align-items: center;
+			gap: 5px;
+			background: linear-gradient(135deg, #00c853, #009624);
+			color: #fff;
+			border: 2px solid rgba(255, 255, 255, 0.85);
+			border-radius: 999px;
+			padding: 6px 12px;
+			font-size: 0.74rem;
+			font-weight: 800;
+			cursor: pointer;
+			box-shadow: 0 4px 12px rgba(0, 200, 83, 0.4);
+			animation: pulseRecharge 1.5s infinite;
+		}
+
+		.btn-recharge-keys.visible {
+			display: inline-flex;
+		}
+
+		@keyframes pulseRecharge {
+
+			0%,
+			100% {
+				transform: scale(1);
+			}
+
+			50% {
+				transform: scale(1.06);
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<!-- 3D WebGL Canvas Container -->
+	<div id="canvas-container"></div>
+
+	<!-- Title Screen: SCRUFFLE 3D CHAIN -->
+	<script>
+		if (window.location.search && (window.location.search.includes('play=1') || window.location.search.includes('gift=1') || window.location.search.includes('ad=1') || window.location.search.includes('settings=1') || window.location.search.includes('trialend=1') || window.location.search.includes('speed=1'))) {
+			document.write('<style>#title-screen { display: none !important; }</style>');
+		}
+	</script>
+	<div id="title-screen">
+		<div class="title-backdrop"></div>
+		<div class="title-content">
+			<div class="title-ribbon">3D WORD LINKING</div>
+			<h1 class="title-heading">SCRUFFLE<br><span class="title-sub">3D CHAIN</span></h1>
+			<p class="title-tagline">Link the chains, reveal the words</p>
+
+			<!-- Minimized Overall Speed Ranking Pill -->
+			<div class="title-speed-rank-card compact-speed-card" id="title-speed-rank-card">
+				<div class="compact-speed-left" id="title-rank-badge">
+					<span>⚡</span>
+					<span id="title-rank-tier">RANK B</span>
+					<span id="title-rank-name" style="display:none;">SWIFT CHAINER</span>
+				</div>
+				<div class="compact-speed-stats">
+					<span>AVG <strong id="title-rank-avg-wpm">--</strong></span>
+					<span>PEAK <strong id="title-rank-peak-wpm">--</strong></span>
+					<span>SOLVED <strong id="title-rank-levels">0/30</strong></span>
+				</div>
+			</div>
+
+			<!-- Homepage Level Select -->
+			<div class="title-level-select" id="title-level-select">
+				<div class="title-level-header">SELECT STARTING LEVEL</div>
+				<div class="title-level-controls">
+					<button type="button" class="title-lvl-btn" id="btn-home-prev-lvl"
+						aria-label="Previous Level">◀</button>
+					<div class="title-lvl-Readout">
+						<span class="title-lvl-num-text">LEVEL <span id="home-level-num">1</span></span>
+						<span class="title-lvl-best" id="home-level-record">⚡ Best: -- WPM</span>
+					</div>
+					<button type="button" class="title-lvl-btn" id="btn-home-next-lvl"
+						aria-label="Next Level">▶</button>
+				</div>
+			</div>
+
+			<div class="title-buttons">
+				<button class="title-btn-play" id="btn-title-play" title="Start Game">
+					<img src="game/default/images/Pink%20Button-01.png" alt="Play" class="play-icon-img">
+					<span class="play-text">PLAY</span>
+				</button>
+				<button class="title-btn-gear" id="btn-title-settings" title="Settings">
+					<span>⚙️</span>
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- In-Game Minimal Clean HUD Header with Live Speedometer -->
+	<header id="hud-header">
+		<div class="hud-top-bar">
+			<div class="hud-left-pill">
+				<span class="hud-level-badge">LVL <span id="hud-level-num">1</span></span>
+				<div class="chain-progress" id="chain-progress-dots"></div>
+			</div>
+
+			<!-- Live Solving Speedometer Gauge -->
+			<div class="hud-speedometer" id="hud-speedometer" title="Solving Speed (Words Per Minute)">
+				<div class="speedo-dial">
+					<svg class="speedo-svg" viewBox="0 0 100 56">
+						<defs>
+							<linearGradient id="speedoGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+								<stop offset="0%" stop-color="#00e5ff" />
+								<stop offset="45%" stop-color="#ffd700" />
+								<stop offset="85%" stop-color="#ff3b30" />
+								<stop offset="100%" stop-color="#ff007f" />
+							</linearGradient>
+						</defs>
+						<!-- Gauge background track -->
+						<path class="speedo-track" d="M 14 50 A 38 38 0 0 1 86 50" fill="none"
+							stroke="rgba(255,255,255,0.14)" stroke-width="6.5" stroke-linecap="round" />
+						<!-- Gauge active colored fill -->
+						<path class="speedo-fill" id="speedo-fill" d="M 14 50 A 38 38 0 0 1 86 50" fill="none"
+							stroke="url(#speedoGrad)" stroke-width="6.5" stroke-linecap="round" stroke-dasharray="115"
+							stroke-dashoffset="115" />
+						<!-- Speedometer Needle (Anchored at 50,50 pivot) -->
+						<line id="speedo-needle" x1="50" y1="50" x2="50" y2="18" stroke="#ff3b30" stroke-width="2.5"
+							stroke-linecap="round" transform="rotate(-90, 50, 50)" />
+						<!-- Pivot center dot -->
+						<circle cx="50" cy="50" r="3.5" fill="#ffd700" stroke="#120e1c" stroke-width="1.5" />
+					</svg>
+					<div class="speedo-center-readout">
+						<span class="speedo-number" id="speedo-number">0</span>
+						<span class="speedo-unit">WPM</span>
+					</div>
+				</div>
+				<div class="speedo-sub-badge" id="speedo-sub-badge">CRUISE</div>
+
+				<!-- Top-Anchored End-of-Round Speed Highlight -->
+				<div class="hud-win-speed-banner" id="hud-win-speed-banner">
+					<span>⚡ <strong id="win-speed-val">0 WPM</strong></span>
+					<span class="hud-win-record-pill" id="win-record-badge" style="display: none;">🏆 NEW RECORD!</span>
+					<button type="button" class="hud-win-replay-mini" id="btn-win-replay"
+						title="Replay level to increase speed score">🔄 Replay</button>
+				</div>
+			</div>
+
+			<button class="hud-gear-btn" id="btn-settings" title="Settings" aria-label="Settings">
+				<span class="hud-gear-emoji">⚙️</span>
+			</button>
+		</div>
+	</header>
+
+	<!-- Drag & Snap Instruction Hint (hidden by default) -->
+	<div class="hud-hint">Tap letters to auto-place, or drag tiles into the glowing [ACTIVE ROW]</div>
+
+	<!-- Bottom Action Controls -->
+	<footer id="hud-bottom">
+		<button class="gs-action-btn" id="btn-shuffle" title="Shuffle Letters" aria-label="Shuffle">
+			<img src="game/default/images/Pink%20Button-11.png" alt="Shuffle" class="gs-btn-icon-img">
+			<span class="gs-btn-text">SHUFFLE</span>
+		</button>
+		<button class="gs-action-btn primary" id="btn-hint" title="Hint (Costs 1 Key)" aria-label="Hint">
+			<div class="gs-key-circle">
+				<img src="game/default/images/key.png" alt="Hint" class="gs-key-icon-img">
+			</div>
+			<span class="gs-btn-text">HINT</span>
+			<span class="key-count-badge" id="key-count-badge">20</span>
+		</button>
+		<button type="button" class="btn-recharge-keys" id="btn-recharge-keys" title="Watch Ad to get 10 Keys">
+			<span>📺 +10 KEYS</span>
+		</button>
+		<button class="gs-action-btn" id="btn-recall" title="Recall Letters to Tray" aria-label="Recall">
+			<img src="game/default/images/delete.png" alt="Recall" class="gs-btn-icon-img">
+			<span class="gs-btn-text">RECALL</span>
+		</button>
+	</footer>
+
+	<!-- Toast Banner -->
+	<div id="toast-banner">
+		<span id="toast-text">Level 1 Started!</span>
+	</div>
+
+	<!-- Unified Settings & Themes Modal -->
+	<div id="theme-modal" class="game-modal">
+		<div class="theme-card">
+			<div class="theme-header">
+				<h3>SETTINGS</h3>
+				<button class="theme-close" id="btn-theme-close">&times;</button>
+			</div>
+
+			<!-- Audio Options -->
+			<div class="theme-section">
+				<div class="theme-label">AUDIO</div>
+				<div class="settings-row">
+					<button class="setting-toggle-btn" id="btn-sound">
+						<span class="toggle-icon">🔊</span>
+						<span id="sound-label-text">Sound: ON</span>
+					</button>
+					<button class="setting-toggle-btn" id="btn-music">
+						<span class="toggle-icon">🎵</span>
+						<span id="music-label-text">Music: ON</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- Level Jump Options & Speed Records -->
+			<div class="theme-section">
+				<div class="theme-label">LEVEL SELECT & SPEED RECORDS</div>
+				<div class="settings-row level-select-row">
+					<button class="nav-arrow-btn" id="btn-prev-lvl">◀ Prev</button>
+					<div class="level-display-group">
+						<span class="level-display-label">Level <span id="settings-level-num">1</span></span>
+						<span class="level-speed-record" id="settings-level-record">⚡ Best: -- WPM</span>
+					</div>
+					<button class="nav-arrow-btn" id="btn-next-lvl">Next ▶</button>
+				</div>
+			</div>
+
+			<!-- Tile Skins -->
+			<div class="theme-section">
+				<div class="theme-label">LETTER TILE SKIN</div>
+				<div class="skin-selector" id="tile-skin-selector">
+					<button class="skin-opt active" data-skin="classic">
+						<div class="skin-preview skin-classic">A</div>
+						<span>Classic Wood</span>
+					</button>
+					<button class="skin-opt" data-skin="obsidian">
+						<div class="skin-preview skin-obsidian">A</div>
+						<span>Midnight Onyx</span>
+					</button>
+					<button class="skin-opt" data-skin="marble">
+						<div class="skin-preview skin-marble">A</div>
+						<span>Pearl Marble</span>
+					</button>
+					<button class="skin-opt" data-skin="jade">
+						<div class="skin-preview skin-jade">A</div>
+						<span>Imperial Jade</span>
+					</button>
+					<button class="skin-opt" data-skin="sunset">
+						<div class="skin-preview skin-sunset">A</div>
+						<span>Sunset Coral</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- Living Sceneries -->
+			<div class="theme-section">
+				<div class="theme-label">LIVING SCENERY</div>
+				<div class="scenery-selector" id="scenery-selector">
+					<button class="scenery-opt active" data-scenery="rain">
+						<span class="scenery-icon">🌧️</span>
+						<span>Rainy Forest</span>
+					</button>
+					<button class="scenery-opt" data-scenery="sunlit">
+						<span class="scenery-icon">☀️</span>
+						<span>Alpine Lake</span>
+					</button>
+					<button class="scenery-opt" data-scenery="sakura">
+						<span class="scenery-icon">🌸</span>
+						<span>Cherry Blossom</span>
+					</button>
+					<button class="scenery-opt" data-scenery="aurora">
+						<span class="scenery-icon">🌌</span>
+						<span>Northern Lights</span>
+					</button>
+					<button class="scenery-opt" data-scenery="autumn">
+						<span class="scenery-icon">🍂</span>
+						<span>Autumn Woods</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- Return to Title Screen -->
+			<div class="settings-modal-footer">
+				<button class="title-return-btn" id="btn-return-title">
+					🏠 Back to Title Screen
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Legacy floating win-speed-card kept hidden for DOM ID compatibility -->
+	<div id="win-speed-card" class="win-speed-card" style="display: none !important;"></div>
+
+	<!-- 3D Tactile Floating NEXT Arrow Button (Win Celebration) -->
+	<button id="btn-floating-next" class="tactile-next-btn" title="Next Level">
+		<div class="next-btn-inner">
+			<span class="next-arrow-icon">▶</span>
+			<span class="next-label">NEXT</span>
+		</div>
+	</button>
+
+	<!-- Level Complete Modal (kept as fallback) -->
+	<div id="win-modal" style="display: none;">
+		<div class="win-card">
+			<div class="win-stars">⭐⭐⭐</div>
+			<h2>CHAIN COMPLETED!</h2>
+			<p>Brilliant! You completed the full word chain sequence.</p>
+			<button class="win-btn" id="btn-modal-next">NEXT LEVEL ▶</button>
+		</div>
+	</div>
+
+	<!-- Gift Box Reward Unlock Modal -->
+	<div id="gift-box-modal" class="game-modal">
+		<div class="reward-card">
+			<div class="reward-glow-aura"></div>
+			<div class="reward-badge-ribbon">🎁 GIFT UNBOXED!</div>
+			<h2 class="reward-title" id="reward-item-title">New Customization Discovered!</h2>
+
+			<div class="reward-showcase" id="reward-item-showcase"></div>
+
+			<div class="reward-name" id="reward-item-name">Midnight Onyx</div>
+			<p class="reward-desc" id="reward-item-desc">Sleek obsidian stone with polished gold lettering</p>
+
+			<div class="reward-trial-banner">
+				<span class="trial-pill">1-ROUND FREE TRIAL</span>
+				<span>Play with this reward right now!</span>
+			</div>
+
+			<div class="reward-actions">
+				<button class="reward-btn-ad" id="btn-reward-watch-ad">
+					<span class="ad-btn-icon">📺</span>
+					<div class="ad-btn-text">
+						<span class="ad-main">WATCH AD TO LOCK IN</span>
+						<span class="ad-sub">Keep this reward permanently!</span>
+					</div>
+				</button>
+				<button class="reward-btn-trial" id="btn-reward-try">
+					Try for 1 Round (Free)
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Google AdMob Rewarded Video Simulation Overlay -->
+	<div id="admob-reward-modal" class="admob-overlay">
+		<div class="admob-container">
+			<div class="admob-header">
+				<div class="admob-badge">
+					<span class="admob-logo">Ad</span>
+					<span class="admob-brand">Google Test Ad · Rewarded Video</span>
+				</div>
+				<div class="admob-countdown" id="admob-countdown-text">Reward in: 5s</div>
+				<button class="admob-close-btn" id="btn-admob-close" disabled title="Close Ad">&times;</button>
+			</div>
+
+			<div class="admob-video-stage">
+				<div class="admob-video-canvas">
+					<div class="admob-sponsor-icon">🎁</div>
+					<h3 class="admob-game-title">SCRUFFLE 3D CHAIN</h3>
+					<p class="admob-game-tagline">Link the chains, reveal the words!</p>
+					<div class="admob-stars-burst">✨ ⭐ ✨</div>
+					<div class="admob-progress-bar-container">
+						<div class="admob-progress-bar-fill" id="admob-progress-bar"></div>
+					</div>
+					<div class="admob-reward-grant-notice" id="admob-grant-notice">Reward Verified by Test Server!</div>
+				</div>
+			</div>
+
+			<div class="admob-footer">
+				<div class="admob-unit-info">
+					<span>Unit: ca-app-pub-3940256099942544/5224354917</span>
+					<span class="admob-status-tag" id="admob-server-status">Connecting to Google Test Server...</span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- 1-Round Trial Expiration Modal -->
+	<div id="trial-ended-modal" class="game-modal">
+		<div class="reward-card trial-ended-card">
+			<div class="reward-badge-ribbon trial-ribbon">⏳ TRIAL FINISHED</div>
+			<h2 class="reward-title">1-Round Trial Complete!</h2>
+
+			<div class="reward-showcase mini" id="trial-ended-showcase"></div>
+
+			<div class="reward-name" id="trial-ended-name">Midnight Onyx</div>
+			<p class="reward-desc">Did you enjoy this custom look? Watch a quick reward ad to keep it permanently, or
+				return to your default collection.</p>
+
+			<div class="reward-actions">
+				<button class="reward-btn-ad" id="btn-trial-ended-ad">
+					<span class="ad-btn-icon">📺</span>
+					<div class="ad-btn-text">
+						<span class="ad-main">WATCH AD TO KEEP FOREVER</span>
+						<span class="ad-sub">Lock in this customization permanently!</span>
+					</div>
+				</button>
+				<button class="reward-btn-trial" id="btn-trial-ended-dismiss">
+					Return to Default
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Scripts -->
+	<script src="js/three.min.js"></script>
+	<script src="js/levels.js"></script>
+	<script src="js/wordscapes-scenery.js"></script>
+	<script src="js/word-chain-3d.js"></script>
+
+	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
+	<script>
+		(function () {
+			// --- 1. KEYS LIMIT (Start with 20, Watch Ad for +10) ---
+			const KEYS_STORAGE_KEY = 'scruffle_hint_keys_v1';
+			let storedKeys = localStorage.getItem(KEYS_STORAGE_KEY);
+			let keyCount = storedKeys !== null ? parseInt(storedKeys, 10) : 20;
+			if (isNaN(keyCount)) keyCount = 20;
+			localStorage.setItem(KEYS_STORAGE_KEY, String(keyCount));
+
+			const badgeEl = document.getElementById('key-count-badge');
+			const rechargeBtn = document.getElementById('btn-recharge-keys');
+			const hintBtn = document.getElementById('btn-hint');
+
+			function syncKeyUI() {
+				if (badgeEl) {
+					badgeEl.textContent = String(keyCount);
+					badgeEl.classList.toggle('empty', keyCount <= 0);
+				}
+				if (rechargeBtn) {
+					rechargeBtn.classList.toggle('visible', keyCount <= 0);
+				}
+			}
+			syncKeyUI();
+
+			function playKeyRewardAd() {
+				const adModal = document.getElementById('admob-reward-modal');
+				const countdownEl = document.getElementById('admob-countdown-text');
+				const closeBtn = document.getElementById('btn-admob-close');
+				const progressBar = document.getElementById('admob-progress-bar');
+				const grantNotice = document.getElementById('admob-grant-notice');
+				if (!adModal) return;
+
+				adModal.classList.add('active');
+				adModal.style.display = 'flex';
+				if (closeBtn) closeBtn.disabled = true;
+				if (grantNotice) grantNotice.style.opacity = '0';
+				if (progressBar) progressBar.style.width = '0%';
+
+				let remaining = 5;
+				if (countdownEl) countdownEl.textContent = 'Reward in: ' + remaining + 's';
+
+				const interval = setInterval(() => {
+					remaining--;
+					if (progressBar) progressBar.style.width = (((5 - remaining) / 5) * 100) + '%';
+					if (remaining > 0) {
+						if (countdownEl) countdownEl.textContent = 'Reward in: ' + remaining + 's';
+					} else {
+						clearInterval(interval);
+						if (countdownEl) countdownEl.textContent = '+10 Keys Granted!';
+						if (grantNotice) grantNotice.style.opacity = '1';
+						if (closeBtn) {
+							closeBtn.disabled = false;
+							closeBtn.onclick = function () {
+								adModal.classList.remove('active');
+								adModal.style.display = 'none';
+							};
+						}
+						keyCount += 10;
+						localStorage.setItem(KEYS_STORAGE_KEY, String(keyCount));
+						syncKeyUI();
+						const toast = document.getElementById('toast-text');
+						const toastBanner = document.getElementById('toast-banner');
+						if (toast && toastBanner) {
+							toast.textContent = '🔑 +10 Hint Keys Recharged!';
+							toastBanner.classList.add('show');
+							setTimeout(() => toastBanner.classList.remove('show'), 2200);
+						}
+					}
+				}, 1000);
+			}
+
+			if (rechargeBtn) {
+				rechargeBtn.addEventListener('click', function (e) {
+					e.stopPropagation();
+					playKeyRewardAd();
+				});
+			}
+
+			if (hintBtn) {
+				hintBtn.addEventListener('click', function (e) {
+					if (keyCount <= 0) {
+						e.stopImmediatePropagation();
+						e.preventDefault();
+						playKeyRewardAd();
+						return false;
+					}
+					keyCount = Math.max(0, keyCount - 1);
+					localStorage.setItem(KEYS_STORAGE_KEY, String(keyCount));
+					syncKeyUI();
+				}, true); // capture phase so 0 keys blocks hint & triggers ad recharge
+			}
+
+			// --- 2. SPEEDOMETER NEEDLE PIVOT LOCK ---
+			const needle = document.getElementById('speedo-needle');
+			const speedoNum = document.getElementById('speedo-number');
+			function updateNeedlePivot() {
+				if (!needle || !speedoNum) return;
+				const wpm = parseFloat(speedoNum.textContent) || 0;
+				const clampedRatio = Math.min(1, Math.max(0, wpm / 60));
+				const deg = -90 + (clampedRatio * 180);
+				needle.style.transform = 'none';
+				needle.setAttribute('transform', 'rotate(' + deg.toFixed(1) + ', 50, 50)');
+			}
+			if (speedoNum) {
+				const obs = new MutationObserver(updateNeedlePivot);
+				obs.observe(speedoNum, { childList: true, characterData: true, subtree: true });
+				updateNeedlePivot();
+			}
+
+			// --- 3. TOP SPEEDOMETER HIGHLIGHT AT ROUND END ---
+			const hudSpeedo = document.getElementById('hud-speedometer');
+			const floatingNext = document.getElementById('btn-floating-next');
+			if (floatingNext && hudSpeedo) {
+				const winObs = new MutationObserver(() => {
+					const isWinVisible = floatingNext.classList.contains('visible') ||
+						floatingNext.classList.contains('show') ||
+						window.getComputedStyle(floatingNext).opacity === '1' && window.getComputedStyle(floatingNext).pointerEvents !== 'none';
+					hudSpeedo.classList.toggle('win-highlight', isWinVisible);
+				});
+				winObs.observe(floatingNext, { attributes: true, attributeFilter: ['class', 'style'] });
+			}
+
+			// --- 4. HOMEPAGE LEVEL SELECT SYNC ---
+			const homePrev = document.getElementById('btn-home-prev-lvl');
+			const homeNext = document.getElementById('btn-home-next-lvl');
+			const homeLvlNum = document.getElementById('home-level-num');
+			const homeLvlRec = document.getElementById('home-level-record');
+			const settingsPrev = document.getElementById('btn-prev-lvl');
+			const settingsNext = document.getElementById('btn-next-lvl');
+			const settingsLvlNum = document.getElementById('settings-level-num');
+			const settingsLvlRec = document.getElementById('settings-level-record');
+
+			function syncHomeLevelDisplay() {
+				if (settingsLvlNum && homeLvlNum) homeLvlNum.textContent = settingsLvlNum.textContent;
+				if (settingsLvlRec && homeLvlRec) homeLvlRec.textContent = settingsLvlRec.textContent;
+			}
+			if (homePrev && settingsPrev) {
+				homePrev.addEventListener('click', () => {
+					settingsPrev.click();
+					syncHomeLevelDisplay();
+				});
+			}
+			if (homeNext && settingsNext) {
+				homeNext.addEventListener('click', () => {
+					settingsNext.click();
+					syncHomeLevelDisplay();
+				});
+			}
+			if (settingsLvlNum) {
+				new MutationObserver(syncHomeLevelDisplay).observe(settingsLvlNum, { childList: true, subtree: true });
+				syncHomeLevelDisplay();
+			}
+
+			// --- 5. TRAY SHUFFLE POSITION PRESERVATION FIX ---
+			const shuffleBtn = document.getElementById('btn-shuffle');
+			if (shuffleBtn) {
+				shuffleBtn.addEventListener('click', function (e) {
+					// If global tray tiles array exists, permute their canonical slot positions cleanly
+					const tiles = window.trayTiles || (window.game && window.game.trayTiles) || (window.state && window.state.trayTiles);
+					if (Array.isArray(tiles) && tiles.length > 1) {
+						e.stopImmediatePropagation();
+						const unplaced = tiles.filter(t => !t.isPlaced && !t.placed && !t.locked);
+						if (unplaced.length <= 1) return;
+
+						// Snapshot canonical tray slot positions before shuffling
+						const slots = unplaced.map(t => {
+							const src = t.trayPosition || t.homePosition || t.basePosition || t.targetPosition || (t.mesh ? t.mesh.position : t.position);
+							return {
+								x: src.x,
+								y: src.y,
+								z: src.z,
+								slotIndex: t.trayIndex !== undefined ? t.trayIndex : t.slotIndex
+							};
+						});
+
+						// Fisher-Yates shuffle on the snapshot slots
+						for (let i = slots.length - 1; i > 0; i--) {
+							const j = Math.floor(Math.random() * (i + 1));
+							const tmp = slots[i];
+							slots[i] = slots[j];
+							slots[j] = tmp;
+						}
+
+						// Assign each tile its new canonical slot without drifting
+						unplaced.forEach((t, idx) => {
+							const s = slots[idx];
+							if (t.trayPosition) { t.trayPosition.x = s.x; t.trayPosition.y = s.y; t.trayPosition.z = s.z; }
+							if (t.homePosition) { t.homePosition.x = s.x; t.homePosition.y = s.y; t.homePosition.z = s.z; }
+							if (t.basePosition) { t.basePosition.x = s.x; t.basePosition.y = s.y; t.basePosition.z = s.z; }
+							if (t.targetPosition) { t.targetPosition.x = s.x; t.targetPosition.y = s.y; t.targetPosition.z = s.z; }
+							if (t.trayIndex !== undefined) t.trayIndex = s.slotIndex;
+							if (t.slotIndex !== undefined) t.slotIndex = s.slotIndex;
+							const pos = t.mesh ? t.mesh.position : t.position;
+							if (pos) { pos.set(s.x, s.y, s.z); }
+						});
+					}
+				}, true);
+			}
+		})();
+	</script>
+</body>
+
+</html>

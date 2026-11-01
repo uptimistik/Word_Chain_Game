@@ -1,0 +1,1749 @@
+/* Word Chain 3D - Modern Clean HUD & Controls */
+* {
+	box-sizing: border-box;
+	user-select: none;
+	-webkit-user-select: none;
+	-webkit-touch-callout: none;
+}
+
+html, body {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	background: #141f26;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	color: #ffffff;
+}
+
+#canvas-container {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 1;
+	touch-action: none;
+}
+
+/* ==============================================================================
+   Title Screen: SCRUFFLE 3D CHAIN
+   ============================================================================== */
+#title-screen {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 100;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	transition: opacity 0.5s ease, visibility 0.5s ease;
+	background: radial-gradient(circle at center, rgba(16, 22, 28, 0.45) 0%, rgba(10, 14, 18, 0.88) 100%);
+	backdrop-filter: blur(4px);
+	-webkit-backdrop-filter: blur(4px);
+}
+
+#title-screen.hide {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.title-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	padding: 24px;
+	max-width: 420px;
+	width: 90%;
+	animation: titlePop 0.6s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes titlePop {
+	0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+	100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.title-ribbon {
+	background: linear-gradient(135deg, #f59e0b, #b45309);
+	color: #ffffff;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 2px;
+	padding: 4px 14px;
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+	margin-bottom: 12px;
+}
+
+.title-heading {
+	font-size: 42px;
+	font-weight: 900;
+	line-height: 1.05;
+	letter-spacing: 2px;
+	color: #fff9e6;
+	text-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.9);
+	margin: 0;
+	text-transform: uppercase;
+}
+
+.title-sub {
+	color: #fbbf24;
+	text-shadow: 0 0 16px rgba(251, 191, 36, 0.6), 0 4px 12px rgba(0, 0, 0, 0.8);
+	display: inline-block;
+	letter-spacing: 3px;
+}
+
+.title-tagline {
+	font-size: 14px;
+	color: #e2d3be;
+	margin: 8px 0 16px 0;
+	font-style: italic;
+	text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+/* ==============================================================================
+   Title Screen Speed Ranking Card
+   ============================================================================== */
+.title-speed-rank-card {
+	background: rgba(18, 14, 28, 0.88);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	border: 1.5px solid rgba(255, 215, 0, 0.45);
+	border-radius: 20px;
+	padding: 12px 18px;
+	margin: 0 0 20px 0;
+	width: 90%;
+	max-width: 330px;
+	box-shadow: 0 10px 32px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 20px rgba(255, 215, 0, 0.2);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	transition: all 0.3s ease;
+}
+
+.speed-rank-top-bar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.speed-rank-lightning {
+	font-size: 15px;
+	animation: flickerLightning 1.8s infinite ease-in-out;
+}
+
+@keyframes flickerLightning {
+	0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px #ffd700); }
+	50% { transform: scale(1.2) rotate(6deg); filter: drop-shadow(0 0 10px #ff3b30); }
+}
+
+.speed-rank-title {
+	font-size: 10.5px;
+	font-weight: 800;
+	letter-spacing: 1.8px;
+	color: #ffd700;
+	text-transform: uppercase;
+}
+
+.speed-rank-badge {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: rgba(255, 255, 255, 0.06);
+	padding: 5px 14px;
+	border-radius: 24px;
+	border: 1px solid rgba(255, 215, 0, 0.35);
+}
+
+.speed-rank-tier {
+	font-size: 13px;
+	font-weight: 900;
+	letter-spacing: 1px;
+	padding: 3px 9px;
+	border-radius: 12px;
+	background: linear-gradient(135deg, #ffd700, #ff8c00);
+	color: #120e1c;
+	box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+}
+
+.speed-rank-name {
+	font-size: 12.5px;
+	font-weight: 800;
+	letter-spacing: 1.2px;
+	color: #fff9e6;
+	text-transform: uppercase;
+	text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.speed-rank-stats {
+	display: flex;
+	align-items: center;
+	justify-content: space-around;
+	width: 100%;
+	padding: 8px 4px 2px 4px;
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.speed-stat-box {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+}
+
+.speed-stat-val {
+	font-size: 15px;
+	font-weight: 800;
+	color: #00e5ff;
+	font-variant-numeric: tabular-nums;
+	text-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+}
+
+.speed-stat-lbl {
+	font-size: 8.5px;
+	font-weight: 700;
+	letter-spacing: 0.8px;
+	color: #a098aa;
+	text-transform: uppercase;
+}
+
+.speed-stat-sep {
+	width: 1px;
+	height: 22px;
+	background: rgba(255, 255, 255, 0.12);
+}
+
+.speed-rank-tagline {
+	font-size: 10px;
+	color: #e2d3be;
+	font-style: italic;
+	opacity: 0.85;
+	text-align: center;
+}
+
+.title-buttons {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.title-btn-play {
+	background: linear-gradient(135deg, #ef4444, #b91c1c);
+	border: 2px solid #fecaca;
+	color: #ffffff;
+	font-size: 20px;
+	font-weight: 800;
+	letter-spacing: 1.5px;
+	padding: 12px 36px;
+	border-radius: 32px;
+	cursor: pointer;
+	box-shadow: 0 6px 24px rgba(239, 68, 68, 0.6), 0 2px 6px rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	transition: all 0.2s ease;
+	animation: pulsePlay 2s infinite ease-in-out;
+}
+
+@keyframes pulsePlay {
+	0%, 100% { transform: scale(1); box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5); }
+	50% { transform: scale(1.04); box-shadow: 0 10px 28px rgba(239, 68, 68, 0.8); }
+}
+
+.title-btn-play:hover {
+	transform: scale(1.06);
+	background: linear-gradient(135deg, #f87171, #dc2626);
+}
+
+.play-icon-img {
+	width: 28px;
+	height: 28px;
+	object-fit: contain;
+}
+
+.title-btn-gear {
+	width: 52px;
+	height: 52px;
+	border-radius: 50%;
+	background: rgba(30, 24, 20, 0.85);
+	border: 2px solid rgba(251, 191, 36, 0.5);
+	color: #fbbf24;
+	font-size: 24px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+	transition: all 0.2s ease;
+}
+
+.title-btn-gear:hover {
+	transform: rotate(45deg) scale(1.08);
+	border-color: #fbbf24;
+	background: rgba(50, 40, 30, 0.95);
+}
+
+/* ==============================================================================
+   In-Game Minimal Header (Screenshot Alignment)
+   ============================================================================== */
+#hud-header {
+	position: absolute;
+	top: 14px;
+	top: max(14px, env(safe-area-inset-top));
+	left: 0;
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	padding: 0 16px;
+	padding-left: max(16px, env(safe-area-inset-left));
+	padding-right: max(16px, env(safe-area-inset-right));
+	z-index: 10;
+	pointer-events: none;
+}
+
+.hud-top-bar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+	max-width: 500px;
+}
+
+.hud-left-pill {
+	pointer-events: auto;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	background: rgba(20, 16, 26, 0.78);
+	padding: 6px 14px 6px 10px;
+	border-radius: 20px;
+	border: 1px solid rgba(251, 191, 36, 0.35);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.hud-level-badge {
+	background: linear-gradient(135deg, #f59e0b, #b45309);
+	color: #ffffff;
+	font-size: 13px;
+	font-weight: 800;
+	padding: 3px 10px;
+	border-radius: 12px;
+	letter-spacing: 0.5px;
+	box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+/* Progress Dots inline */
+.chain-progress {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.chain-dot {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.22);
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	transition: all 0.3s ease;
+}
+
+.chain-dot.completed {
+	background: #22c55e;
+	border-color: #4ade80;
+	box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+}
+
+.chain-dot.active {
+	background: #fbbf24;
+	border-color: #f59e0b;
+	box-shadow: 0 0 10px rgba(251, 191, 36, 0.9);
+	transform: scale(1.25);
+}
+
+/* Settings Gear Button */
+.hud-gear-btn {
+	pointer-events: auto;
+	width: 42px;
+	height: 42px;
+	border-radius: 50%;
+	background: rgba(20, 16, 26, 0.78);
+	border: 1px solid rgba(251, 191, 36, 0.45);
+	padding: 0;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
+}
+
+.hud-gear-btn:hover {
+	transform: rotate(45deg) scale(1.08);
+	background: rgba(35, 28, 45, 0.9);
+	border-color: #fbbf24;
+}
+
+.hud-gear-btn:active {
+	transform: scale(0.92);
+}
+
+.hud-gear-emoji {
+	font-size: 20px;
+	line-height: 1;
+	display: block;
+	filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* ==============================================================================
+   In-Game HUD Speedometer Dial
+   ============================================================================== */
+.hud-speedometer {
+	pointer-events: auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: rgba(18, 14, 28, 0.85);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	border: 1.5px solid rgba(255, 215, 0, 0.38);
+	border-radius: 16px;
+	padding: 3px 8px 4px 8px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+	transition: transform 0.2s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+	position: relative;
+	cursor: default;
+	user-select: none;
+}
+
+.hud-speedometer.speedo-pulse {
+	transform: scale(1.08);
+	border-color: #ffd700;
+	box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), inset 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+.hud-speedometer.speedo-hyper {
+	border-color: #ff007f;
+	box-shadow: 0 0 24px rgba(255, 0, 127, 0.8), inset 0 0 12px rgba(255, 0, 127, 0.4);
+	animation: hyperPulse 1s infinite alternate;
+}
+
+@keyframes hyperPulse {
+	from { box-shadow: 0 0 16px rgba(255, 0, 127, 0.6); }
+	to { box-shadow: 0 0 28px rgba(255, 215, 0, 0.9); }
+}
+
+.speedo-dial {
+	position: relative;
+	width: 82px;
+	height: 44px;
+	display: flex;
+	justify-content: center;
+}
+
+.speedo-svg {
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+.speedo-fill {
+	transition: stroke-dashoffset 0.1s linear;
+}
+
+#speedo-needle {
+	transform-origin: 50px 50px;
+	transition: transform 0.08s cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+
+.speedo-center-readout {
+	position: absolute;
+	bottom: 0px;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: baseline;
+	gap: 2px;
+	pointer-events: none;
+}
+
+.speedo-number {
+	font-size: 15px;
+	font-weight: 900;
+	color: #fff9e6;
+	font-variant-numeric: tabular-nums;
+	text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.speedo-unit {
+	font-size: 8px;
+	font-weight: 800;
+	color: #ffd700;
+	letter-spacing: 0.5px;
+}
+
+.speedo-sub-badge {
+	font-size: 8px;
+	font-weight: 800;
+	letter-spacing: 1px;
+	color: #00e5ff;
+	text-transform: uppercase;
+	margin-top: -2px;
+	text-shadow: 0 0 4px rgba(0, 229, 255, 0.5);
+}
+
+/* Level Select Speed Record in Settings */
+.level-display-group {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+}
+
+.level-speed-record {
+	font-size: 11px;
+	font-weight: 800;
+	color: #ffd700;
+	letter-spacing: 0.5px;
+	text-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+}
+
+/* ==============================================================================
+   Win Celebration Speed Badge Card & Replay Button
+   ============================================================================== */
+.win-speed-card {
+	position: absolute;
+	bottom: 24px;
+	bottom: max(24px, env(safe-area-inset-bottom));
+	left: 50%;
+	transform: translateX(-50%) translateY(40px) scale(0.9);
+	opacity: 0;
+	pointer-events: none;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	background: rgba(18, 14, 28, 0.92);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	border: 1.5px solid rgba(255, 215, 0, 0.5);
+	border-radius: 20px;
+	padding: 10px 18px;
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 215, 0, 0.35);
+	z-index: 60;
+	transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.win-speed-card.show {
+	opacity: 1;
+	pointer-events: auto;
+	transform: translateX(-50%) translateY(0) scale(1);
+}
+
+.win-speed-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.win-speed-bolt {
+	font-size: 18px;
+	animation: flickerLightning 1.5s infinite ease-in-out;
+}
+
+.win-speed-text {
+	font-size: 14px;
+	font-weight: 700;
+	color: #fff9e6;
+	letter-spacing: 0.5px;
+}
+
+.win-speed-text strong {
+	color: #00e5ff;
+	font-weight: 900;
+	font-size: 16px;
+	text-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
+}
+
+.win-record-badge {
+	background: linear-gradient(135deg, #ffd700, #ff8c00);
+	color: #120e1c;
+	font-size: 10px;
+	font-weight: 900;
+	letter-spacing: 0.8px;
+	padding: 3px 8px;
+	border-radius: 10px;
+	box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+	animation: pulsePlay 1.5s infinite;
+}
+
+.win-replay-btn {
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 215, 0, 0.35);
+	color: #fef08a;
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 0.8px;
+	padding: 6px 16px;
+	border-radius: 16px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.win-replay-btn:hover {
+	background: rgba(255, 215, 0, 0.2);
+	border-color: #ffd700;
+	transform: scale(1.05);
+}
+
+.win-replay-btn:active {
+	transform: scale(0.95);
+}
+
+.hud-gear-emoji {
+	font-size: 22px;
+	line-height: 1;
+	filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.hud-gear-btn:hover {
+	transform: rotate(45deg) scale(1.08);
+	background: rgba(35, 28, 48, 0.9);
+}
+
+.hud-gear-btn:active {
+	transform: scale(0.92) rotate(30deg);
+}
+
+/* ==============================================================================
+   Natural GameSalad Bottom Action Controls
+   ============================================================================== */
+#hud-bottom {
+	position: absolute;
+	bottom: 14px;
+	bottom: max(14px, env(safe-area-inset-bottom));
+	left: 50%;
+	transform: translateX(-50%);
+	width: 100%;
+	max-width: 440px;
+	display: flex;
+	justify-content: center;
+	align-items: flex-end;
+	gap: 26px;
+	padding: 0 16px;
+	padding-left: max(16px, env(safe-area-inset-left));
+	padding-right: max(16px, env(safe-area-inset-right));
+	z-index: 10;
+	pointer-events: none;
+}
+
+.gs-action-btn {
+	pointer-events: auto;
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 5px;
+	outline: none;
+	-webkit-tap-highlight-color: transparent;
+	transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease;
+}
+
+.gs-btn-icon-img {
+	width: 54px;
+	height: 54px;
+	object-fit: contain;
+	filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55));
+	transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.gs-action-btn:hover .gs-btn-icon-img,
+.gs-action-btn:hover .gs-key-circle {
+	transform: scale(1.08) translateY(-2px);
+	filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.7));
+}
+
+.gs-action-btn:active {
+	transform: scale(0.92) translateY(2px);
+}
+
+.gs-btn-text {
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.8px;
+	color: #fff9e6;
+	text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.5);
+	user-select: none;
+}
+
+/* Key Hint Button Circle */
+.gs-key-circle {
+	width: 54px;
+	height: 54px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #f59e0b, #b45309);
+	border: 2px solid #fef08a;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 16px rgba(245, 158, 11, 0.55);
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gs-action-btn.primary .gs-btn-text {
+	color: #fbbf24;
+	text-shadow: 0 0 8px rgba(251, 191, 36, 0.6), 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+.gs-key-icon-img {
+	width: 32px;
+	height: 32px;
+	object-fit: contain;
+	filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.action-btn {
+	pointer-events: auto;
+	background: linear-gradient(135deg, #443422, #2c2014);
+	border: 1.5px solid #bd8a43;
+	color: #f7eedb;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0.4px;
+	padding: 10px 20px;
+	border-radius: 24px;
+	cursor: pointer;
+	box-shadow: 0 4px 14px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.18);
+	transition: all 0.2s ease;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.action-btn:hover {
+	background: linear-gradient(135deg, #5b462f, #3a2b1b);
+	border-color: #f7ca72;
+	color: #ffffff;
+	transform: translateY(-2px);
+	box-shadow: 0 6px 18px rgba(0,0,0,0.7), 0 0 12px rgba(247, 202, 114, 0.4);
+}
+
+.action-btn:active {
+	transform: translateY(1px);
+	box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.action-btn.primary {
+	background: linear-gradient(135deg, #d97706, #92400e);
+	border: 1.5px solid #fef08a;
+	color: #ffffff;
+	box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 14px rgba(245, 158, 11, 0.6);
+}
+
+.action-btn.primary:hover {
+	background: linear-gradient(135deg, #f59e0b, #b45309);
+	border-color: #ffffff;
+	box-shadow: 0 6px 20px rgba(0,0,0,0.7), 0 0 20px rgba(245, 158, 11, 0.9);
+}
+
+.btn-key-icon {
+	width: 22px;
+	height: 22px;
+	object-fit: contain;
+	filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.btn-icon {
+	font-size: 16px;
+}
+
+/* ==============================================================================
+   Unified Settings Modal
+   ============================================================================== */
+.settings-row {
+	display: flex;
+	gap: 12px;
+	width: 100%;
+}
+
+.setting-toggle-btn {
+	flex: 1;
+	background: rgba(40, 32, 24, 0.85);
+	border: 1px solid rgba(251, 191, 36, 0.4);
+	color: #f5eedc;
+	font-size: 13px;
+	font-weight: 700;
+	padding: 10px 14px;
+	border-radius: 12px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	transition: all 0.2s ease;
+}
+
+.setting-toggle-btn:hover {
+	background: rgba(60, 48, 36, 0.95);
+	border-color: #fbbf24;
+}
+
+.level-select-row {
+	align-items: center;
+	justify-content: space-between;
+}
+
+.nav-arrow-btn {
+	background: rgba(50, 40, 30, 0.85);
+	border: 1px solid rgba(251, 191, 36, 0.4);
+	color: #f7eedb;
+	font-size: 13px;
+	font-weight: 700;
+	padding: 8px 16px;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.nav-arrow-btn:hover {
+	background: rgba(70, 56, 42, 0.95);
+	border-color: #fbbf24;
+}
+
+.level-display-label {
+	font-size: 15px;
+	font-weight: 800;
+	color: #fbbf24;
+}
+
+.settings-modal-footer {
+	margin-top: 18px;
+	display: flex;
+	justify-content: center;
+}
+
+.title-return-btn {
+	background: linear-gradient(135deg, #475569, #1e293b);
+	border: 1px solid #94a3b8;
+	color: #f8fafc;
+	font-size: 13px;
+	font-weight: 700;
+	padding: 10px 20px;
+	border-radius: 18px;
+	cursor: pointer;
+	box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+	transition: all 0.2s ease;
+}
+
+.title-return-btn:hover {
+	background: linear-gradient(135deg, #64748b, #334155);
+	transform: translateY(-1px);
+}
+}
+
+/* Banner / Toast message - Positioned in the upper gap, completely clear of the bottom waiting tray */
+#toast-banner {
+	position: absolute;
+	top: max(58px, calc(env(safe-area-inset-top) + 48px));
+	left: 50%;
+	transform: translateX(-50%) translateY(-14px);
+	background: rgba(26, 17, 10, 0.95);
+	border: 1.5px solid #eab308;
+	color: #fef08a;
+	padding: 8px 20px;
+	border-radius: 20px;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0.4px;
+	box-shadow: 0 8px 24px rgba(0,0,0,0.8), 0 0 16px rgba(234, 179, 8, 0.4);
+	opacity: 0;
+	pointer-events: none;
+	transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+	z-index: 100;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+}
+
+#toast-banner.show {
+	opacity: 1;
+	transform: translateX(-50%) translateY(0);
+}
+
+/* ==============================================================================
+   3D Tactile Floating NEXT Arrow Button (Right Side Win Celebration)
+   ============================================================================== */
+.tactile-next-btn {
+	position: absolute;
+	right: 18px;
+	right: max(18px, env(safe-area-inset-right));
+	top: 50%;
+	transform: translateY(-50%) scale(0);
+	opacity: 0;
+	pointer-events: none;
+	width: 68px;
+	height: 86px;
+	border-radius: 34px;
+	border: 2px solid #fffbeb;
+	background: linear-gradient(180deg, #fef08a 0%, #f59e0b 50%, #d97706 100%);
+	box-shadow: 
+		0 6px 0 #92400e,
+		0 12px 24px rgba(0, 0, 0, 0.45),
+		0 0 25px rgba(251, 191, 36, 0.65);
+	cursor: pointer;
+	z-index: 50;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, box-shadow 0.15s ease;
+	-webkit-tap-highlight-color: transparent;
+	outline: none;
+}
+
+.tactile-next-btn.show {
+	opacity: 1;
+	pointer-events: auto;
+	transform: translateY(-50%) scale(1);
+	animation: nextBtnPulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes nextBtnPulse {
+	0% {
+		transform: translateY(-50%) scale(1);
+		box-shadow: 0 6px 0 #92400e, 0 12px 24px rgba(0, 0, 0, 0.45), 0 0 20px rgba(251, 191, 36, 0.5);
+	}
+	100% {
+		transform: translateY(-50%) scale(1.08);
+		box-shadow: 0 6px 0 #92400e, 0 16px 30px rgba(0, 0, 0, 0.5), 0 0 35px rgba(251, 191, 36, 0.85);
+	}
+}
+
+.tactile-next-btn:active {
+	transform: translateY(calc(-50% + 4px)) scale(0.94) !important;
+	box-shadow: 0 2px 0 #92400e, 0 6px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(251, 191, 36, 0.4) !important;
+	animation: none;
+}
+
+.next-btn-inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	pointer-events: none;
+}
+
+.next-arrow-icon {
+	font-size: 28px;
+	line-height: 1;
+	color: #ffffff;
+	text-shadow: 0 2px 4px rgba(146, 64, 14, 0.8), 0 0 8px rgba(255, 255, 255, 0.6);
+	transform: translateX(2px);
+}
+
+.next-label {
+	font-size: 11px;
+	font-weight: 900;
+	letter-spacing: 1.2px;
+	color: #451a03;
+	text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+
+/* Level Win Modal */
+#win-modal {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(10, 8, 14, 0.85);
+	backdrop-filter: blur(8px);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 100;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.4s ease;
+}
+
+#win-modal.show {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.win-card {
+	background: linear-gradient(180deg, #241d33, #151120);
+	border: 2px solid #eab308;
+	border-radius: 20px;
+	padding: 36px 48px;
+	text-align: center;
+	box-shadow: 0 16px 48px rgba(0,0,0,0.8), 0 0 32px rgba(234, 179, 8, 0.3);
+	transform: scale(0.9);
+	transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+	max-width: 440px;
+	width: 90%;
+}
+
+#win-modal.show .win-card {
+	transform: scale(1.0);
+}
+
+.win-card h2 {
+	margin: 0;
+	font-size: 32px;
+	color: #fef08a;
+	text-shadow: 0 2px 10px rgba(234, 179, 8, 0.6);
+}
+
+.win-card p {
+	color: #cbd5e1;
+	font-size: 16px;
+	margin: 12px 0 24px 0;
+}
+
+.win-stars {
+	font-size: 38px;
+	margin-bottom: 20px;
+	filter: drop-shadow(0 4px 8px rgba(234, 179, 8, 0.5));
+}
+
+.win-btn {
+	background: linear-gradient(135deg, #eab308, #ca8a04);
+	color: #1a1500;
+	font-size: 16px;
+	font-weight: 800;
+	padding: 12px 32px;
+	border-radius: 24px;
+	border: none;
+	cursor: pointer;
+	box-shadow: 0 6px 18px rgba(234, 179, 8, 0.4);
+	transition: all 0.2s ease;
+}
+
+.win-btn:hover {
+	transform: scale(1.05);
+	box-shadow: 0 8px 24px rgba(234, 179, 8, 0.6);
+}
+
+/* Theme & Skins Customization Modal */
+#theme-modal,
+.game-modal {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(10, 8, 14, 0.85);
+	backdrop-filter: blur(10px);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 120;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.35s ease;
+}
+
+#theme-modal.show,
+.game-modal.show {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.theme-card {
+	background: linear-gradient(180deg, #241d33, #151120);
+	border: 1.5px solid rgba(234, 179, 8, 0.7);
+	border-radius: 20px;
+	padding: 24px;
+	max-width: 460px;
+	width: 90%;
+	max-height: 85vh;
+	overflow-y: auto;
+	box-shadow: 0 16px 48px rgba(0,0,0,0.8), 0 0 32px rgba(234, 179, 8, 0.2);
+	transform: scale(0.92);
+	transition: transform 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+#theme-modal.show .theme-card {
+	transform: scale(1.0);
+}
+
+.theme-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 18px;
+	border-bottom: 1px solid rgba(255,255,255,0.1);
+	padding-bottom: 10px;
+}
+
+.theme-header h3 {
+	margin: 0;
+	font-size: 18px;
+	color: #fef08a;
+	letter-spacing: 0.8px;
+}
+
+.theme-close {
+	background: transparent;
+	border: none;
+	color: #94a3b8;
+	font-size: 26px;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0 4px;
+	transition: color 0.2s;
+}
+
+.theme-close:hover {
+	color: #ffffff;
+}
+
+.theme-section {
+	margin-bottom: 20px;
+}
+
+.theme-label {
+	font-size: 12px;
+	font-weight: 700;
+	color: #d49a37;
+	letter-spacing: 1px;
+	margin-bottom: 10px;
+}
+
+.skin-selector, .scenery-selector {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+	gap: 8px;
+}
+
+.skin-opt, .scenery-opt {
+	background: rgba(30, 24, 40, 0.7);
+	border: 1.5px solid rgba(255, 255, 255, 0.12);
+	border-radius: 12px;
+	padding: 10px 6px;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	color: #cbd5e1;
+	font-size: 11px;
+	font-weight: 600;
+	transition: all 0.2s ease;
+}
+
+.skin-opt:hover, .scenery-opt:hover {
+	background: rgba(50, 40, 65, 0.9);
+	border-color: rgba(234, 179, 8, 0.6);
+	transform: translateY(-2px);
+}
+
+.skin-opt.active, .scenery-opt.active {
+	border-color: #eab308;
+	background: rgba(70, 50, 20, 0.5);
+	box-shadow: 0 0 14px rgba(234, 179, 8, 0.4);
+	color: #fef08a;
+}
+
+.skin-preview {
+	width: 32px;
+	height: 32px;
+	border-radius: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 800;
+	font-size: 15px;
+	box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+.skin-classic { background: #fdfbf7; color: #361d0a; border: 1.5px solid #be8432; }
+.skin-obsidian { background: #1a181e; color: #fbbf24; border: 1.5px solid #d97706; }
+.skin-marble { background: #f3f4f6; color: #1e293b; border: 1.5px solid #94a3b8; }
+.skin-jade { background: #ecfdf5; color: #064e3b; border: 1.5px solid #10b981; }
+.skin-sunset { background: #fff1f2; color: #9f1239; border: 1.5px solid #fb7185; }
+
+.scenery-icon {
+	font-size: 22px;
+	line-height: 1;
+}
+
+/* Instructions tooltip / hint (hidden to prevent any obstruction) */
+.hud-hint {
+	display: none;
+}
+
+/* Responsive Mobile & Portrait Layout */
+@media (max-width: 680px), (max-aspect-ratio: 1/1) {
+	#hud-header {
+		top: 10px;
+		top: max(10px, env(safe-area-inset-top));
+		left: 0;
+		width: 100%;
+		display: flex;
+		justify-content: center;
+		padding: 0 12px;
+		padding-left: max(12px, env(safe-area-inset-left));
+		padding-right: max(12px, env(safe-area-inset-right));
+	}
+
+	.hud-top-bar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		width: 100%;
+		max-width: 500px;
+	}
+
+	.hud-left-pill {
+		padding: 5px 12px 5px 8px;
+		gap: 10px;
+	}
+
+	.hud-level-badge {
+		font-size: 12px;
+		padding: 2px 8px;
+	}
+
+	.hud-gear-btn {
+		width: 40px;
+		height: 40px;
+		flex-shrink: 0;
+	}
+
+	.hud-speedometer {
+		padding: 2px 6px 3px 6px;
+		border-radius: 13px;
+	}
+
+	.speedo-dial {
+		width: 72px;
+		height: 38px;
+	}
+
+	.speedo-number {
+		font-size: 13px;
+	}
+
+	.chain-dot {
+		width: 8px;
+		height: 8px;
+	}
+
+	#hud-bottom {
+		bottom: 12px;
+		bottom: max(12px, env(safe-area-inset-bottom));
+		gap: 20px;
+		padding: 0 12px;
+	}
+
+	.gs-btn-icon-img,
+	.gs-key-circle {
+		width: 48px;
+		height: 48px;
+	}
+
+	.gs-key-icon-img {
+		width: 28px;
+		height: 28px;
+	}
+
+	.gs-btn-text {
+		font-size: 10px;
+	}
+
+	.action-btn {
+		font-size: 13px;
+		padding: 9px 14px;
+		min-height: 42px;
+		border-radius: 21px;
+		flex: 1;
+		max-width: 125px;
+		justify-content: center;
+	}
+
+	.tactile-next-btn {
+		right: 12px;
+		right: max(12px, env(safe-area-inset-right));
+		width: 60px;
+		height: 76px;
+		border-radius: 30px;
+	}
+
+	.next-arrow-icon {
+		font-size: 24px;
+	}
+
+	.next-label {
+		font-size: 10px;
+	}
+}
+
+/* ==============================================================================
+   Gift Box Unlock & Reward Modals
+   ============================================================================== */
+.reward-card {
+	background: radial-gradient(circle at center top, #2d1b4e 0%, #150f22 100%);
+	border: 2px solid #fbbf24;
+	box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), 0 0 30px rgba(251, 191, 36, 0.45);
+	border-radius: 24px;
+	padding: 26px 20px 22px 20px;
+	max-width: 380px;
+	width: 90%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	position: relative;
+	overflow: hidden;
+	animation: popModal 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.reward-glow-aura {
+	position: absolute;
+	top: -60px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 220px;
+	height: 140px;
+	background: radial-gradient(circle, rgba(251, 191, 36, 0.5) 0%, rgba(251, 191, 36, 0) 70%);
+	pointer-events: none;
+}
+
+.reward-badge-ribbon {
+	background: linear-gradient(135deg, #f59e0b, #d97706);
+	color: #fff;
+	font-size: 11px;
+	font-weight: 900;
+	letter-spacing: 1.5px;
+	padding: 4px 14px;
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+	margin-bottom: 10px;
+	display: inline-block;
+}
+
+.reward-badge-ribbon.trial-ribbon {
+	background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+	box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.reward-title {
+	font-size: 20px;
+	font-weight: 900;
+	color: #fff9e6;
+	margin: 0 0 12px 0;
+	text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+}
+
+.reward-showcase {
+	width: 120px;
+	height: 120px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 8px 0 14px 0;
+	position: relative;
+}
+
+.reward-showcase.mini {
+	width: 80px;
+	height: 80px;
+	margin: 4px 0 10px 0;
+}
+
+.reward-tile-preview-3d {
+	width: 88px;
+	height: 88px;
+	border-radius: 12px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	font-size: 40px;
+	font-weight: 900;
+	box-shadow: 0 8px 24px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.4);
+	position: relative;
+	animation: floatPreview 3s infinite ease-in-out;
+}
+
+.reward-showcase.mini .reward-tile-preview-3d {
+	width: 60px;
+	height: 60px;
+	font-size: 26px;
+	border-radius: 8px;
+}
+
+.reward-tile-preview-3d .preview-score {
+	font-size: 13px;
+	position: absolute;
+	bottom: 8px;
+	right: 10px;
+	font-weight: 700;
+}
+
+.reward-scenery-preview-card {
+	width: 110px;
+	height: 85px;
+	border-radius: 14px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	font-size: 34px;
+	border: 2px solid #fbbf24;
+	box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+	animation: floatPreview 3s infinite ease-in-out;
+}
+
+.reward-name {
+	font-size: 18px;
+	font-weight: 800;
+	color: #fbbf24;
+	margin-bottom: 4px;
+	text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+}
+
+.reward-desc {
+	font-size: 12px;
+	color: #cbd5e1;
+	margin: 0 0 14px 0;
+	line-height: 1.4;
+	max-width: 290px;
+}
+
+.reward-trial-banner {
+	background: rgba(30, 22, 45, 0.7);
+	border: 1px dashed rgba(251, 191, 36, 0.45);
+	border-radius: 12px;
+	padding: 8px 12px;
+	margin-bottom: 16px;
+	font-size: 11px;
+	color: #e2e8f0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.trial-pill {
+	background: #10b981;
+	color: #fff;
+	font-weight: 800;
+	font-size: 9px;
+	padding: 2px 6px;
+	border-radius: 6px;
+	letter-spacing: 0.5px;
+}
+
+.reward-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	width: 100%;
+}
+
+.reward-btn-ad {
+	background: linear-gradient(135deg, #f59e0b, #d97706);
+	border: 2px solid #fef08a;
+	color: #fff;
+	padding: 12px 14px;
+	border-radius: 16px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45);
+	transition: all 0.2s ease;
+	outline: none;
+}
+
+.reward-btn-ad:hover {
+	transform: scale(1.03);
+	background: linear-gradient(135deg, #fbbf24, #b45309);
+	box-shadow: 0 8px 24px rgba(245, 158, 11, 0.7);
+}
+
+.reward-btn-ad:active {
+	transform: scale(0.97);
+}
+
+.ad-btn-icon {
+	font-size: 24px;
+}
+
+.ad-btn-text {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	text-align: left;
+}
+
+.ad-main {
+	font-size: 13px;
+	font-weight: 900;
+	letter-spacing: 0.5px;
+}
+
+.ad-sub {
+	font-size: 10px;
+	color: #fef08a;
+	font-weight: 600;
+}
+
+.reward-btn-trial {
+	background: rgba(40, 32, 55, 0.75);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	color: #e2e8f0;
+	padding: 10px 14px;
+	border-radius: 14px;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.reward-btn-trial:hover {
+	background: rgba(60, 48, 80, 0.9);
+	color: #fff;
+}
+
+@keyframes floatPreview {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-6px); }
+}
+
+/* ==============================================================================
+   Google AdMob Rewarded Video Simulation
+   ============================================================================== */
+.admob-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.92);
+	z-index: 500;
+	display: none;
+	align-items: center;
+	justify-content: center;
+}
+
+.admob-overlay.show {
+	display: flex;
+}
+
+.admob-container {
+	width: 92%;
+	max-width: 420px;
+	background: #111418;
+	border: 1.5px solid #2d3748;
+	border-radius: 20px;
+	overflow: hidden;
+	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.9);
+	display: flex;
+	flex-direction: column;
+	animation: popModal 0.35s ease;
+}
+
+.admob-header {
+	background: #1a202c;
+	padding: 10px 14px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border-bottom: 1px solid #2d3748;
+}
+
+.admob-badge {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.admob-logo {
+	background: #3b82f6;
+	color: #fff;
+	font-size: 10px;
+	font-weight: 900;
+	padding: 2px 5px;
+	border-radius: 4px;
+}
+
+.admob-brand {
+	font-size: 11px;
+	font-weight: 700;
+	color: #94a3b8;
+}
+
+.admob-countdown {
+	font-size: 12px;
+	font-weight: 800;
+	color: #fbbf24;
+}
+
+.admob-close-btn {
+	background: none;
+	border: none;
+	color: #64748b;
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0 4px;
+}
+
+.admob-close-btn:not(:disabled) {
+	color: #fff;
+	cursor: pointer;
+}
+
+.admob-close-btn:disabled {
+	opacity: 0.3;
+	cursor: not-allowed;
+}
+
+.admob-video-stage {
+	background: radial-gradient(circle at center, #2e1065 0%, #090314 100%);
+	padding: 36px 20px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	position: relative;
+	min-height: 220px;
+}
+
+.admob-sponsor-icon {
+	font-size: 48px;
+	margin-bottom: 12px;
+	animation: pulsePlay 1.5s infinite ease-in-out;
+}
+
+.admob-game-title {
+	font-size: 22px;
+	font-weight: 900;
+	color: #fff9e6;
+	letter-spacing: 1px;
+	margin: 0 0 6px 0;
+	text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+
+.admob-game-tagline {
+	font-size: 12px;
+	color: #cbd5e1;
+	margin: 0 0 16px 0;
+}
+
+.admob-stars-burst {
+	font-size: 24px;
+	margin-bottom: 16px;
+	animation: floatPreview 2s infinite ease-in-out;
+}
+
+.admob-progress-bar-container {
+	width: 100%;
+	height: 6px;
+	background: rgba(255, 255, 255, 0.15);
+	border-radius: 3px;
+	overflow: hidden;
+	margin-bottom: 12px;
+}
+
+.admob-progress-bar-fill {
+	width: 0%;
+	height: 100%;
+	background: linear-gradient(90deg, #3b82f6, #10b981);
+	border-radius: 3px;
+	transition: width 0.1s linear;
+}
+
+.admob-reward-grant-notice {
+	font-size: 12px;
+	font-weight: 800;
+	color: #10b981;
+	opacity: 0;
+	transform: translateY(6px);
+	transition: all 0.3s ease;
+}
+
+.admob-reward-grant-notice.show {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.admob-footer {
+	background: #1a202c;
+	padding: 10px 14px;
+	border-top: 1px solid #2d3748;
+}
+
+.admob-unit-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 10px;
+	color: #64748b;
+	font-family: monospace;
+}
+
+.admob-status-tag {
+	color: #10b981;
+	font-weight: 700;
+}
+
+/* ==============================================================================
+   Customization Badges in Settings
+   ============================================================================== */
+.item-badge-owned {
+	font-size: 9px;
+	font-weight: 800;
+	color: #10b981;
+	background: rgba(16, 185, 129, 0.18);
+	border: 1px solid rgba(16, 185, 129, 0.4);
+	padding: 1px 6px;
+	border-radius: 6px;
+	margin-top: 3px;
+}
+
+.item-badge-trial {
+	font-size: 9px;
+	font-weight: 800;
+	color: #f59e0b;
+	background: rgba(245, 158, 11, 0.18);
+	border: 1px solid rgba(245, 158, 11, 0.5);
+	padding: 1px 6px;
+	border-radius: 6px;
+	margin-top: 3px;
+}
+
+.item-badge-locked {
+	font-size: 9px;
+	font-weight: 800;
+	color: #94a3b8;
+	background: rgba(148, 163, 184, 0.15);
+	border: 1px solid rgba(148, 163, 184, 0.3);
+	padding: 1px 6px;
+	border-radius: 6px;
+	margin-top: 3px;
+}
+

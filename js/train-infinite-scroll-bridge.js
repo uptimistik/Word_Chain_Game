@@ -1,17 +1,21 @@
 /*
  * Word Chain Game - Train Infinite Scroll Bridge
  * ------------------------------------------------
- * Bypasses GameSalad scene limits and camera clamping on Scruffle Solo Play:
+ * Ultra-Optimized Infinite Leftward Run:
  * 1. Unclamps camera.origin.x: Allows the camera to track the train continuously
  *    into negative X without stopping at X = 0.
  * 2. Overrides checkDestroyX: Completely disables the -500px garbage collection
- *    threshold for train components, wheels, and repeating scenery.
- * 3. Continuous Background Recycler: Recycles background trees, wall tiles, and
- *    railroad ties ahead of the oncoming train, creating an unbroken 60 FPS
- *    infinite leftward run with ZERO camera jolts and ZERO wall tearing.
- * 4. Ground-Truth Wall Gap Exporter: Accurately identifies the single natural
- *    gorge opening between the 4 continuous 1367px wall panels (width: 416px,
- *    drawWidth: 440px with seamless 12px cliff overlap).
+ *    threshold for train components, wheels, and repeating scenery, while ensuring
+ *    transient particles (smoke) are cleanly garbage-collected when outside the view buffer.
+ * 3. Enforces wrapX = false: Guarantees GameSalad's engine NEVER teleports Box2D bodies,
+ *    never double-renders actors via SGSpace wrapping, and never conflicts with negative X.
+ * 4. 100% Seamless Continuous Background Recycler:
+ *    - Walls (4 panels x 1367px, 1366px spacing): 1px overlap, ZERO GAPS forever.
+ *    - Trees (7 clusters x 740px, 739px spacing): 1px overlap, ZERO GAPS forever.
+ *    - Sky (5 bg1 panels x 1024px, 1022px spacing): 2px overlap, ZERO GAPS forever.
+ *    - Sun: Parallax drifting with automatic sky cycling.
+ *    - East & West Train Stations: Recycled seamlessly along the loop, with zero per-frame Box2D overhead.
+ *    - Track & Ties: Centered with massive view buffers, eliminating 60 FPS attribute churn.
  */
 (function (global) {
 	'use strict';
@@ -19,12 +23,18 @@
 	var installed = false;
 	var cachedScene = null;
 	var sceneryCache = {
-		trees: [],        // 740px tree clusters (7 clusters, span 5180px)
-		walls: [],        // 1367px background wall panels (4 panels, loopSpan 5468px)
-		bg1Panels: [],    // bg1 sky/scenery panels
+		trees: [],        // 740px tree clusters (7 clusters, span 5173px)
+		walls: [],        // 1367px background wall panels (4 panels, loopSpan 5464px)
+		bg1Panels: [],    // 1024px sky/scenery panels (5 panels, loopSpan 5110px)
 		stations: [],     // Train station buildings and roof pillars (East & West stations)
+		sun: null,        // Drifting sun actor
 		trainLine: null,  // Track line (5992px)
 		trainPegs: null   // Track ties (replicated 70px spacing)
+	};
+
+	var trainCache = {
+		wagons: [],
+		fakeTrain: null
 	};
 
 	// Prototype IDs for fast classification
@@ -37,18 +47,37 @@
 		TRAIN_PEGS: 'id184151',
 		WALL_TREE: 'id137343',
 		BG1: 'id146261',
-		TRAIN_STATION: 'id113003'
+		TRAIN_STATION: 'id113003',
+		SUN: 'id182579',
+		SMOKE: 'id143083'
 	};
 
-	// Scene 5 Wall geometry constants:
-	// 4 wall panels form an unbroken 5052px wall spanning [-3.67, 5048.33].
-	// At loop modulus 5468px, there is exactly ONE natural gorge gap:
-	var LOOP_SPAN = 5468;
-	var GAP_BASE_LEFT = 5048.333;
-	var GAP_BASE_RIGHT = 5464.333;
-	var GAP_CENTER = (GAP_BASE_LEFT + GAP_BASE_RIGHT) * 0.5; // 5256.333
-	var GAP_WIDTH = 416.0;
-	var DRAW_WIDTH = 440.0; // 416px + 24px (12px overlap onto each cliff wall)
+	// Mathematical Loop Spans (exact pixel spacing with 1-2px seamless overlap):
+	var WALL_PANEL_WIDTH = 1367;
+	var WALL_SPACING = 1366;
+	var WALL_LOOP_SPAN = 4 * WALL_SPACING; // 5464px
+
+	var TREE_PANEL_WIDTH = 740;
+	var TREE_SPACING = 739;
+	var TREE_LOOP_SPAN = 7 * TREE_SPACING; // 5173px
+
+	var BG_PANEL_WIDTH = 1024;
+	var BG_SPACING = 1022;
+	var BG_LOOP_SPAN = 5 * BG_SPACING; // 5110px
+
+	function getVal(attr) {
+		if (attr === undefined || attr === null) return undefined;
+		return (typeof attr.getValue === 'function') ? attr.getValue() : attr;
+	}
+
+	function setVal(attr, val) {
+		if (!attr) return;
+		if (typeof attr.fastSetValue === 'function') {
+			attr.fastSetValue(val);
+		} else if (typeof attr.setValue === 'function') {
+			attr.setValue(val);
+		}
+	}
 
 	/**
 	 * Test if a given scene contains the train.
@@ -56,23 +85,34 @@
 	function isTrainScene(scene) {
 		if (!scene) return false;
 		var nameAttr = scene.attributes && scene.attributes.name;
-		var sceneName = nameAttr ? nameAttr.getValue() : '';
+		var sceneName = getVal(nameAttr) || '';
+		var isTrain = false;
 		if (sceneName && sceneName.indexOf('Scruffle Solo Play') !== -1) {
-			return true;
-		}
-		// Fallback: check if scene contains layer named 'TRAINS'
-		if (scene.layers) {
+			isTrain = true;
+		} else if (scene.layers) {
+			// Fallback: check if scene contains layer named 'TRAINS'
 			for (var i = 0; i < scene.layers.length; i++) {
 				var l = scene.layers[i];
-				var lName = l && l.attributes && l.attributes.name && l.attributes.name.getValue();
-				if (lName === 'TRAINS') return true;
+				var lName = l && l.attributes && getVal(l.attributes.name);
+				if (lName === 'TRAINS') {
+					isTrain = true;
+					break;
+				}
 			}
 		}
-		return false;
+
+		if (isTrain && scene && !scene._isInBoundsHooked && global.gs && global.gs.Scene && global.gs.Scene.isInBounds) {
+			scene._isInBoundsHooked = true;
+			scene.isInBounds = function (x, y) {
+				return global.gs.Scene.isInBounds.call(this, x, y);
+			};
+		}
+
+		return isTrain;
 	}
 
 	/**
-	 * Cache scenery actors for efficient recycling without per-frame allocations.
+	 * Cache scenery actors and normalize initial positions for unbroken seamless continuity.
 	 */
 	function refreshSceneryCache(scene) {
 		cachedScene = scene;
@@ -80,15 +120,18 @@
 		sceneryCache.walls.length = 0;
 		sceneryCache.bg1Panels.length = 0;
 		sceneryCache.stations.length = 0;
+		sceneryCache.sun = null;
 		sceneryCache.trainLine = null;
 		sceneryCache.trainPegs = null;
+		trainCache.wagons.length = 0;
+		trainCache.fakeTrain = null;
 
 		if (!scene || !scene.layers) return;
 
 		for (var li = 0; li < scene.layers.length; li++) {
 			var layer = scene.layers[li];
-			var lName = layer.attributes && layer.attributes.name && layer.attributes.name.getValue();
-			var isScrollable = layer.scrollable && layer.scrollable();
+			var lName = layer.name || (layer.attributes && getVal(layer.attributes.name));
+			var isScrollable = (typeof layer.scrollable === 'function') ? layer.scrollable() : (layer.attributes && getVal(layer.attributes.scrollable));
 
 			// Only care about scrollable layers (Layer 0 and Layer 1: New Layer & TRAINS)
 			if (!isScrollable && lName !== 'TRAINS' && lName !== 'New Layer') {
@@ -98,9 +141,9 @@
 			var actors = layer.actors || [];
 			for (var ai = 0; ai < actors.length; ai++) {
 				var actor = actors[ai];
-				var protoID = actor._prototypeID || (actor.prototype && actor.prototype.id);
+				var protoID = actor._prototypeID || (actor.prototype && (actor.prototype.id || actor.prototype));
 				var size = actor.attributes && actor.attributes.size;
-				var w = size && size.width ? size.width.getValue() : 0;
+				var w = size && size.width ? getVal(size.width) : 0;
 
 				var isStation = (protoID === PROTOS.TRAIN_STATION) ||
 					(actor.prototype && (actor.prototype.id === PROTOS.TRAIN_STATION || actor.prototype === PROTOS.TRAIN_STATION)) ||
@@ -119,107 +162,280 @@
 					}
 				} else if (protoID === PROTOS.BG1) {
 					sceneryCache.bg1Panels.push(actor);
+				} else if (protoID === PROTOS.SUN) {
+					sceneryCache.sun = actor;
 				} else if (isStation) {
 					sceneryCache.stations.push(actor);
+				} else if (protoID === PROTOS.TRAIN_WAGON || (actor.attributes && actor.attributes.name && actor.attributes.name.getValue() === 'Train Wagon P1')) {
+					trainCache.wagons.push(actor);
+				} else if (protoID === PROTOS.FAKE_TRAIN || (actor.attributes && actor.attributes.name && actor.attributes.name.getValue() === 'Fake Train P1')) {
+					trainCache.fakeTrain = actor;
 				}
 			}
 		}
 
-		console.log('[WordChainInfiniteTrain] Scenery cached:', {
+		// Sort wagons by myID (1 to 8)
+		trainCache.wagons.sort(function (a, b) {
+			var idA = a.attributes && a.attributes.id157593 ? getVal(a.attributes.id157593) : 0;
+			var idB = b.attributes && b.attributes.id157593 ? getVal(b.attributes.id157593) : 0;
+			return idA - idB;
+		});
+
+		// 1. Sort and ensure Wall panels are perfectly seamless (4 panels spanning 5464px)
+		sceneryCache.walls.sort(function (a, b) {
+			return getVal(a.attributes.position.x) - getVal(b.attributes.position.x);
+		});
+		if (sceneryCache.walls.length === 4) {
+			// Anchor Wall 3 to ~4364.83 and place Wall 0, 1, 2 backwards by 1366px each
+			var anchorX = getVal(sceneryCache.walls[3].attributes.position.x);
+			for (var wi = 2; wi >= 0; wi--) {
+				var expectedX = anchorX - (3 - wi) * WALL_SPACING;
+				setVal(sceneryCache.walls[wi].attributes.position.x, expectedX);
+			}
+		}
+
+		// 2. Sort and ensure Sky (bg1) panels are perfectly seamless (5 panels spanning 5110px)
+		sceneryCache.bg1Panels.sort(function (a, b) {
+			return getVal(a.attributes.position.x) - getVal(b.attributes.position.x);
+		});
+		var bgBases = [512, 1534, 2556, 3578, 4600];
+		for (var bi = 0; bi < sceneryCache.bg1Panels.length && bi < bgBases.length; bi++) {
+			setVal(sceneryCache.bg1Panels[bi].attributes.position.x, bgBases[bi]);
+		}
+
+		// 3. Sort and ensure Tree panels are perfectly seamless (7 panels spanning 5173px)
+		sceneryCache.trees.sort(function (a, b) {
+			return getVal(a.attributes.position.x) - getVal(b.attributes.position.x);
+		});
+
+		console.log('[WordChainInfiniteTrain] Scenery cached and normalized:', {
 			trees: sceneryCache.trees.length,
 			walls: sceneryCache.walls.length,
 			bg1: sceneryCache.bg1Panels.length,
 			stations: sceneryCache.stations.length,
+			wagons: trainCache.wagons.length,
+			hasFakeTrain: !!trainCache.fakeTrain,
+			hasSun: !!sceneryCache.sun,
 			hasLine: !!sceneryCache.trainLine,
 			hasPegs: !!sceneryCache.trainPegs
 		});
 	}
 
+	function getGameInstance(scene) {
+		if (scene && typeof scene.game === 'function') {
+			return scene.game();
+		}
+		return (global.gs && global.gs.Game && global.gs.Game.instance) || null;
+	}
+
 	/**
-	 * Dynamically recycle background trees, walls, and tracks ahead of the train.
-	 * Rock-solid offscreen wrapping guarantees ZERO tears and ZERO extra holes.
+	 * Find the active Train Wagon P1 actor matching game.attributes.id192549 (CurrentStep).
 	 */
-	function recycleScenery(scene, camX) {
+	function getActiveWagon(scene) {
 		if (cachedScene !== scene) {
 			refreshSceneryCache(scene);
 		}
+		var game = getGameInstance(scene);
+		var currentStep = 1;
+		if (game && game.attributes && game.attributes.id192549) {
+			var val = getVal(game.attributes.id192549);
+			if (typeof val === 'number' && val > 0) {
+				currentStep = val;
+			}
+		}
+		var wagons = trainCache.wagons;
+		for (var i = 0; i < wagons.length; i++) {
+			var w = wagons[i];
+			var myID = w.attributes && w.attributes.id157593 ? getVal(w.attributes.id157593) : null;
+			if (myID === currentStep) {
+				return w;
+			}
+		}
+		return wagons[0] || null;
+	}
 
-		// 1. Recycle 740px tree clusters (7 clusters, span 5180px)
+	/**
+	 * Find the locomotive (Fake Train P1).
+	 */
+	function getFakeTrain(scene) {
+		if (cachedScene !== scene) {
+			refreshSceneryCache(scene);
+		}
+		return trainCache.fakeTrain;
+	}
+
+	/**
+	 * Per-frame camera alignment controller:
+	 * 1. When table is summoned (id153906 = true), camera centers the active wagon directly above table (screen X = 512).
+	 * 2. When table is dismissed and train is stopped, camera centers on the locomotive (Fake Train P1).
+	 * 3. Continuously recycles background scenery.
+	 */
+	function updateTrainCamera(scene, timestamp) {
+		if (!scene || !scene.attributes || !scene.attributes.camera) return;
+		var game = getGameInstance(scene);
+		if (!game || !game.attributes) return;
+
+		var isBoardSummoned = game.attributes.id153906 && getVal(game.attributes.id153906);
+		var isTrainMoving = game.attributes.id128260 && getVal(game.attributes.id128260);
+
+		var camPos = scene.attributes.camera.origin;
+		var curCamX = getVal(camPos.x);
+		var camW = (scene.attributes.camera.size && getVal(scene.attributes.camera.size.width)) || 1024;
+
+		if (isBoardSummoned) {
+			// Table is summoned! Center camera directly on the active wagon directly above table
+			var wagon = getActiveWagon(scene);
+			if (wagon && wagon.attributes && wagon.attributes.position && wagon.attributes.position.x) {
+				var wagonX = getVal(wagon.attributes.position.x);
+				var targetCamX = wagonX - camW * 0.5;
+				var diff = targetCamX - curCamX;
+				if (Math.abs(diff) > 0.1) {
+					var newCamX = curCamX + diff * 0.25;
+					setVal(camPos.x, newCamX);
+					curCamX = newCamX;
+				} else if (Math.abs(diff) > 0.001) {
+					setVal(camPos.x, targetCamX);
+					curCamX = targetCamX;
+				}
+			}
+		} else if (!isTrainMoving) {
+			// Table is hidden and train is stopped (e.g. at station or after table dismissed before 'z')
+			var fakeTrain = getFakeTrain(scene);
+			if (fakeTrain && fakeTrain.attributes && fakeTrain.attributes.position && fakeTrain.attributes.position.x) {
+				var trainX = getVal(fakeTrain.attributes.position.x);
+				var targetCamX = trainX - camW * 0.5;
+				var diff = targetCamX - curCamX;
+				if (Math.abs(diff) > 0.1) {
+					var newCamX = curCamX + diff * 0.2;
+					setVal(camPos.x, newCamX);
+					curCamX = newCamX;
+				} else if (Math.abs(diff) > 0.001) {
+					setVal(camPos.x, targetCamX);
+					curCamX = targetCamX;
+				}
+			}
+		}
+
+		recycleScenery(scene, curCamX);
+	}
+
+	/**
+	 * Dynamically recycle background scenery ahead of the train.
+	 * Rock-solid wrapping guarantees ZERO tears, ZERO gaps, and ZERO performance drops.
+	 */
+	var lastRecycledCamX = null;
+	function recycleScenery(scene, camX) {
+		if (cachedScene !== scene) {
+			refreshSceneryCache(scene);
+			lastRecycledCamX = null;
+		}
+		if (lastRecycledCamX !== null && Math.abs(camX - lastRecycledCamX) < 0.5) {
+			return;
+		}
+		lastRecycledCamX = camX;
+
+		// 1. Recycle 740px tree clusters (7 clusters, span 5173px, 1px overlap)
 		var trees = sceneryCache.trees;
 		for (var t = 0; t < trees.length; t++) {
 			var tree = trees[t];
 			var txAttr = tree.attributes.position.x;
 			var tx = txAttr.getValue();
+			var origTx = tx;
 			while (tx - camX > 1024 + 400) {
-				tx -= 5180;
+				tx -= TREE_LOOP_SPAN;
 			}
-			while (tx - camX < -400 - 5180 + 1024) {
-				tx += 5180;
+			while (tx - camX < 1024 + 400 - TREE_LOOP_SPAN) {
+				tx += TREE_LOOP_SPAN;
 			}
-			txAttr.fastSetValue(tx);
+			if (tx !== origTx) {
+				txAttr.fastSetValue(tx);
+			}
 		}
 
-		// 2. Recycle 1367px wall panels (4 panels, loopSpan 5468px)
-		// Crucial: All walls wrap only when completely off-screen, maintaining unbroken adjacency
+		// 2. Recycle 1367px wall panels (4 panels, loopSpan 5464px, 1px overlap)
 		var walls = sceneryCache.walls;
 		for (var w = 0; w < walls.length; w++) {
 			var wall = walls[w];
 			var wxAttr = wall.attributes.position.x;
 			var wx = wxAttr.getValue();
+			var origWx = wx;
 			while (wx - camX > 1024 + 750) {
-				wx -= LOOP_SPAN;
+				wx -= WALL_LOOP_SPAN;
 			}
-			while (wx - camX < -750 - LOOP_SPAN + 1024) {
-				wx += LOOP_SPAN;
+			while (wx - camX < 1024 + 750 - WALL_LOOP_SPAN) {
+				wx += WALL_LOOP_SPAN;
 			}
-			wxAttr.fastSetValue(wx);
+			if (wx !== origWx) {
+				wxAttr.fastSetValue(wx);
+			}
 		}
 
-		// 3. Recycle bg1 sky panels (width ~1024)
+		// 3. Recycle bg1 sky panels (5 panels, loopSpan 5110px, 2px overlap)
 		var bgs = sceneryCache.bg1Panels;
 		for (var b = 0; b < bgs.length; b++) {
 			var bg = bgs[b];
 			var bxAttr = bg.attributes.position.x;
 			var bx = bxAttr.getValue();
+			var origBx = bx;
 			while (bx - camX > 1024 + 600) {
-				bx -= 4096;
+				bx -= BG_LOOP_SPAN;
 			}
-			while (bx - camX < -600 - 4096 + 1024) {
-				bx += 4096;
+			while (bx - camX < 1024 + 600 - BG_LOOP_SPAN) {
+				bx += BG_LOOP_SPAN;
 			}
-			bxAttr.fastSetValue(bx);
+			if (bx !== origBx) {
+				bxAttr.fastSetValue(bx);
+			}
 		}
 
-		// 4. Center Train Line (track) under the camera so it extends 2500px on both sides
+		// 4. Parallax Sun cycling
+		if (sceneryCache.sun) {
+			var sunAttr = sceneryCache.sun.attributes.position.x;
+			var sunX = sunAttr.getValue();
+			if (sunX - camX > 1024 + 500) {
+				sunAttr.fastSetValue(camX - 450);
+			} else if (sunX - camX < -600) {
+				sunAttr.fastSetValue(camX + 1024 + 450);
+			}
+		}
+
+		// 5. Center Train Line (track) under the camera with a large 400px hysteresis buffer
 		if (sceneryCache.trainLine) {
-			sceneryCache.trainLine.attributes.position.x.fastSetValue(camX + 512);
+			var curLineX = sceneryCache.trainLine.attributes.position.x.getValue();
+			var targetLineX = camX + 512;
+			if (Math.abs(curLineX - targetLineX) > 400) {
+				sceneryCache.trainLine.attributes.position.x.fastSetValue(targetLineX);
+			}
 		}
 
-		// 5. Keep railroad ties (Train Pegs) anchored ahead of the camera in exact 70px steps
+		// 6. Keep railroad ties (Train Pegs) anchored ahead of the camera in exact 70px steps
 		if (sceneryCache.trainPegs) {
 			var basePegX = 9 + Math.floor((camX - 1000 - 9) / 70) * 70;
 			sceneryCache.trainPegs.attributes.position.x.fastSetValue(basePegX);
 		}
 
-		// 6. Recycle Train Stations (East Station at X ~ 3283, West Station at X ~ 592.5)
-		// Both stations cycle with the exact same LOOP_SPAN (5468px) so they appear consistently along the route!
+		// 7. Recycle Train Stations (East Station at X ~ 3283, West Station at X ~ 592.5)
+		// Crucial performance fix: Only touch Box2D physics when an actual wrap occurs!
 		var stations = sceneryCache.stations;
 		for (var s = 0; s < stations.length; s++) {
 			var st = stations[s];
 			var sxAttr = st.attributes.position.x;
 			var sx = sxAttr.getValue();
+			var origSx = sx;
 			while (sx - camX > 2000) {
-				sx -= LOOP_SPAN;
+				sx -= WALL_LOOP_SPAN;
 			}
-			while (sx - camX < -2500) {
-				sx += LOOP_SPAN;
+			while (sx - camX < 2000 - WALL_LOOP_SPAN) {
+				sx += WALL_LOOP_SPAN;
 			}
-			sxAttr.fastSetValue(sx);
-			if (st.aspects && st.aspects.motion && st.aspects.motion.currentPosition) {
-				st.aspects.motion.currentPosition[0] = sx;
-			}
-			if (st.physics && st.physics.body && typeof st.physics.body.setPositionAndAngle === 'function') {
-				st.physics.body.setPositionAndAngle(sx, st.attributes.position.y.getValue(), st.attributes.rotation ? st.attributes.rotation.getValue() : 0);
+			if (sx !== origSx) {
+				sxAttr.fastSetValue(sx);
+				if (st.aspects && st.aspects.motion && st.aspects.motion.currentPosition) {
+					st.aspects.motion.currentPosition[0] = sx;
+				}
+				if (st.physics && st.physics.body && typeof st.physics.body.setPositionAndAngle === 'function') {
+					st.physics.body.setPositionAndAngle(sx, st.attributes.position.y.getValue(), st.attributes.rotation ? st.attributes.rotation.getValue() : 0);
+				}
 			}
 		}
 	}
@@ -232,37 +448,153 @@
 		}
 		installed = true;
 
-		// 1. Override Garbage Collection at X < -500
+		// 1. Hook MotionAspect.start to guarantee wrapX is disabled for train scenes
+		// Prevents Box2D body teleportation, prevents SGSpace double-rendering, and restores clean GC.
+		var origMotionStart = global.gs.MotionAspect.start;
+		if (typeof origMotionStart === 'function') {
+			global.gs.MotionAspect.start = function (actor, timestamp) {
+				var scene = actor && actor.scene;
+				if (isTrainScene(scene)) {
+					if (scene.attributes && scene.attributes.wrapX && scene.attributes.wrapX.getValue()) {
+						scene.attributes.wrapX.setValue(false);
+					}
+				}
+				var res = origMotionStart.call(this, actor, timestamp);
+				if (isTrainScene(scene)) {
+					this.sceneWrapX = false;
+					this.checkWrappingXMethod = global.gs.MotionAspect.returnFalseFunction;
+					this.destroyXFunction = global.gs.MotionAspect.checkDestroyX;
+				}
+				return res;
+			};
+		}
+
+		// 1b. Override Scene.isInBounds to allow infinite horizontal actor spawning (train smoke, particles)
+		if (global.gs.Scene && typeof global.gs.Scene.isInBounds === 'function') {
+			var origSceneIsInBounds = global.gs.Scene.isInBounds;
+			global.gs.Scene.isInBounds = function (x, y) {
+				if (isTrainScene(this)) {
+					// Vertical bounds: allow within normal height plus physics simulation border
+					var SIMULATION_BORDER = (global.gs.physicsLib && global.gs.physicsLib.SIMULATION_BORDER) || 500;
+					var sceneH = (this.attributes && this.attributes.size && this.attributes.size.height && getVal(this.attributes.size.height)) || 768;
+					if (y < -SIMULATION_BORDER || y > sceneH + SIMULATION_BORDER) {
+						return false;
+					}
+
+					// Horizontal bounds: in infinite scroll, the train drives continuously into negative X.
+					// Allow spawning anywhere within the active camera view buffer or original scene bounds!
+					var camX = (this.attributes && this.attributes.camera && this.attributes.camera.origin && getVal(this.attributes.camera.origin.x)) || 0;
+					var camW = (this.attributes && this.attributes.camera && this.attributes.camera.size && getVal(this.attributes.camera.size.width)) || 1024;
+					if ((x >= camX - 2500 && x <= camX + camW + 2500) || (x >= -SIMULATION_BORDER && x <= 1024 + SIMULATION_BORDER)) {
+						return true;
+					}
+					return false;
+				}
+				return origSceneIsInBounds.call(this, x, y);
+			};
+		}
+
+		// 2. Override Garbage Collection at out-of-bounds coordinates
 		var origCheckDestroyX = global.gs.MotionAspect.checkDestroyX;
 		global.gs.MotionAspect.checkDestroyX = function (actor) {
 			if (!actor) return;
 			var scene = actor.scene;
 			if (isTrainScene(scene)) {
-				var protoID = actor._prototypeID;
-				// Never destroy train, wagons, wheels, pegs, tracks, or background scenery
-				if (protoID === PROTOS.REAL_TRAIN ||
-					protoID === PROTOS.FAKE_TRAIN ||
-					protoID === PROTOS.TRAIN_WAGON ||
-					protoID === PROTOS.TRAIN_WHEEL ||
-					protoID === PROTOS.TRAIN_LINE ||
-					protoID === PROTOS.TRAIN_PEGS ||
-					protoID === PROTOS.WALL_TREE ||
-					protoID === PROTOS.BG1 ||
-					protoID === PROTOS.TRAIN_STATION) {
+				// CRITICAL FIX: Never destroy actors in non-scrollable layers (playing board, trays, tiles, UI)!
+				if (actor.layer && typeof actor.layer.scrollable === 'function' && !actor.layer.scrollable()) {
 					return;
 				}
 
-				// For transient particles like Smoke, allow natural self-destruction
-				// but prevent abrupt clipping right at -500px
-				var camX = (scene.attributes.camera && scene.attributes.camera.origin.x.getValue()) || 0;
-				if (this.currentPosition[0] > camX - 1000 && this.currentPosition[0] < camX + 2500) {
+				var protoID = actor._prototypeID;
+				var actorName = (actor.attributes && actor.attributes.name && getVal(actor.attributes.name)) || '';
+				var isSmoke = (protoID === PROTOS.SMOKE || protoID === 'id143083' || actorName === 'Smoke');
+				// For transient particles like Smoke, cleanly destroy when drifted far out of camera range
+				// This completely prevents memory leaks and behavior interpreter lag!
+				if (isSmoke) {
+					var camX = (scene.attributes.camera && scene.attributes.camera.origin && getVal(scene.attributes.camera.origin.x)) || 0;
+					if (this.currentPosition[0] < camX - 2500 || this.currentPosition[0] > camX + 3000) {
+						actor.scene.markActorForDestruction(actor);
+					}
 					return;
 				}
+
+				// All other actors (train, wagons, wheels, tracks, scenery, board, tiles) are preserved
+				return;
 			}
 			return origCheckDestroyX.call(this, actor);
 		};
 
-		// 2. Unclamp Camera tracking in ControlCameraBehavior
+		var origCheckDestroyY = global.gs.MotionAspect.checkDestroyY;
+		global.gs.MotionAspect.checkDestroyY = function (actor) {
+			if (!actor) return;
+			var scene = actor.scene;
+			if (isTrainScene(scene)) {
+				// Never destroy actors in non-scrollable layers (e.g. board/trays sliding off-screen)
+				if (actor.layer && typeof actor.layer.scrollable === 'function' && !actor.layer.scrollable()) {
+					return;
+				}
+				return;
+			}
+			return origCheckDestroyY.call(this, actor);
+		};
+
+		// 3. Unclamp InterpolateBehavior on camera.origin.x
+		if (global.gs.InterpolateBehavior) {
+			var origInterpolateStart = global.gs.InterpolateBehavior.start;
+			global.gs.InterpolateBehavior.start = function (actor, timestamp) {
+				var res = origInterpolateStart.call(this, actor, timestamp);
+				var scene = actor && actor.scene;
+				if (isTrainScene(scene)) {
+					var ref = this.attributes.targetAttribute && this.attributes.targetAttribute.getValue();
+					if (ref && ref.keypath && ref.keypath.indexOf('camera.origin.x') !== -1) {
+						if (actor && actor.attributes && actor.attributes.position && actor.attributes.position.x) {
+							var actorX = getVal(actor.attributes.position.x);
+							var camW = (scene.attributes.camera && scene.attributes.camera.size && getVal(scene.attributes.camera.size.width)) || 1024;
+							var desiredX = actorX - camW * 0.5;
+							this.finalValue = desiredX;
+							this._unclampedTargetX = desiredX;
+							this._isCameraInterpolate = true;
+							this._targetActor = actor;
+						}
+					}
+				}
+				return res;
+			};
+
+			var origInterpolateEval = global.gs.InterpolateBehavior.completeEvaluate;
+			global.gs.InterpolateBehavior.completeEvaluate = function (actor, timestamp) {
+				if (this._isCameraInterpolate && this._targetActor && this._targetActor.attributes && this._targetActor.attributes.position && this._targetActor.attributes.position.x) {
+					var actorX = getVal(this._targetActor.attributes.position.x);
+					var scene = actor && actor.scene;
+					var camW = (scene && scene.attributes && scene.attributes.camera && scene.attributes.camera.size && getVal(scene.attributes.camera.size.width)) || 1024;
+					this.finalValue = actorX - camW * 0.5;
+				}
+				origInterpolateEval.call(this, actor, timestamp);
+				var scene = actor && actor.scene;
+				if (isTrainScene(scene)) {
+					var ref = this.attributes.targetAttribute && this.attributes.targetAttribute.getValue();
+					if (ref && ref.keypath && ref.keypath.indexOf('camera.origin.x') !== -1) {
+						var curCamX = (scene.attributes.camera && scene.attributes.camera.origin && getVal(scene.attributes.camera.origin.x)) || 0;
+						recycleScenery(scene, curCamX);
+					}
+				}
+			};
+
+			if (global.gs.InterpolateBehavior.observeValueChange) {
+				var origObserve = global.gs.InterpolateBehavior.observeValueChange;
+				global.gs.InterpolateBehavior.observeValueChange = function (attribute, value) {
+					origObserve.call(this, attribute, value);
+					if (this._isCameraInterpolate && this._targetActor && this._targetActor.attributes && this._targetActor.attributes.position && this._targetActor.attributes.position.x) {
+						var actorX = getVal(this._targetActor.attributes.position.x);
+						var scene = this._targetActor.scene;
+						var camW = (scene && scene.attributes && scene.attributes.camera && scene.attributes.camera.size && getVal(scene.attributes.camera.size.width)) || 1024;
+						this.finalValue = actorX - camW * 0.5;
+					}
+				};
+			}
+		}
+
+		// 4. Unclamp Camera tracking in ControlCameraBehavior
 		var origCameraEveryFrame = global.gs.ControlCameraBehavior.everyFrame;
 		global.gs.ControlCameraBehavior.everyFrame = function (actor, timestamp) {
 			if (global.gs.ControlCameraBehavior.cameraControl !== this) {
@@ -315,41 +647,27 @@
 				cameraRect.y = finalCameraY;
 			}
 
-			// 3. Recycle background scenery ahead of the train
+			// 4. Recycle background scenery ahead of the train
 			recycleScenery(scene, cameraRect.x);
 		};
 
-		console.log('[WordChainInfiniteTrain] Bridge installed successfully.');
+		// 5. Hook Game.evaluate to smoothly track and hold camera on active wagon / train
+		var origGameEvaluate = global.gs.Game && global.gs.Game.evaluate;
+		if (typeof origGameEvaluate === 'function') {
+			global.gs.Game.evaluate = function (timestamp) {
+				origGameEvaluate.call(this, timestamp);
+				var scene = this.currentScene;
+				if (isTrainScene(scene)) {
+					updateTrainCamera(scene, timestamp);
+				}
+			};
+		}
+
+		console.log('[WordChainInfiniteTrain] Bridge installed successfully (zero-gap infinite scroll active).');
 	}
 
-	/**
-	 * Compute visible gorge gaps for the waterfall renderer.
-	 * Returns array of { k, left, right, width, drawWidth, center, variationIndex }
-	 */
 	function getVisibleWallGaps(camX) {
-		var viewCenter = camX + 512;
-		var kCenter = Math.round((viewCenter - GAP_CENTER) / LOOP_SPAN);
-		var visibleGaps = [];
-
-		for (var k = kCenter - 1; k <= kCenter + 1; k++) {
-			var left = k * LOOP_SPAN + GAP_BASE_LEFT;
-			var right = k * LOOP_SPAN + GAP_BASE_RIGHT;
-			var center = k * LOOP_SPAN + GAP_CENTER;
-
-			// Visible or within 100px buffer of screen [camX, camX + 1024]
-			if (right >= camX - 100 && left <= camX + 1024 + 100) {
-				visibleGaps.push({
-					k: k,
-					left: left,
-					right: right,
-					width: GAP_WIDTH,
-					drawWidth: DRAW_WIDTH,
-					center: center,
-					variationIndex: ((k % 4) + 4) % 4
-				});
-			}
-		}
-		return visibleGaps;
+		return [];
 	}
 
 	function getActiveScene() {
@@ -360,6 +678,9 @@
 	global.WordChainInfiniteTrain = {
 		install: install,
 		refreshSceneryCache: refreshSceneryCache,
+		getActiveWagon: getActiveWagon,
+		getFakeTrain: getFakeTrain,
+		updateTrainCamera: updateTrainCamera,
 		getVisibleWallGaps: getVisibleWallGaps,
 		getActiveScene: getActiveScene,
 		isTrainScene: isTrainScene

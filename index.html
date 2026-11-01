@@ -8,8 +8,8 @@
 		content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 	<link rel="icon" href="data:,">
 	<title>Word Chain</title>
-	<link rel="stylesheet" type="text/css" href="css/gse-style.css" />
-	<link rel="stylesheet" type="text/css" href="css/gse-style-loading.css" />
+	<link rel="stylesheet" type="text/css" href="css/gse-style.css?v=20261031_2" />
+	<link rel="stylesheet" type="text/css" href="css/gse-style-loading.css?v=20261031_2" />
 	<style type="text/css">
 		body {
 			background-color: black;
@@ -82,6 +82,15 @@
 					});
 					engine.loadOptionsFromURL();
 
+					// Auto-bust JSONP cache for localhost dev so game files never stay stale
+					if (window.gs && window.gs.file && window.gs.file.FileFetcher) {
+						var origFetchJSONP = window.gs.file.FileFetcher.prototype.fetchJSONP;
+						window.gs.file.FileFetcher.prototype.fetchJSONP = function (path) {
+							var sep = path.indexOf('?') === -1 ? '?' : '&';
+							return origFetchJSONP.call(this, path + sep + 'v=' + Date.now());
+						};
+					}
+
 					// 1) Haptics: on-touch tile haptics + tile soundfx active on Game Start & WordCompleted
 					if (window.WordChainHaptics) {
 						WordChainHaptics.install();
@@ -102,23 +111,17 @@
 						WordChainInfiniteTrain.install();
 					}
 
-					// 5) Graphic Waterfall: Alto's Adventure graphic waterfall in dead space with dynamic gap sizing
-					if (window.WordChainWaterfall) {
-						WordChainWaterfall.install();
-					}
-
 					// Start the game
 					engine.play();
 				});
 			};
 		}(window));
 	</script>
-	<script type="text/javascript" src="js/haptics-bridge.js?v=20261028_7"></script>
-	<script type="text/javascript" src="js/multitouch-bridge.js?v=20261028_7"></script>
-	<script type="text/javascript" src="js/shadow-shader-bridge.js?v=20261028_4"></script>
-	<script type="text/javascript" src="js/train-infinite-scroll-bridge.js?v=20261030_3"></script>
-	<script type="text/javascript" src="js/waterfall-bridge.js?v=20261030_3"></script>
-	<script type="text/javascript" src="js/gse/gse-export.js" onload="onEngineLoad()"></script>
+	<script type="text/javascript" src="js/haptics-bridge.js?v=20261031_2"></script>
+	<script type="text/javascript" src="js/multitouch-bridge.js?v=20261031_2"></script>
+	<script type="text/javascript" src="js/shadow-shader-bridge.js?v=20261031_2"></script>
+	<script type="text/javascript" src="js/train-infinite-scroll-bridge.js?v=20261031_5"></script>
+	<script type="text/javascript" src="js/gse/gse-export.js?v=20261031_2" onload="onEngineLoad()"></script>
 </body>
 
 </html>
