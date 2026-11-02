@@ -239,6 +239,67 @@
 			}
 		}
 	</style>
+
+<!-- [GAMESALAD ROOT TILE OVERRIDE - NO DEFAULT/AI TILES] -->
+<script>
+  window.GAMESALAD_ROOT_TILE_MAP = {
+  "A": "./A.png",
+  "B": "./B.png",
+  "C": "./C.png",
+  "D": "./D.png",
+  "E": "./E.png",
+  "F": "./F.png",
+  "G": "./G.png",
+  "H": "./H.png",
+  "I": "./I.png",
+  "J": "./J.png",
+  "K": "./K.png",
+  "L": "./L.png",
+  "M": "./M.png",
+  "N": "./N.png",
+  "O": "./O.png",
+  "P": "./P.png",
+  "Q": "./Q.png",
+  "R": "./R.png",
+  "S": "./S.png",
+  "T": "./T.png",
+  "U": "./U.png",
+  "V": "./V.png",
+  "W": "./W.png",
+  "X": "./X.png",
+  "Y": "./Y.png",
+  "Z": "./Z.png"
+};
+  window.GAMESALAD_TILE_PATTERN = "./{LETTER}.png";
+  window.GAMESALAD_LETTER_CASE = "UPPER";
+
+  window.getGameSaladRootTileUrl = function(letter) {
+    if (!letter) return window.GAMESALAD_ROOT_TILE_MAP['_BASE_TILE_'] || window.GAMESALAD_TILE_PATTERN.replace('{LETTER}', 'A');
+    const clean = String(letter).trim().charAt(0).toUpperCase();
+    if (window.GAMESALAD_ROOT_TILE_MAP[clean]) {
+      return window.GAMESALAD_ROOT_TILE_MAP[clean];
+    }
+    const formatted = window.GAMESALAD_LETTER_CASE === 'lower' ? clean.toLowerCase() : clean;
+    return window.GAMESALAD_TILE_PATTERN.replace(/\{LETTER\}/g, formatted);
+  };
+
+  // Cache of loaded Three.js textures from root GameSalad tile images
+  window._gsTextureCache = {};
+  window.loadGameSaladTileTexture = function(letter) {
+    const url = window.getGameSaladRootTileUrl(letter);
+    if (window._gsTextureCache[url]) return window._gsTextureCache[url];
+    if (typeof THREE !== 'undefined' && THREE.TextureLoader) {
+      const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin('anonymous');
+      const tex = loader.load(url);
+      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+      window._gsTextureCache[url] = tex;
+      return tex;
+    }
+    return null;
+  };
+</script>
+
 </head>
 
 <body>
