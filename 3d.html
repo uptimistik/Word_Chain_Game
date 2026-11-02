@@ -3,74 +3,490 @@
 
 <head>
 
-<!-- [ORIGINALTILEIMAGES GAMESALAD TILE INTERCEPTOR & SKIN OVERRIDE v2] -->
+<!-- [ORIGINALTILEIMAGES HAND-DRAWN <LETTER><SKIN_ID>.png TILE ENGINE v3] -->
 <script>
 (function() {
-  // 1. Clean Letter (A-Z) -> ./OriginalTileImages/ Map (UI files like 3letterSeason1 & Pink Button filtered out!)
-  window.ORIGINAL_TILE_IMAGES_MAP = {
-  "A": "./OriginalTileImages/A0.png",
-  "B": "./OriginalTileImages/A1.png",
-  "C": "./OriginalTileImages/A2.png",
-  "D": "./OriginalTileImages/A3.png",
-  "E": "./OriginalTileImages/A4.png",
-  "F": "./OriginalTileImages/A5.png",
-  "G": "./OriginalTileImages/A6.png",
-  "H": "./OriginalTileImages/A7.png",
-  "I": "./OriginalTileImages/A8.png",
-  "J": "./OriginalTileImages/A9.png",
-  "K": "./OriginalTileImages/A10.png",
-  "L": "./OriginalTileImages/A11.png",
-  "M": "./OriginalTileImages/A12.png",
-  "N": "./OriginalTileImages/B0.png",
-  "O": "./OriginalTileImages/B1.png",
-  "P": "./OriginalTileImages/B2.png",
-  "Q": "./OriginalTileImages/B3.png",
-  "R": "./OriginalTileImages/B4.png",
-  "S": "./OriginalTileImages/B5.png",
-  "T": "./OriginalTileImages/B6.png",
-  "U": "./OriginalTileImages/B7.png",
-  "V": "./OriginalTileImages/B8.png",
-  "W": "./OriginalTileImages/B9.png",
-  "X": "./OriginalTileImages/B10.png",
-  "Y": "./OriginalTileImages/B11.png",
-  "Z": "./OriginalTileImages/B12.png"
+  // 1. Complete Hand-Drawn GameSalad Tile Skins (Skins 0 through 12, format: ./OriginalTileImages/<LETTER><SKIN_ID>.png)
+  window.ORIGINAL_TILE_SKINS = {
+  "0": {
+    "A": "./OriginalTileImages/A0.png",
+    "B": "./OriginalTileImages/B0.png",
+    "C": "./OriginalTileImages/C0.png",
+    "D": "./OriginalTileImages/D0.png",
+    "E": "./OriginalTileImages/E0.png",
+    "F": "./OriginalTileImages/F0.png",
+    "G": "./OriginalTileImages/G0.png",
+    "H": "./OriginalTileImages/H0.png",
+    "I": "./OriginalTileImages/I0.png",
+    "J": "./OriginalTileImages/J0.png",
+    "K": "./OriginalTileImages/K0.png",
+    "L": "./OriginalTileImages/L0.png",
+    "M": "./OriginalTileImages/M0.png",
+    "N": "./OriginalTileImages/N0.png",
+    "O": "./OriginalTileImages/O0.png",
+    "P": "./OriginalTileImages/P0.png",
+    "Q": "./OriginalTileImages/Q0.png",
+    "R": "./OriginalTileImages/R0.png",
+    "S": "./OriginalTileImages/S0.png",
+    "T": "./OriginalTileImages/T0.png",
+    "U": "./OriginalTileImages/U0.png",
+    "V": "./OriginalTileImages/V0.png",
+    "W": "./OriginalTileImages/W0.png",
+    "X": "./OriginalTileImages/X0.png",
+    "Y": "./OriginalTileImages/Y0.png",
+    "Z": "./OriginalTileImages/Z0.png"
+  },
+  "1": {
+    "A": "./OriginalTileImages/A1.png",
+    "B": "./OriginalTileImages/B1.png",
+    "C": "./OriginalTileImages/C1.png",
+    "D": "./OriginalTileImages/D1.png",
+    "E": "./OriginalTileImages/E1.png",
+    "F": "./OriginalTileImages/F1.png",
+    "G": "./OriginalTileImages/G1.png",
+    "H": "./OriginalTileImages/H1.png",
+    "I": "./OriginalTileImages/I1.png",
+    "J": "./OriginalTileImages/J1.png",
+    "K": "./OriginalTileImages/K1.png",
+    "L": "./OriginalTileImages/L1.png",
+    "M": "./OriginalTileImages/M1.png",
+    "N": "./OriginalTileImages/N1.png",
+    "O": "./OriginalTileImages/O1.png",
+    "P": "./OriginalTileImages/P1.png",
+    "Q": "./OriginalTileImages/Q1.png",
+    "R": "./OriginalTileImages/R1.png",
+    "S": "./OriginalTileImages/S1.png",
+    "T": "./OriginalTileImages/T1.png",
+    "U": "./OriginalTileImages/U1.png",
+    "V": "./OriginalTileImages/V1.png",
+    "W": "./OriginalTileImages/W1.png",
+    "X": "./OriginalTileImages/X1.png",
+    "Y": "./OriginalTileImages/Y1.png",
+    "Z": "./OriginalTileImages/Z1.png"
+  },
+  "2": {
+    "A": "./OriginalTileImages/A2.png",
+    "B": "./OriginalTileImages/B2.png",
+    "C": "./OriginalTileImages/C2.png",
+    "D": "./OriginalTileImages/D2.png",
+    "E": "./OriginalTileImages/E2.png",
+    "F": "./OriginalTileImages/F2.png",
+    "G": "./OriginalTileImages/G2.png",
+    "H": "./OriginalTileImages/H2.png",
+    "I": "./OriginalTileImages/I2.png",
+    "J": "./OriginalTileImages/J2.png",
+    "K": "./OriginalTileImages/K2.png",
+    "L": "./OriginalTileImages/L2.png",
+    "M": "./OriginalTileImages/M2.png",
+    "N": "./OriginalTileImages/N2.png",
+    "O": "./OriginalTileImages/O2.png",
+    "P": "./OriginalTileImages/P2.png",
+    "Q": "./OriginalTileImages/Q2.png",
+    "R": "./OriginalTileImages/R2.png",
+    "S": "./OriginalTileImages/S2.png",
+    "T": "./OriginalTileImages/T2.png",
+    "U": "./OriginalTileImages/U2.png",
+    "V": "./OriginalTileImages/V2.png",
+    "W": "./OriginalTileImages/W2.png",
+    "X": "./OriginalTileImages/X2.png",
+    "Y": "./OriginalTileImages/Y2.png",
+    "Z": "./OriginalTileImages/Z2.png"
+  },
+  "3": {
+    "A": "./OriginalTileImages/A3.png",
+    "B": "./OriginalTileImages/B3.png",
+    "C": "./OriginalTileImages/C3.png",
+    "D": "./OriginalTileImages/D3.png",
+    "E": "./OriginalTileImages/E3.png",
+    "F": "./OriginalTileImages/F3.png",
+    "G": "./OriginalTileImages/G3.png",
+    "H": "./OriginalTileImages/H3.png",
+    "I": "./OriginalTileImages/I3.png",
+    "J": "./OriginalTileImages/J3.png",
+    "K": "./OriginalTileImages/K3.png",
+    "L": "./OriginalTileImages/L3.png",
+    "M": "./OriginalTileImages/M3.png",
+    "N": "./OriginalTileImages/N3.png",
+    "O": "./OriginalTileImages/O3.png",
+    "P": "./OriginalTileImages/P3.png",
+    "Q": "./OriginalTileImages/Q3.png",
+    "R": "./OriginalTileImages/R3.png",
+    "S": "./OriginalTileImages/S3.png",
+    "T": "./OriginalTileImages/T3.png",
+    "U": "./OriginalTileImages/U3.png",
+    "V": "./OriginalTileImages/V3.png",
+    "W": "./OriginalTileImages/W3.png",
+    "X": "./OriginalTileImages/X3.png",
+    "Y": "./OriginalTileImages/Y3.png",
+    "Z": "./OriginalTileImages/Z3.png"
+  },
+  "4": {
+    "A": "./OriginalTileImages/A4.png",
+    "B": "./OriginalTileImages/B4.png",
+    "C": "./OriginalTileImages/C4.png",
+    "D": "./OriginalTileImages/D4.png",
+    "E": "./OriginalTileImages/E4.png",
+    "F": "./OriginalTileImages/F4.png",
+    "G": "./OriginalTileImages/G4.png",
+    "H": "./OriginalTileImages/H4.png",
+    "I": "./OriginalTileImages/I4.png",
+    "J": "./OriginalTileImages/J4.png",
+    "K": "./OriginalTileImages/K4.png",
+    "L": "./OriginalTileImages/L4.png",
+    "M": "./OriginalTileImages/M4.png",
+    "N": "./OriginalTileImages/N4.png",
+    "O": "./OriginalTileImages/O4.png",
+    "P": "./OriginalTileImages/P4.png",
+    "Q": "./OriginalTileImages/Q4.png",
+    "R": "./OriginalTileImages/R4.png",
+    "S": "./OriginalTileImages/S4.png",
+    "T": "./OriginalTileImages/T4.png",
+    "U": "./OriginalTileImages/U4.png",
+    "V": "./OriginalTileImages/V4.png",
+    "W": "./OriginalTileImages/W4.png",
+    "X": "./OriginalTileImages/X4.png",
+    "Y": "./OriginalTileImages/Y4.png",
+    "Z": "./OriginalTileImages/Z4.png"
+  },
+  "5": {
+    "A": "./OriginalTileImages/A5.png",
+    "B": "./OriginalTileImages/B5.png",
+    "C": "./OriginalTileImages/C5.png",
+    "D": "./OriginalTileImages/D5.png",
+    "E": "./OriginalTileImages/E5.png",
+    "F": "./OriginalTileImages/F5.png",
+    "G": "./OriginalTileImages/G5.png",
+    "H": "./OriginalTileImages/H5.png",
+    "I": "./OriginalTileImages/I5.png",
+    "J": "./OriginalTileImages/J5.png",
+    "K": "./OriginalTileImages/K5.png",
+    "L": "./OriginalTileImages/L5.png",
+    "M": "./OriginalTileImages/M5.png",
+    "N": "./OriginalTileImages/N5.png",
+    "O": "./OriginalTileImages/O5.png",
+    "P": "./OriginalTileImages/P5.png",
+    "Q": "./OriginalTileImages/Q5.png",
+    "R": "./OriginalTileImages/R5.png",
+    "S": "./OriginalTileImages/S5.png",
+    "T": "./OriginalTileImages/T5.png",
+    "U": "./OriginalTileImages/U5.png",
+    "V": "./OriginalTileImages/V5.png",
+    "W": "./OriginalTileImages/W5.png",
+    "X": "./OriginalTileImages/X5.png",
+    "Y": "./OriginalTileImages/Y5.png",
+    "Z": "./OriginalTileImages/Z5.png"
+  },
+  "6": {
+    "A": "./OriginalTileImages/A6.png",
+    "B": "./OriginalTileImages/B6.png",
+    "C": "./OriginalTileImages/C6.png",
+    "D": "./OriginalTileImages/D6.png",
+    "E": "./OriginalTileImages/E6.png",
+    "F": "./OriginalTileImages/F6.png",
+    "G": "./OriginalTileImages/G6.png",
+    "H": "./OriginalTileImages/H6.png",
+    "I": "./OriginalTileImages/I6.png",
+    "J": "./OriginalTileImages/J6.png",
+    "K": "./OriginalTileImages/K6.png",
+    "L": "./OriginalTileImages/L6.png",
+    "M": "./OriginalTileImages/M6.png",
+    "N": "./OriginalTileImages/N6.png",
+    "O": "./OriginalTileImages/O6.png",
+    "P": "./OriginalTileImages/P6.png",
+    "Q": "./OriginalTileImages/Q6.png",
+    "R": "./OriginalTileImages/R6.png",
+    "S": "./OriginalTileImages/S6.png",
+    "T": "./OriginalTileImages/T6.png",
+    "U": "./OriginalTileImages/U6.png",
+    "V": "./OriginalTileImages/V6.png",
+    "W": "./OriginalTileImages/W6.png",
+    "X": "./OriginalTileImages/X6.png",
+    "Y": "./OriginalTileImages/Y6.png",
+    "Z": "./OriginalTileImages/Z6.png"
+  },
+  "7": {
+    "A": "./OriginalTileImages/A7.png",
+    "B": "./OriginalTileImages/B7.png",
+    "C": "./OriginalTileImages/C7.png",
+    "D": "./OriginalTileImages/D7.png",
+    "E": "./OriginalTileImages/E7.png",
+    "F": "./OriginalTileImages/F7.png",
+    "G": "./OriginalTileImages/G7.png",
+    "H": "./OriginalTileImages/H7.png",
+    "I": "./OriginalTileImages/I7.png",
+    "J": "./OriginalTileImages/J7.png",
+    "K": "./OriginalTileImages/K7.png",
+    "L": "./OriginalTileImages/L7.png",
+    "M": "./OriginalTileImages/M7.png",
+    "N": "./OriginalTileImages/N7.png",
+    "O": "./OriginalTileImages/O7.png",
+    "P": "./OriginalTileImages/P7.png",
+    "Q": "./OriginalTileImages/Q7.png",
+    "R": "./OriginalTileImages/R7.png",
+    "S": "./OriginalTileImages/S7.png",
+    "T": "./OriginalTileImages/T7.png",
+    "U": "./OriginalTileImages/U7.png",
+    "V": "./OriginalTileImages/V7.png",
+    "W": "./OriginalTileImages/W7.png",
+    "X": "./OriginalTileImages/X7.png",
+    "Y": "./OriginalTileImages/Y7.png",
+    "Z": "./OriginalTileImages/Z7.png"
+  },
+  "8": {
+    "A": "./OriginalTileImages/A8.png",
+    "B": "./OriginalTileImages/B8.png",
+    "C": "./OriginalTileImages/C8.png",
+    "D": "./OriginalTileImages/D8.png",
+    "E": "./OriginalTileImages/E8.png",
+    "F": "./OriginalTileImages/F8.png",
+    "G": "./OriginalTileImages/G8.png",
+    "H": "./OriginalTileImages/H8.png",
+    "I": "./OriginalTileImages/I8.png",
+    "J": "./OriginalTileImages/J8.png",
+    "K": "./OriginalTileImages/K8.png",
+    "L": "./OriginalTileImages/L8.png",
+    "M": "./OriginalTileImages/M8.png",
+    "N": "./OriginalTileImages/N8.png",
+    "O": "./OriginalTileImages/O8.png",
+    "P": "./OriginalTileImages/P8.png",
+    "Q": "./OriginalTileImages/Q8.png",
+    "R": "./OriginalTileImages/R8.png",
+    "S": "./OriginalTileImages/S8.png",
+    "T": "./OriginalTileImages/T8.png",
+    "U": "./OriginalTileImages/U8.png",
+    "V": "./OriginalTileImages/V8.png",
+    "W": "./OriginalTileImages/W8.png",
+    "X": "./OriginalTileImages/X8.png",
+    "Y": "./OriginalTileImages/Y8.png",
+    "Z": "./OriginalTileImages/Z8.png"
+  },
+  "9": {
+    "A": "./OriginalTileImages/A9.png",
+    "B": "./OriginalTileImages/B9.png",
+    "C": "./OriginalTileImages/C9.png",
+    "D": "./OriginalTileImages/D9.png",
+    "E": "./OriginalTileImages/E9.png",
+    "F": "./OriginalTileImages/F9.png",
+    "G": "./OriginalTileImages/G9.png",
+    "H": "./OriginalTileImages/H9.png",
+    "I": "./OriginalTileImages/I9.png",
+    "J": "./OriginalTileImages/J9.png",
+    "K": "./OriginalTileImages/K9.png",
+    "L": "./OriginalTileImages/L9.png",
+    "M": "./OriginalTileImages/M9.png",
+    "N": "./OriginalTileImages/N9.png",
+    "O": "./OriginalTileImages/O9.png",
+    "P": "./OriginalTileImages/P9.png",
+    "Q": "./OriginalTileImages/Q9.png",
+    "R": "./OriginalTileImages/R9.png",
+    "S": "./OriginalTileImages/S9.png",
+    "T": "./OriginalTileImages/T9.png",
+    "U": "./OriginalTileImages/U9.png",
+    "V": "./OriginalTileImages/V9.png",
+    "W": "./OriginalTileImages/W9.png",
+    "X": "./OriginalTileImages/X9.png",
+    "Y": "./OriginalTileImages/Y9.png",
+    "Z": "./OriginalTileImages/Z9.png"
+  },
+  "10": {
+    "A": "./OriginalTileImages/A10.png",
+    "B": "./OriginalTileImages/B10.png",
+    "C": "./OriginalTileImages/C10.png",
+    "D": "./OriginalTileImages/D10.png",
+    "E": "./OriginalTileImages/E10.png",
+    "F": "./OriginalTileImages/F10.png",
+    "G": "./OriginalTileImages/G10.png",
+    "H": "./OriginalTileImages/H10.png",
+    "I": "./OriginalTileImages/I10.png",
+    "J": "./OriginalTileImages/J10.png",
+    "K": "./OriginalTileImages/K10.png",
+    "L": "./OriginalTileImages/L10.png",
+    "M": "./OriginalTileImages/M10.png",
+    "N": "./OriginalTileImages/N10.png",
+    "O": "./OriginalTileImages/O10.png",
+    "P": "./OriginalTileImages/P10.png",
+    "Q": "./OriginalTileImages/Q10.png",
+    "R": "./OriginalTileImages/R10.png",
+    "S": "./OriginalTileImages/S10.png",
+    "T": "./OriginalTileImages/T10.png",
+    "U": "./OriginalTileImages/U10.png",
+    "V": "./OriginalTileImages/V10.png",
+    "W": "./OriginalTileImages/W10.png",
+    "X": "./OriginalTileImages/X10.png",
+    "Y": "./OriginalTileImages/Y10.png",
+    "Z": "./OriginalTileImages/Z10.png"
+  },
+  "11": {
+    "A": "./OriginalTileImages/A11.png",
+    "B": "./OriginalTileImages/B11.png",
+    "C": "./OriginalTileImages/C11.png",
+    "D": "./OriginalTileImages/D11.png",
+    "E": "./OriginalTileImages/E11.png",
+    "F": "./OriginalTileImages/F11.png",
+    "G": "./OriginalTileImages/G11.png",
+    "H": "./OriginalTileImages/H11.png",
+    "I": "./OriginalTileImages/I11.png",
+    "J": "./OriginalTileImages/J11.png",
+    "K": "./OriginalTileImages/K11.png",
+    "L": "./OriginalTileImages/L11.png",
+    "M": "./OriginalTileImages/M11.png",
+    "N": "./OriginalTileImages/N11.png",
+    "O": "./OriginalTileImages/O11.png",
+    "P": "./OriginalTileImages/P11.png",
+    "Q": "./OriginalTileImages/Q11.png",
+    "R": "./OriginalTileImages/R11.png",
+    "S": "./OriginalTileImages/S11.png",
+    "T": "./OriginalTileImages/T11.png",
+    "U": "./OriginalTileImages/U11.png",
+    "V": "./OriginalTileImages/V11.png",
+    "W": "./OriginalTileImages/W11.png",
+    "X": "./OriginalTileImages/X11.png",
+    "Y": "./OriginalTileImages/Y11.png",
+    "Z": "./OriginalTileImages/Z11.png"
+  },
+  "12": {
+    "A": "./OriginalTileImages/A12.png",
+    "B": "./OriginalTileImages/B12.png",
+    "C": "./OriginalTileImages/C12.png",
+    "D": "./OriginalTileImages/D12.png",
+    "E": "./OriginalTileImages/E12.png",
+    "F": "./OriginalTileImages/F12.png",
+    "G": "./OriginalTileImages/G12.png",
+    "H": "./OriginalTileImages/H12.png",
+    "I": "./OriginalTileImages/I12.png",
+    "J": "./OriginalTileImages/J12.png",
+    "K": "./OriginalTileImages/K12.png",
+    "L": "./OriginalTileImages/L12.png",
+    "M": "./OriginalTileImages/M12.png",
+    "N": "./OriginalTileImages/N12.png",
+    "O": "./OriginalTileImages/O12.png",
+    "P": "./OriginalTileImages/P12.png",
+    "Q": "./OriginalTileImages/Q12.png",
+    "R": "./OriginalTileImages/R12.png",
+    "S": "./OriginalTileImages/S12.png",
+    "T": "./OriginalTileImages/T12.png",
+    "U": "./OriginalTileImages/U12.png",
+    "V": "./OriginalTileImages/V12.png",
+    "W": "./OriginalTileImages/W12.png",
+    "X": "./OriginalTileImages/X12.png",
+    "Y": "./OriginalTileImages/Y12.png",
+    "Z": "./OriginalTileImages/Z12.png"
+  }
 };
+  window.ACTIVE_GS_SKIN_ID = localStorage.getItem('GS_ACTIVE_TILE_SKIN') || "0";
+  if (!window.ORIGINAL_TILE_SKINS[window.ACTIVE_GS_SKIN_ID]) {
+    window.ACTIVE_GS_SKIN_ID = "0";
+  }
+  window.ORIGINAL_TILE_IMAGES_MAP = window.ORIGINAL_TILE_SKINS[window.ACTIVE_GS_SKIN_ID];
 
-  window.getOriginalTileImageUrl = function(letterOrInput) {
-    if (!letterOrInput && letterOrInput !== 0) return window.ORIGINAL_TILE_IMAGES_MAP['A'];
+  // Resolve exact ./OriginalTileImages/<LETTER><SKIN_ID>.png path for any letter A-Z
+  window.getOriginalTileImageUrl = function(letterOrInput, optionalSkinId) {
+    var skinId = (optionalSkinId !== undefined && optionalSkinId !== null)
+      ? String(optionalSkinId)
+      : String(window.ACTIVE_GS_SKIN_ID);
+    var skinMap = window.ORIGINAL_TILE_SKINS[skinId] || window.ORIGINAL_TILE_IMAGES_MAP;
+
+    if (!letterOrInput && letterOrInput !== 0) return skinMap['A'];
     var str = String(letterOrInput).trim().toUpperCase();
+
     // Direct single letter A-Z
     if (str.length === 1 && str >= 'A' && str <= 'Z') {
-      return window.ORIGINAL_TILE_IMAGES_MAP[str];
+      return skinMap[str] || ("./OriginalTileImages/" + str + skinId + ".png");
     }
-    // If numeric 1..26
-    if (/^\d+$/.test(str)) {
-      var n = parseInt(str, 10);
-      var ch = String.fromCharCode(64 + Math.max(1, Math.min(26, n)));
-      return window.ORIGINAL_TILE_IMAGES_MAP[ch] || window.ORIGINAL_TILE_IMAGES_MAP['A'];
+    // If <LETTER><SKIN> passed directly (e.g. "V9" or "P12")
+    var exactCode = str.match(/^([A-Z])(\d{1,2})$/);
+    if (exactCode) {
+      var l = exactCode[1];
+      var s = exactCode[2];
+      if (window.ORIGINAL_TILE_SKINS[s] && window.ORIGINAL_TILE_SKINS[s][l]) {
+        return window.ORIGINAL_TILE_SKINS[s][l];
+      }
+      return "./OriginalTileImages/" + l + s + ".png";
     }
     // Extract first A-Z letter
     var match = str.match(/[A-Z]/);
-    if (match && window.ORIGINAL_TILE_IMAGES_MAP[match[0]]) {
-      return window.ORIGINAL_TILE_IMAGES_MAP[match[0]];
+    if (match) {
+      return skinMap[match[0]] || ("./OriginalTileImages/" + match[0] + skinId + ".png");
     }
-    return window.ORIGINAL_TILE_IMAGES_MAP['A'];
+    return skinMap['A'];
   };
   window.getGameSaladRootTileUrl = window.getOriginalTileImageUrl;
 
-  // 2. Preload all 26 GameSalad HTMLImageElements so canvas & WebGL swaps happen instantaneously
+  // 2. Preload images for the active skin (and lazy-preload other skins on switch)
   window._gsPreloadedImages = {};
   window._originalTileTextureCache = {};
+  window._gsTrackedTileCanvases = [];
 
-  Object.keys(window.ORIGINAL_TILE_IMAGES_MAP).forEach(function(letter) {
-    var url = window.ORIGINAL_TILE_IMAGES_MAP[letter];
-    var img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = url;
-    window._gsPreloadedImages[letter] = img;
-  });
+  window.preloadGameSaladSkin = function(skinId) {
+    var sId = String(skinId);
+    var skinMap = window.ORIGINAL_TILE_SKINS[sId];
+    if (!skinMap) return;
+    if (!window._gsPreloadedImages[sId]) window._gsPreloadedImages[sId] = {};
 
-  // 3. Load Three.js Texture directly from ./OriginalTileImages/
+    Object.keys(skinMap).forEach(function(letter) {
+      if (window._gsPreloadedImages[sId][letter]) return;
+      var url = skinMap[letter];
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+      window._gsPreloadedImages[sId][letter] = img;
+    });
+  };
+
+  window.preloadGameSaladSkin(window.ACTIVE_GS_SKIN_ID);
+
+  // Helper to paint a hand-drawn 2D tile image onto any 3D tile's offscreen <canvas>
+  function paintHandDrawnTileToCanvas(canvas, letter) {
+    if (!canvas || !letter) return;
+    var sId = String(window.ACTIVE_GS_SKIN_ID);
+    window.preloadGameSaladSkin(sId);
+    var skinImgs = window._gsPreloadedImages[sId] || {};
+    var gsImg = skinImgs[letter];
+    var ctx = canvas.getContext && canvas.getContext('2d');
+    if (!ctx || !gsImg) return;
+
+    var drawNow = function() {
+      try {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(gsImg, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        if (canvas.__gsThreeTexture) {
+          canvas.__gsThreeTexture.needsUpdate = true;
+        }
+      } catch (e) {}
+    };
+
+    if (gsImg.complete && gsImg.naturalWidth > 0) {
+      drawNow();
+    } else {
+      gsImg.addEventListener('load', drawNow, { once: true });
+    }
+  }
+
+  // Switch active hand-drawn skin (0..12) at runtime and repaint all live 3D board & rack tiles!
+  window.setGameSaladTileSkin = function(newSkinId) {
+    var numMatch = String(newSkinId).match(/\d+/);
+    var resolvedId = numMatch ? String(numMatch[0]) : String(newSkinId);
+    if (!window.ORIGINAL_TILE_SKINS[resolvedId]) {
+      // Map index 0..12 if a skin name was passed
+      resolvedId = "0";
+    }
+    window.ACTIVE_GS_SKIN_ID = resolvedId;
+    window.ORIGINAL_TILE_IMAGES_MAP = window.ORIGINAL_TILE_SKINS[resolvedId];
+    try { localStorage.setItem('GS_ACTIVE_TILE_SKIN', resolvedId); } catch (e) {}
+    window.preloadGameSaladSkin(resolvedId);
+
+    // Repaint all tracked 3D tile canvases immediately
+    window._gsTrackedTileCanvases.forEach(function(c) {
+      if (c && c.__gsTileLetter) {
+        paintHandDrawnTileToCanvas(c, c.__gsTileLetter);
+      }
+    });
+  };
+
+  // 3. Load Three.js Texture directly from ./OriginalTileImages/<LETTER><SKIN_ID>.png
   window.loadOriginalTileTexture = function(letterOrNumber) {
     var url = window.getOriginalTileImageUrl(letterOrNumber);
     if (window._originalTileTextureCache[url]) {
@@ -90,65 +506,40 @@
   };
   window.loadGameSaladTileTexture = window.loadOriginalTileTexture;
 
-  // 4. INTERCEPT 2D CANVAS LETTER DRAWING (Why the ugly AI/procedural tiles were still showing!)
-  // Whenever the game draws a single letter ('T','E','N','N','I','S') and subscript onto an offscreen <canvas>,
-  // we tag that canvas with the letter and draw the real GameSalad PNG over the entire canvas!
+  // 4. INTERCEPT 2D CANVAS LETTER DRAWING ON 3D TILES
+  // When 3d.html draws a single letter ('T','E','N','N','I','S') onto a tile's offscreen <canvas>,
+  // we tag the canvas with that exact letter (A-Z) and paint './OriginalTileImages/<LETTER><SKIN_ID>.png'!
   var origFillText = CanvasRenderingContext2D.prototype.fillText;
   CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
     var str = String(text || '').trim();
-    // Detect when a single uppercase letter A-Z is drawn onto a square-ish tile canvas
     if (/^[A-Za-z]$/.test(str) && this.canvas && this.canvas.width >= 32 && this.canvas.width <= 1024) {
       var letter = str.toUpperCase();
       this.canvas.__gsTileLetter = letter;
-      var gsImg = window._gsPreloadedImages[letter];
-      var selfCtx = this;
-      var targetCanvas = this.canvas;
-
-      var paintGameSaladTileOntoCanvas = function(imageObj) {
-        try {
-          selfCtx.save();
-          selfCtx.setTransform(1, 0, 0, 1, 0, 0);
-          selfCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
-          selfCtx.drawImage(imageObj, 0, 0, targetCanvas.width, targetCanvas.height);
-          selfCtx.restore();
-          if (targetCanvas.__gsThreeTexture) {
-            targetCanvas.__gsThreeTexture.needsUpdate = true;
-          }
-        } catch (e) {}
-      };
-
-      if (gsImg && gsImg.complete && gsImg.naturalWidth > 0) {
-        paintGameSaladTileOntoCanvas(gsImg);
-        return; // Skip drawing the ugly procedural letter!
-      } else if (gsImg) {
-        gsImg.addEventListener('load', function() {
-          paintGameSaladTileOntoCanvas(gsImg);
-        });
-        return;
+      if (window._gsTrackedTileCanvases.indexOf(this.canvas) === -1) {
+        window._gsTrackedTileCanvases.push(this.canvas);
       }
+      paintHandDrawnTileToCanvas(this.canvas, letter);
+      return; // Do NOT draw the ugly procedural letter!
     }
-    // Also suppress subscript point numbers (1, 2, 3, 4, 8, 10) on canvases already tagged as a GameSalad tile
+    // Suppress subscript point numbers (1, 2, 3, 4, 8, 10) on canvases already tagged with a hand-drawn letter
     if (/^\d{1,2}$/.test(str) && this.canvas && this.canvas.__gsTileLetter) {
-      var l = this.canvas.__gsTileLetter;
-      var readyImg = window._gsPreloadedImages[l];
-      if (readyImg && readyImg.complete && readyImg.naturalWidth > 0) {
-        try {
-          this.save();
-          this.setTransform(1, 0, 0, 1, 0, 0);
-          this.clearRect(0, 0, this.canvas.width, this.canvas.height);
-          this.drawImage(readyImg, 0, 0, this.canvas.width, this.canvas.height);
-          this.restore();
-          if (this.canvas.__gsThreeTexture) {
-            this.canvas.__gsThreeTexture.needsUpdate = true;
-          }
-        } catch (e) {}
-      }
+      paintHandDrawnTileToCanvas(this.canvas, this.canvas.__gsTileLetter);
       return;
     }
     return origFillText.apply(this, arguments);
   };
 
-  // 5. HOOK THREE.CanvasTexture SO ANY 3D TILE TEXTURE AUTO-REPAINTS WITH THE GAMESALAD PNG
+  // Also intercept strokeText on tile canvases so no outlines appear over hand-drawn tiles
+  var origStrokeText = CanvasRenderingContext2D.prototype.strokeText;
+  CanvasRenderingContext2D.prototype.strokeText = function(text, x, y, maxWidth) {
+    var str = String(text || '').trim();
+    if ((/^[A-Za-z]$/.test(str) || /^\d{1,2}$/.test(str)) && this.canvas && this.canvas.__gsTileLetter) {
+      return;
+    }
+    return origStrokeText.apply(this, arguments);
+  };
+
+  // 5. HOOK THREE.CanvasTexture SO EVERY 3D TILE TEXTURE USES sRGB AND AUTO-UPDATES WHEN THE PNG LOADS
   function installThreeCanvasTextureHook() {
     if (typeof THREE === 'undefined' || !THREE.CanvasTexture || THREE.CanvasTexture.__gsHooked) return;
     var OrigCanvasTexture = THREE.CanvasTexture;
@@ -160,22 +551,7 @@
       if (canvas) {
         canvas.__gsThreeTexture = tex;
         if (canvas.__gsTileLetter) {
-          var letter = canvas.__gsTileLetter;
-          var gsImg = window._gsPreloadedImages[letter];
-          var ctx = canvas.getContext && canvas.getContext('2d');
-          if (gsImg && ctx) {
-            if (gsImg.complete && gsImg.naturalWidth > 0) {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(gsImg, 0, 0, canvas.width, canvas.height);
-              tex.needsUpdate = true;
-            } else {
-              gsImg.addEventListener('load', function() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(gsImg, 0, 0, canvas.width, canvas.height);
-                tex.needsUpdate = true;
-              });
-            }
-          }
+          paintHandDrawnTileToCanvas(canvas, canvas.__gsTileLetter);
         }
       }
       return tex;
@@ -186,9 +562,40 @@
     THREE.CanvasTexture = PatchedCanvasTexture;
   }
 
+  // 6. HOOK IN-GAME SETTINGS "LETTER TILE SKIN" SELECTOR OR ADD SKIN SWITCHER (0..12)
+  function syncInGameSkinSelector() {
+    var selects = document.querySelectorAll('select');
+    selects.forEach(function(sel) {
+      if (sel.__gsSkinBound) return;
+      var idOrName = ((sel.id || '') + ' ' + (sel.className || '') + ' ' + (sel.previousElementSibling ? sel.previousElementSibling.textContent : '')).toLowerCase();
+      if (idOrName.indexOf('skin') !== -1 || idOrName.indexOf('tile') !== -1 || idOrName.indexOf('theme') !== -1) {
+        sel.__gsSkinBound = true;
+        // Populate with Hand-Drawn Skins 0..12
+        sel.innerHTML = '';
+        var skinLabels = {"0":"Skin 0 — Classic Yellow (A0..Z0)","1":"Skin 1 — GameSalad Set 1 (A1..Z1)","2":"Skin 2 — GameSalad Set 2 (A2..Z2)","3":"Skin 3 — Royal Blue / Purple (A3..Z3)","4":"Skin 4 — GameSalad Set 4 (A4..Z4)","5":"Skin 5 — Mint Green (A5..Z5)","6":"Skin 6 — GameSalad Set 6 (A6..Z6)","7":"Skin 7 — Carved Stone (A7..Z7)","8":"Skin 8 — Charcoal Gold (A8..Z8)","9":"Skin 9 — Framed Teal (A9..Z9)","10":"Skin 10 — Light Wood Grain (A10..Z10)","11":"Skin 11 — Dark Espresso Wood (A11..Z11)","12":"Skin 12 — Illustrated Character Tiles (A12..Z12)"};
+        Object.keys(window.ORIGINAL_TILE_SKINS).forEach(function(sId) {
+          var opt = document.createElement('option');
+          opt.value = sId;
+          opt.textContent = skinLabels[sId] || ('Hand-Drawn Skin ' + sId + ' (A' + sId + '..Z' + sId + ')');
+          if (String(sId) === String(window.ACTIVE_GS_SKIN_ID)) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        sel.addEventListener('change', function(e) {
+          window.setGameSaladTileSkin(e.target.value);
+        });
+      }
+    });
+  }
+
   installThreeCanvasTextureHook();
-  window.addEventListener('DOMContentLoaded', installThreeCanvasTextureHook);
-  setInterval(installThreeCanvasTextureHook, 250);
+  window.addEventListener('DOMContentLoaded', function() {
+    installThreeCanvasTextureHook();
+    syncInGameSkinSelector();
+  });
+  setInterval(function() {
+    installThreeCanvasTextureHook();
+    syncInGameSkinSelector();
+  }, 300);
 })();
 </script>
 
