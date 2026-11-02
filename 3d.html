@@ -2,7 +2,198 @@
 <html lang="en">
 
 <head>
-	<meta charset="utf-8">
+
+<!-- [ORIGINALTILEIMAGES GAMESALAD TILE INTERCEPTOR & SKIN OVERRIDE v2] -->
+<script>
+(function() {
+  // 1. Clean Letter (A-Z) -> ./OriginalTileImages/ Map (UI files like 3letterSeason1 & Pink Button filtered out!)
+  window.ORIGINAL_TILE_IMAGES_MAP = {
+  "A": "./OriginalTileImages/A0.png",
+  "B": "./OriginalTileImages/A1.png",
+  "C": "./OriginalTileImages/A2.png",
+  "D": "./OriginalTileImages/A3.png",
+  "E": "./OriginalTileImages/A4.png",
+  "F": "./OriginalTileImages/A5.png",
+  "G": "./OriginalTileImages/A6.png",
+  "H": "./OriginalTileImages/A7.png",
+  "I": "./OriginalTileImages/A8.png",
+  "J": "./OriginalTileImages/A9.png",
+  "K": "./OriginalTileImages/A10.png",
+  "L": "./OriginalTileImages/A11.png",
+  "M": "./OriginalTileImages/A12.png",
+  "N": "./OriginalTileImages/B0.png",
+  "O": "./OriginalTileImages/B1.png",
+  "P": "./OriginalTileImages/B2.png",
+  "Q": "./OriginalTileImages/B3.png",
+  "R": "./OriginalTileImages/B4.png",
+  "S": "./OriginalTileImages/B5.png",
+  "T": "./OriginalTileImages/B6.png",
+  "U": "./OriginalTileImages/B7.png",
+  "V": "./OriginalTileImages/B8.png",
+  "W": "./OriginalTileImages/B9.png",
+  "X": "./OriginalTileImages/B10.png",
+  "Y": "./OriginalTileImages/B11.png",
+  "Z": "./OriginalTileImages/B12.png"
+};
+
+  window.getOriginalTileImageUrl = function(letterOrInput) {
+    if (!letterOrInput && letterOrInput !== 0) return window.ORIGINAL_TILE_IMAGES_MAP['A'];
+    var str = String(letterOrInput).trim().toUpperCase();
+    // Direct single letter A-Z
+    if (str.length === 1 && str >= 'A' && str <= 'Z') {
+      return window.ORIGINAL_TILE_IMAGES_MAP[str];
+    }
+    // If numeric 1..26
+    if (/^\d+$/.test(str)) {
+      var n = parseInt(str, 10);
+      var ch = String.fromCharCode(64 + Math.max(1, Math.min(26, n)));
+      return window.ORIGINAL_TILE_IMAGES_MAP[ch] || window.ORIGINAL_TILE_IMAGES_MAP['A'];
+    }
+    // Extract first A-Z letter
+    var match = str.match(/[A-Z]/);
+    if (match && window.ORIGINAL_TILE_IMAGES_MAP[match[0]]) {
+      return window.ORIGINAL_TILE_IMAGES_MAP[match[0]];
+    }
+    return window.ORIGINAL_TILE_IMAGES_MAP['A'];
+  };
+  window.getGameSaladRootTileUrl = window.getOriginalTileImageUrl;
+
+  // 2. Preload all 26 GameSalad HTMLImageElements so canvas & WebGL swaps happen instantaneously
+  window._gsPreloadedImages = {};
+  window._originalTileTextureCache = {};
+
+  Object.keys(window.ORIGINAL_TILE_IMAGES_MAP).forEach(function(letter) {
+    var url = window.ORIGINAL_TILE_IMAGES_MAP[letter];
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = url;
+    window._gsPreloadedImages[letter] = img;
+  });
+
+  // 3. Load Three.js Texture directly from ./OriginalTileImages/
+  window.loadOriginalTileTexture = function(letterOrNumber) {
+    var url = window.getOriginalTileImageUrl(letterOrNumber);
+    if (window._originalTileTextureCache[url]) {
+      return window._originalTileTextureCache[url];
+    }
+    if (typeof THREE !== 'undefined' && THREE.TextureLoader) {
+      var loader = new THREE.TextureLoader();
+      loader.setCrossOrigin('anonymous');
+      var tex = loader.load(url);
+      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+      else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+      tex.needsUpdate = true;
+      window._originalTileTextureCache[url] = tex;
+      return tex;
+    }
+    return null;
+  };
+  window.loadGameSaladTileTexture = window.loadOriginalTileTexture;
+
+  // 4. INTERCEPT 2D CANVAS LETTER DRAWING (Why the ugly AI/procedural tiles were still showing!)
+  // Whenever the game draws a single letter ('T','E','N','N','I','S') and subscript onto an offscreen <canvas>,
+  // we tag that canvas with the letter and draw the real GameSalad PNG over the entire canvas!
+  var origFillText = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
+    var str = String(text || '').trim();
+    // Detect when a single uppercase letter A-Z is drawn onto a square-ish tile canvas
+    if (/^[A-Za-z]$/.test(str) && this.canvas && this.canvas.width >= 32 && this.canvas.width <= 1024) {
+      var letter = str.toUpperCase();
+      this.canvas.__gsTileLetter = letter;
+      var gsImg = window._gsPreloadedImages[letter];
+      var selfCtx = this;
+      var targetCanvas = this.canvas;
+
+      var paintGameSaladTileOntoCanvas = function(imageObj) {
+        try {
+          selfCtx.save();
+          selfCtx.setTransform(1, 0, 0, 1, 0, 0);
+          selfCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+          selfCtx.drawImage(imageObj, 0, 0, targetCanvas.width, targetCanvas.height);
+          selfCtx.restore();
+          if (targetCanvas.__gsThreeTexture) {
+            targetCanvas.__gsThreeTexture.needsUpdate = true;
+          }
+        } catch (e) {}
+      };
+
+      if (gsImg && gsImg.complete && gsImg.naturalWidth > 0) {
+        paintGameSaladTileOntoCanvas(gsImg);
+        return; // Skip drawing the ugly procedural letter!
+      } else if (gsImg) {
+        gsImg.addEventListener('load', function() {
+          paintGameSaladTileOntoCanvas(gsImg);
+        });
+        return;
+      }
+    }
+    // Also suppress subscript point numbers (1, 2, 3, 4, 8, 10) on canvases already tagged as a GameSalad tile
+    if (/^\d{1,2}$/.test(str) && this.canvas && this.canvas.__gsTileLetter) {
+      var l = this.canvas.__gsTileLetter;
+      var readyImg = window._gsPreloadedImages[l];
+      if (readyImg && readyImg.complete && readyImg.naturalWidth > 0) {
+        try {
+          this.save();
+          this.setTransform(1, 0, 0, 1, 0, 0);
+          this.clearRect(0, 0, this.canvas.width, this.canvas.height);
+          this.drawImage(readyImg, 0, 0, this.canvas.width, this.canvas.height);
+          this.restore();
+          if (this.canvas.__gsThreeTexture) {
+            this.canvas.__gsThreeTexture.needsUpdate = true;
+          }
+        } catch (e) {}
+      }
+      return;
+    }
+    return origFillText.apply(this, arguments);
+  };
+
+  // 5. HOOK THREE.CanvasTexture SO ANY 3D TILE TEXTURE AUTO-REPAINTS WITH THE GAMESALAD PNG
+  function installThreeCanvasTextureHook() {
+    if (typeof THREE === 'undefined' || !THREE.CanvasTexture || THREE.CanvasTexture.__gsHooked) return;
+    var OrigCanvasTexture = THREE.CanvasTexture;
+    function PatchedCanvasTexture(canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy) {
+      var tex = new OrigCanvasTexture(canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy);
+      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+      else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+
+      if (canvas) {
+        canvas.__gsThreeTexture = tex;
+        if (canvas.__gsTileLetter) {
+          var letter = canvas.__gsTileLetter;
+          var gsImg = window._gsPreloadedImages[letter];
+          var ctx = canvas.getContext && canvas.getContext('2d');
+          if (gsImg && ctx) {
+            if (gsImg.complete && gsImg.naturalWidth > 0) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(gsImg, 0, 0, canvas.width, canvas.height);
+              tex.needsUpdate = true;
+            } else {
+              gsImg.addEventListener('load', function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(gsImg, 0, 0, canvas.width, canvas.height);
+                tex.needsUpdate = true;
+              });
+            }
+          }
+        }
+      }
+      return tex;
+    }
+    PatchedCanvasTexture.prototype = OrigCanvasTexture.prototype;
+    Object.setPrototypeOf(PatchedCanvasTexture, OrigCanvasTexture);
+    PatchedCanvasTexture.__gsHooked = true;
+    THREE.CanvasTexture = PatchedCanvasTexture;
+  }
+
+  installThreeCanvasTextureHook();
+  window.addEventListener('DOMContentLoaded', installThreeCanvasTextureHook);
+  setInterval(installThreeCanvasTextureHook, 250);
+})();
+</script>
+
+
+<meta charset="utf-8">
 	<meta name="viewport"
 		content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 	<title>Scruffle 3D Chain</title>
@@ -240,97 +431,6 @@
 		}
 	</style>
 
-
-<!-- [ORIGINALTILEIMAGES NUMBERED GAMESALAD TILE LOADER - NO DEFAULT/AI TILES] -->
-<script>
-  // Exact Letter (A-Z) & Number (1-26) mapping to ./OriginalTileImages/
-  window.ORIGINAL_TILE_IMAGES_MAP = {
-  "A": "./OriginalTileImages/A1.png",
-  "B": "./OriginalTileImages/A2.png",
-  "C": "./OriginalTileImages/3letterSeason1.png",
-  "D": "./OriginalTileImages/4letterSeason1.png",
-  "E": "./OriginalTileImages/5letterSeason1.png",
-  "F": "./OriginalTileImages/6letterSeason1.png",
-  "G": "./OriginalTileImages/7letterSeason1.png",
-  "H": "./OriginalTileImages/A8.png",
-  "I": "./OriginalTileImages/A9.png",
-  "J": "./OriginalTileImages/A10.png",
-  "K": "./OriginalTileImages/A11.png",
-  "L": "./OriginalTileImages/A12.png",
-  "M": "./OriginalTileImages/Pink Button-13.png",
-  "N": "./OriginalTileImages/A8.png",
-  "O": "./OriginalTileImages/A9.png",
-  "P": "./OriginalTileImages/A10.png",
-  "Q": "./OriginalTileImages/A11.png",
-  "R": "./OriginalTileImages/A12.png",
-  "S": "./OriginalTileImages/B0.png",
-  "T": "./OriginalTileImages/B1.png",
-  "U": "./OriginalTileImages/B2.png",
-  "V": "./OriginalTileImages/B3.png",
-  "W": "./OriginalTileImages/B4.png",
-  "X": "./OriginalTileImages/B5.png",
-  "Y": "./OriginalTileImages/B6.png",
-  "Z": "./OriginalTileImages/B7.png",
-  "_SPECIAL_OR_BLANK_": "./OriginalTileImages/arrow.png"
-};
-  window.ORIGINAL_TILE_INDEX_OFFSET = 1;
-  window.ORIGINAL_TILE_PAD_LENGTH = 0;
-  window.ORIGINAL_TILE_PREFIX = "";
-  window.ORIGINAL_TILE_SUFFIX = "letterSeason1";
-  window.ORIGINAL_TILE_EXT = "png";
-
-  window.getOriginalTileImageUrl = function(letterOrNumber) {
-    if (letterOrNumber === undefined || letterOrNumber === null || letterOrNumber === '') {
-      return window.ORIGINAL_TILE_IMAGES_MAP['_SPECIAL_OR_BLANK_'] || window.ORIGINAL_TILE_IMAGES_MAP['A'];
-    }
-    // If passed a number directly (e.g., 1..26)
-    if (typeof letterOrNumber === 'number' || /^\d+$/.test(String(letterOrNumber).trim())) {
-      const numVal = parseInt(String(letterOrNumber).trim(), 10);
-      const letterFromNum = String.fromCharCode(64 + (numVal - window.ORIGINAL_TILE_INDEX_OFFSET + 1));
-      if (window.ORIGINAL_TILE_IMAGES_MAP[letterFromNum]) {
-        return window.ORIGINAL_TILE_IMAGES_MAP[letterFromNum];
-      }
-      const padded = window.ORIGINAL_TILE_PAD_LENGTH > 0
-        ? String(numVal).padStart(window.ORIGINAL_TILE_PAD_LENGTH, '0')
-        : String(numVal);
-      return './OriginalTileImages/' + window.ORIGINAL_TILE_PREFIX + padded + window.ORIGINAL_TILE_SUFFIX + '.' + window.ORIGINAL_TILE_EXT;
-    }
-    // Passed a letter 'A'..'Z'
-    const cleanChar = String(letterOrNumber).trim().charAt(0).toUpperCase();
-    if (window.ORIGINAL_TILE_IMAGES_MAP[cleanChar]) {
-      return window.ORIGINAL_TILE_IMAGES_MAP[cleanChar];
-    }
-    const charCodeNum = (cleanChar.charCodeAt(0) - 65) + window.ORIGINAL_TILE_INDEX_OFFSET;
-    const padded = window.ORIGINAL_TILE_PAD_LENGTH > 0
-      ? String(charCodeNum).padStart(window.ORIGINAL_TILE_PAD_LENGTH, '0')
-      : String(charCodeNum);
-    return './OriginalTileImages/' + window.ORIGINAL_TILE_PREFIX + padded + window.ORIGINAL_TILE_SUFFIX + '.' + window.ORIGINAL_TILE_EXT;
-  };
-
-  // Alias for backwards compatibility
-  window.getGameSaladRootTileUrl = window.getOriginalTileImageUrl;
-
-  // Three.js TextureLoader cache for ./OriginalTileImages/
-  window._originalTileTextureCache = {};
-  window.loadOriginalTileTexture = function(letterOrNumber) {
-    const url = window.getOriginalTileImageUrl(letterOrNumber);
-    if (window._originalTileTextureCache[url]) {
-      return window._originalTileTextureCache[url];
-    }
-    if (typeof THREE !== 'undefined' && THREE.TextureLoader) {
-      const loader = new THREE.TextureLoader();
-      loader.setCrossOrigin('anonymous');
-      const tex = loader.load(url);
-      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-      else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
-      tex.needsUpdate = true;
-      window._originalTileTextureCache[url] = tex;
-      return tex;
-    }
-    return null;
-  };
-  window.loadGameSaladTileTexture = window.loadOriginalTileTexture;
-</script>
 
 </head>
 
