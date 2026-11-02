@@ -240,64 +240,96 @@
 		}
 	</style>
 
-<!-- [GAMESALAD ROOT TILE OVERRIDE - NO DEFAULT/AI TILES] -->
-<script>
-  window.GAMESALAD_ROOT_TILE_MAP = {
-  "A": "./A.png",
-  "B": "./B.png",
-  "C": "./C.png",
-  "D": "./D.png",
-  "E": "./E.png",
-  "F": "./F.png",
-  "G": "./G.png",
-  "H": "./H.png",
-  "I": "./I.png",
-  "J": "./J.png",
-  "K": "./K.png",
-  "L": "./L.png",
-  "M": "./M.png",
-  "N": "./N.png",
-  "O": "./O.png",
-  "P": "./P.png",
-  "Q": "./Q.png",
-  "R": "./R.png",
-  "S": "./S.png",
-  "T": "./T.png",
-  "U": "./U.png",
-  "V": "./V.png",
-  "W": "./W.png",
-  "X": "./X.png",
-  "Y": "./Y.png",
-  "Z": "./Z.png"
-};
-  window.GAMESALAD_TILE_PATTERN = "./{LETTER}.png";
-  window.GAMESALAD_LETTER_CASE = "UPPER";
 
-  window.getGameSaladRootTileUrl = function(letter) {
-    if (!letter) return window.GAMESALAD_ROOT_TILE_MAP['_BASE_TILE_'] || window.GAMESALAD_TILE_PATTERN.replace('{LETTER}', 'A');
-    const clean = String(letter).trim().charAt(0).toUpperCase();
-    if (window.GAMESALAD_ROOT_TILE_MAP[clean]) {
-      return window.GAMESALAD_ROOT_TILE_MAP[clean];
+<!-- [ORIGINALTILEIMAGES NUMBERED GAMESALAD TILE LOADER - NO DEFAULT/AI TILES] -->
+<script>
+  // Exact Letter (A-Z) & Number (1-26) mapping to ./OriginalTileImages/
+  window.ORIGINAL_TILE_IMAGES_MAP = {
+  "A": "./OriginalTileImages/A1.png",
+  "B": "./OriginalTileImages/A2.png",
+  "C": "./OriginalTileImages/3letterSeason1.png",
+  "D": "./OriginalTileImages/4letterSeason1.png",
+  "E": "./OriginalTileImages/5letterSeason1.png",
+  "F": "./OriginalTileImages/6letterSeason1.png",
+  "G": "./OriginalTileImages/7letterSeason1.png",
+  "H": "./OriginalTileImages/A8.png",
+  "I": "./OriginalTileImages/A9.png",
+  "J": "./OriginalTileImages/A10.png",
+  "K": "./OriginalTileImages/A11.png",
+  "L": "./OriginalTileImages/A12.png",
+  "M": "./OriginalTileImages/Pink Button-13.png",
+  "N": "./OriginalTileImages/A8.png",
+  "O": "./OriginalTileImages/A9.png",
+  "P": "./OriginalTileImages/A10.png",
+  "Q": "./OriginalTileImages/A11.png",
+  "R": "./OriginalTileImages/A12.png",
+  "S": "./OriginalTileImages/B0.png",
+  "T": "./OriginalTileImages/B1.png",
+  "U": "./OriginalTileImages/B2.png",
+  "V": "./OriginalTileImages/B3.png",
+  "W": "./OriginalTileImages/B4.png",
+  "X": "./OriginalTileImages/B5.png",
+  "Y": "./OriginalTileImages/B6.png",
+  "Z": "./OriginalTileImages/B7.png",
+  "_SPECIAL_OR_BLANK_": "./OriginalTileImages/arrow.png"
+};
+  window.ORIGINAL_TILE_INDEX_OFFSET = 1;
+  window.ORIGINAL_TILE_PAD_LENGTH = 0;
+  window.ORIGINAL_TILE_PREFIX = "";
+  window.ORIGINAL_TILE_SUFFIX = "letterSeason1";
+  window.ORIGINAL_TILE_EXT = "png";
+
+  window.getOriginalTileImageUrl = function(letterOrNumber) {
+    if (letterOrNumber === undefined || letterOrNumber === null || letterOrNumber === '') {
+      return window.ORIGINAL_TILE_IMAGES_MAP['_SPECIAL_OR_BLANK_'] || window.ORIGINAL_TILE_IMAGES_MAP['A'];
     }
-    const formatted = window.GAMESALAD_LETTER_CASE === 'lower' ? clean.toLowerCase() : clean;
-    return window.GAMESALAD_TILE_PATTERN.replace(/\{LETTER\}/g, formatted);
+    // If passed a number directly (e.g., 1..26)
+    if (typeof letterOrNumber === 'number' || /^\d+$/.test(String(letterOrNumber).trim())) {
+      const numVal = parseInt(String(letterOrNumber).trim(), 10);
+      const letterFromNum = String.fromCharCode(64 + (numVal - window.ORIGINAL_TILE_INDEX_OFFSET + 1));
+      if (window.ORIGINAL_TILE_IMAGES_MAP[letterFromNum]) {
+        return window.ORIGINAL_TILE_IMAGES_MAP[letterFromNum];
+      }
+      const padded = window.ORIGINAL_TILE_PAD_LENGTH > 0
+        ? String(numVal).padStart(window.ORIGINAL_TILE_PAD_LENGTH, '0')
+        : String(numVal);
+      return './OriginalTileImages/' + window.ORIGINAL_TILE_PREFIX + padded + window.ORIGINAL_TILE_SUFFIX + '.' + window.ORIGINAL_TILE_EXT;
+    }
+    // Passed a letter 'A'..'Z'
+    const cleanChar = String(letterOrNumber).trim().charAt(0).toUpperCase();
+    if (window.ORIGINAL_TILE_IMAGES_MAP[cleanChar]) {
+      return window.ORIGINAL_TILE_IMAGES_MAP[cleanChar];
+    }
+    const charCodeNum = (cleanChar.charCodeAt(0) - 65) + window.ORIGINAL_TILE_INDEX_OFFSET;
+    const padded = window.ORIGINAL_TILE_PAD_LENGTH > 0
+      ? String(charCodeNum).padStart(window.ORIGINAL_TILE_PAD_LENGTH, '0')
+      : String(charCodeNum);
+    return './OriginalTileImages/' + window.ORIGINAL_TILE_PREFIX + padded + window.ORIGINAL_TILE_SUFFIX + '.' + window.ORIGINAL_TILE_EXT;
   };
 
-  // Cache of loaded Three.js textures from root GameSalad tile images
-  window._gsTextureCache = {};
-  window.loadGameSaladTileTexture = function(letter) {
-    const url = window.getGameSaladRootTileUrl(letter);
-    if (window._gsTextureCache[url]) return window._gsTextureCache[url];
+  // Alias for backwards compatibility
+  window.getGameSaladRootTileUrl = window.getOriginalTileImageUrl;
+
+  // Three.js TextureLoader cache for ./OriginalTileImages/
+  window._originalTileTextureCache = {};
+  window.loadOriginalTileTexture = function(letterOrNumber) {
+    const url = window.getOriginalTileImageUrl(letterOrNumber);
+    if (window._originalTileTextureCache[url]) {
+      return window._originalTileTextureCache[url];
+    }
     if (typeof THREE !== 'undefined' && THREE.TextureLoader) {
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin('anonymous');
       const tex = loader.load(url);
       if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-      window._gsTextureCache[url] = tex;
+      else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+      tex.needsUpdate = true;
+      window._originalTileTextureCache[url] = tex;
       return tex;
     }
     return null;
   };
+  window.loadGameSaladTileTexture = window.loadOriginalTileTexture;
 </script>
 
 </head>
