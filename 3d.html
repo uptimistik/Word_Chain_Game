@@ -9,7 +9,7 @@
 	<title>Scruffle 3D Chain</title>
 	<link rel="icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
 	<link rel="shortcut icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
-	<link rel="stylesheet" href="css/word-chain-3d.css?v=3.8">
+	<link rel="stylesheet" href="css/word-chain-3d.css?v=3.9">
 	<style>
 		/* Title Screen: Semi-transparent background with sleek blur */
 		#title-screen {
@@ -504,8 +504,24 @@
 </head>
 
 <body>
+	<!-- Living Photographic Environment Backdrop (Actual Edge-to-Edge Landscapes) -->
+	<div id="scenery-container" class="scenery-container">
+		<div class="scenery-photo-plate active" id="scenery-plate-sakura" style="background-image: url('images/scenery/sakura.jpg');"></div>
+		<div class="scenery-photo-plate" id="scenery-plate-volcano" style="background-image: url('images/scenery/volcano.jpg');"></div>
+		<div class="scenery-photo-plate" id="scenery-plate-snowtown" style="background-image: url('images/scenery/snowtown.jpg');"></div>
+		<div class="scenery-photo-plate" id="scenery-plate-peaks" style="background-image: url('images/scenery/peaks.jpg');"></div>
+		<div class="scenery-photo-plate" id="scenery-plate-ocean" style="background-image: url('images/scenery/ocean.jpg');"></div>
+		<div class="scenery-vignette scenery-vignette-sakura" id="scenery-vignette"></div>
+		<div class="scenery-ambient-glow scenery-glow-sakura" id="scenery-ambient-glow"></div>
+	</div>
+
 	<!-- 3D WebGL Canvas Container -->
 	<div id="canvas-container"></div>
+
+	<!-- Foreground Atmospheric FX (Particles pass physically IN FRONT of playing tiles) -->
+	<div id="scenery-fg-container" class="scenery-fg-container">
+		<canvas id="scenery-fg-canvas" class="scenery-fg-canvas"></canvas>
+	</div>
 
 	<!-- Title Screen: Minimalist Premium Design (Mockup Layout) -->
 	<script>
@@ -1029,8 +1045,8 @@
 	<!-- Scripts -->
 	<script src="js/three.min.js"></script>
 	<script src="js/levels.js"></script>
-	<script src="js/wordscapes-scenery.js?v=3.8"></script>
-	<script src="js/word-chain-3d.js?v=3.8"></script>
+	<script src="js/wordscapes-scenery.js?v=3.9"></script>
+	<script src="js/word-chain-3d.js?v=3.9"></script>
 
 	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
 	<script>

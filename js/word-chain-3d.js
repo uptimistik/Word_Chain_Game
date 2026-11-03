@@ -3080,6 +3080,7 @@
 		allTiles = [];
 
 		buildChainRacks(currentLevelData);
+		updateCameraFraming();
 
 		// 1. Populate Row 0 with locked anchor word tiles (e.g. "TENNIS")
 		var anchorWord = currentLevelData.words[0].answer;
