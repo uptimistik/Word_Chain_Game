@@ -1,474 +1,605 @@
 /**
- * Wordscapes-Style Dynamic Living Scenery Engine
- * ----------------------------------------------
- * Renders atmospheric moving sceneries (Rainy Forest Sanctuary, Alpine Sunrise Lake,
- * Cherry Blossom Shrine, Northern Lights Aurora, Autumn Golden Woods) with downward
- * perspective-aligned particle physics (rain drops, ripples, sakura petals, light motes, leaves).
+ * Wordscapes-Style 3D Living Environment Engine
+ * ---------------------------------------------
+ * Authentic Three.js living environments faithfully displaying the 5 reference photos:
+ *   1. 🌸 Blossom Park   - Lush park lawn, blooming trees & mountain ridges (images/scenery/sakura.jpg)
+ *   2. 🌋 Volcano Night   - Erupting volcano cone & molten lava fountains (images/scenery/volcano.jpg)
+ *   3. 🏔️ Winter Village  - Twilight snow valley, glowing chalet windows & lights (images/scenery/snowtown.jpg)
+ *   4. ❄️ Alpine Peaks    - High-altitude powder snow peaks & ski slopes (images/scenery/peaks.jpg)
+ *   5. 🏝️ Tropical Pier   - Crystal turquoise lagoon & wooden boardwalk (images/scenery/ocean.jpg)
  *
- * Engineered for silky smooth 60 FPS mobile performance with zero thermal overhead.
+ * Full Vertical View:
+ *   - The background photo fills 100% of the screen at the exact eye-level angle of the photograph!
+ *   - The 3D letter board is 100% full vertical in front with ZERO perspective angle or tilt.
+ *   - 3D living particles float in 3D space, passing physically IN FRONT of the playing tiles!
+ *   - Locked 60 FPS, zero garbage collection.
  */
 (function (global) {
 	'use strict';
 
-	var canvas = null;
-	var ctx = null;
-	var width = 0;
-	var height = 0;
-	var dpr = 1;
+	var sceneRef = null;
+	var cameraRef = null;
+	var rendererRef = null;
+	var rootGroup = null;
 
 	var currentScenery = 'sakura';
-	var particles = [];
-	var ripples = [];
-	var animFrameId = null;
-	var lastTime = 0;
-	var sceneryTime = 0;
+	var envGroups = {};
+	var particleSystems = {};
+	var activeEnvGroup = null;
+	var activeParticles = null;
+
+	var particleTextures = {};
+	var sceneryTextures = {};
+
+	var lastCamY = 26.0;
+	var lastCenterZ = -0.3;
+	var lastFov = 46;
+	var lastAspect = 0.5;
 
 	var SCENERIES = {
-		rain: {
-			id: 'rain',
-			name: 'Rainy Forest',
-			icon: '🌧️',
-			skyTop: '#18242b',
-			skyBottom: '#2d3e47',
-			mountains: ['#121b20', '#1b2a32', '#263a45'],
-			particleType: 'rain',
-			particleCount: 65,
-			particleColor: 'rgba(180, 215, 235, 0.65)'
-		},
-		sunlit: {
-			id: 'sunlit',
-			name: 'Alpine Lake',
-			icon: '☀️',
-			skyTop: '#d97736',
-			skyBottom: '#f5b56b',
-			mountains: ['#2b1820', '#4a2430', '#7a3845'],
-			particleType: 'sunbeam',
-			particleCount: 40,
-			particleColor: 'rgba(255, 238, 170, 0.75)'
-		},
 		sakura: {
 			id: 'sakura',
-			name: 'Cherry Blossom',
+			name: 'Blossom Park',
 			icon: '🌸',
-			skyTop: '#2e1c38',
-			skyBottom: '#5c3866',
-			mountains: ['#1a0f20', '#2d1b36', '#482c52'],
+			photo: 'images/scenery/sakura.jpg',
+			aspectRatio: 1.33,
 			particleType: 'petal',
-			particleCount: 35,
-			particleColor: 'rgba(255, 185, 205, 0.82)'
+			lighting: {
+				ambient: { color: 0xfff6ee, intensity: 0.95 },
+				sun: { color: 0xfffaed, intensity: 0.90, pos: [4, 20, 10] },
+				fill: { color: 0xbfe3ff, intensity: 0.35, pos: [-8, 8, -6] }
+			}
 		},
-		aurora: {
-			id: 'aurora',
-			name: 'Northern Lights',
-			icon: '🌌',
-			skyTop: '#060d17',
-			skyBottom: '#102236',
-			mountains: ['#04080e', '#091522', '#122538'],
-			particleType: 'aurora',
-			particleCount: 50,
-			particleColor: 'rgba(120, 255, 190, 0.8)'
+		volcano: {
+			id: 'volcano',
+			name: 'Volcano Night',
+			icon: '🌋',
+			photo: 'images/scenery/volcano.jpg',
+			aspectRatio: 1.50,
+			particleType: 'ember',
+			lighting: {
+				ambient: { color: 0x3d2028, intensity: 0.88 },
+				sun: { color: 0xff5511, intensity: 0.82, pos: [0, 22, -10] },
+				fill: { color: 0x221222, intensity: 0.32, pos: [-8, 8, -6] }
+			}
 		},
-		autumn: {
-			id: 'autumn',
-			name: 'Autumn Woods',
-			icon: '🍂',
-			skyTop: '#3b1d14',
-			skyBottom: '#6e3922',
-			mountains: ['#220f09', '#3d1b11', '#5e2e1c'],
-			particleType: 'leaf',
-			particleCount: 35,
-			particleColor: 'rgba(240, 130, 40, 0.85)'
+		snowtown: {
+			id: 'snowtown',
+			name: 'Winter Village',
+			icon: '🏔️',
+			photo: 'images/scenery/snowtown.jpg',
+			aspectRatio: 0.80,
+			particleType: 'snow',
+			lighting: {
+				ambient: { color: 0x263752, intensity: 0.88 },
+				sun: { color: 0x7c9ec8, intensity: 0.65, pos: [4, 18, 10] },
+				fill: { color: 0xffa834, intensity: 0.32, pos: [-6, 6, -10] }
+			}
+		},
+		peaks: {
+			id: 'peaks',
+			name: 'Alpine Peaks',
+			icon: '❄️',
+			photo: 'images/scenery/peaks.jpg',
+			aspectRatio: 1.50,
+			particleType: 'crystal',
+			lighting: {
+				ambient: { color: 0xdfefff, intensity: 0.96 },
+				sun: { color: 0xffffff, intensity: 1.05, pos: [5, 22, 8] },
+				fill: { color: 0x8ec2f6, intensity: 0.40, pos: [-8, 8, -6] }
+			}
+		},
+		ocean: {
+			id: 'ocean',
+			name: 'Tropical Pier',
+			icon: '🏝️',
+			photo: 'images/scenery/ocean.jpg',
+			aspectRatio: 1.50,
+			particleType: 'seaMote',
+			lighting: {
+				ambient: { color: 0xe0f7fa, intensity: 0.92 },
+				sun: { color: 0xfffae0, intensity: 1.00, pos: [3, 20, 10] },
+				fill: { color: 0x7ddde8, intensity: 0.38, pos: [-8, 8, -6] }
+			}
 		}
 	};
 
-	function init(container) {
-		if (canvas) return;
+	// Aliases for legacy saves
+	SCENERIES.rain = SCENERIES.volcano;
+	SCENERIES.sunlit = SCENERIES.ocean;
+	SCENERIES.aurora = SCENERIES.snowtown;
+	SCENERIES.autumn = SCENERIES.peaks;
 
-		var parent = container || document.body;
-		var wrap = document.createElement('div');
-		wrap.id = 'scenery-container';
-		wrap.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;z-index:0;pointer-events:none;';
+	var SCENERY_CYCLE_ORDER = ['sakura', 'volcano', 'snowtown', 'peaks', 'ocean'];
 
-		canvas = document.createElement('canvas');
-		canvas.id = 'scenery-canvas';
-		canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:block;';
-		wrap.appendChild(canvas);
+	// --------------------------------------------------------------------------
+	// TEXTURE MANAGEMENT
+	// --------------------------------------------------------------------------
+	function getSceneryTexture(path) {
+		if (sceneryTextures[path]) return sceneryTextures[path];
+		var loader = new THREE.TextureLoader();
+		var tex = loader.load(path);
+		tex.encoding = THREE.sRGBEncoding;
+		tex.generateMipmaps = true;
+		tex.minFilter = THREE.LinearMipmapLinearFilter;
+		tex.magFilter = THREE.LinearFilter;
+		sceneryTextures[path] = tex;
+		return tex;
+	}
 
-		if (parent.firstChild) {
-			parent.insertBefore(wrap, parent.firstChild);
+	// --------------------------------------------------------------------------
+	// HIGH-DPI SOFT PROCEDURAL PARTICLE TEXTURES (128x128 ANTIALIASED)
+	// --------------------------------------------------------------------------
+	function createParticleTexture(type) {
+		if (particleTextures[type]) return particleTextures[type];
+
+		var size = 128;
+		var canvas = document.createElement('canvas');
+		canvas.width = size;
+		canvas.height = size;
+		var ctx = canvas.getContext('2d');
+		var center = size * 0.5;
+
+		if (type === 'petal') {
+			// Delicate Curved Sakura / Poui Blossom Petal
+			ctx.save();
+			ctx.translate(center, center);
+			ctx.rotate(-0.25);
+
+			var grad = ctx.createRadialGradient(-4, -8, 4, 0, 0, 48);
+			grad.addColorStop(0.0, 'rgba(255, 245, 250, 0.98)');
+			grad.addColorStop(0.35, 'rgba(255, 185, 215, 0.94)');
+			grad.addColorStop(0.75, 'rgba(240, 115, 168, 0.88)');
+			grad.addColorStop(0.95, 'rgba(216, 27, 96, 0.80)');
+			grad.addColorStop(1.0, 'rgba(216, 27, 96, 0)');
+			ctx.fillStyle = grad;
+
+			ctx.beginPath();
+			ctx.moveTo(0, -44);
+			ctx.bezierCurveTo(28, -44, 44, -12, 32, 28);
+			ctx.bezierCurveTo(20, 46, 6, 48, 0, 42);
+			ctx.bezierCurveTo(-6, 48, -20, 46, -32, 28);
+			ctx.bezierCurveTo(-44, -12, -28, -44, 0, -44);
+			ctx.closePath();
+			ctx.fill();
+
+			ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+			ctx.lineWidth = 1.6;
+			ctx.beginPath();
+			ctx.moveTo(0, -32);
+			ctx.quadraticCurveTo(3, 0, 0, 36);
+			ctx.stroke();
+			ctx.restore();
+
+		} else if (type === 'ember') {
+			// Intense Fiery Magma Ember
+			var emberGrad = ctx.createRadialGradient(center, center, 2, center, center, center - 6);
+			emberGrad.addColorStop(0.0, 'rgba(255, 255, 230, 1.0)');
+			emberGrad.addColorStop(0.20, 'rgba(255, 210, 50, 0.98)');
+			emberGrad.addColorStop(0.50, 'rgba(255, 90, 0, 0.85)');
+			emberGrad.addColorStop(0.80, 'rgba(210, 20, 0, 0.45)');
+			emberGrad.addColorStop(1.0, 'rgba(150, 0, 0, 0)');
+			ctx.fillStyle = emberGrad;
+			ctx.beginPath();
+			ctx.arc(center, center, center - 6, 0, Math.PI * 2);
+			ctx.fill();
+
+		} else if (type === 'snow') {
+			// Soft Fluffy Snowflake
+			var snowGrad = ctx.createRadialGradient(center, center, 0, center, center, center - 8);
+			snowGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.96)');
+			snowGrad.addColorStop(0.40, 'rgba(235, 245, 255, 0.85)');
+			snowGrad.addColorStop(0.75, 'rgba(195, 220, 250, 0.35)');
+			snowGrad.addColorStop(1.0, 'rgba(180, 210, 245, 0)');
+			ctx.fillStyle = snowGrad;
+			ctx.beginPath();
+			ctx.arc(center, center, center - 8, 0, Math.PI * 2);
+			ctx.fill();
+
+			ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+			ctx.lineWidth = 2.4;
+			ctx.lineCap = 'round';
+			for (var a = 0; a < 6; a++) {
+				var rad = (a * Math.PI) / 3;
+				ctx.beginPath();
+				ctx.moveTo(center, center);
+				var ex = center + Math.cos(rad) * 36;
+				var ey = center + Math.sin(rad) * 36;
+				ctx.lineTo(ex, ey);
+				ctx.stroke();
+			}
+
+		} else if (type === 'crystal') {
+			// Sparkling Diamond Ice Crystal
+			var cryGrad = ctx.createRadialGradient(center, center, 2, center, center, center - 4);
+			cryGrad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+			cryGrad.addColorStop(0.30, 'rgba(210, 240, 255, 0.85)');
+			cryGrad.addColorStop(0.70, 'rgba(100, 195, 255, 0.35)');
+			cryGrad.addColorStop(1.0, 'rgba(50, 160, 255, 0)');
+			ctx.fillStyle = cryGrad;
+			ctx.beginPath();
+			ctx.arc(center, center, center - 4, 0, Math.PI * 2);
+			ctx.fill();
+
+			ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+			ctx.beginPath();
+			ctx.moveTo(center, 4);
+			ctx.quadraticCurveTo(center, center, size - 4, center);
+			ctx.quadraticCurveTo(center, center, center, size - 4);
+			ctx.quadraticCurveTo(center, center, 4, center);
+			ctx.quadraticCurveTo(center, center, center, 4);
+			ctx.fill();
+
 		} else {
-			parent.appendChild(wrap);
+			// Tropical Luminous Sea Spray Mote
+			var moteGrad = ctx.createRadialGradient(center, center, 2, center, center, center - 8);
+			moteGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.98)');
+			moteGrad.addColorStop(0.30, 'rgba(200, 255, 250, 0.85)');
+			moteGrad.addColorStop(0.65, 'rgba(64, 224, 208, 0.40)');
+			moteGrad.addColorStop(1.0, 'rgba(0, 180, 216, 0)');
+			ctx.fillStyle = moteGrad;
+			ctx.beginPath();
+			ctx.arc(center, center, center - 8, 0, Math.PI * 2);
+			ctx.fill();
 		}
 
-		ctx = canvas.getContext('2d');
-		resize();
-		window.addEventListener('resize', resize);
+		var tex = new THREE.CanvasTexture(canvas);
+		tex.generateMipmaps = true;
+		tex.minFilter = THREE.LinearMipmapLinearFilter;
+		particleTextures[type] = tex;
+		return tex;
+	}
 
-		// Restore saved scenery preference or default to rain
+	// --------------------------------------------------------------------------
+	// 3D LIVING PHOTOGRAPHIC ENVIRONMENTS (EYE-LEVEL FULL-SCREEN PHOTO BACKDROP)
+	// --------------------------------------------------------------------------
+	function buildPhotographicEnvironment(scId) {
+		var config = SCENERIES[scId];
+		var group = new THREE.Group();
+		group.name = 'Env_' + scId;
+
+		var photoTex = getSceneryTexture(config.photo);
+
+		// Full-screen Background Plane placed directly behind the board in the camera view
+		var bgGeom = new THREE.PlaneGeometry(1, 1);
+		var bgMat = new THREE.MeshBasicMaterial({
+			map: photoTex,
+			side: THREE.DoubleSide,
+			fog: false,
+			depthWrite: false
+		});
+
+		var bgMesh = new THREE.Mesh(bgGeom, bgMat);
+		bgMesh.rotation.x = -Math.PI * 0.5; // Oriented face-up towards camera
+		bgMesh.position.set(0, -0.35, 0);
+		group.add(bgMesh);
+
+		// Dynamic Living Light
+		var dynamicLight = null;
+		if (scId === 'volcano') {
+			dynamicLight = new THREE.PointLight(0xff4500, 2.6, 30);
+			dynamicLight.position.set(0, 2.5, -4.0);
+			group.add(dynamicLight);
+		} else if (scId === 'snowtown') {
+			dynamicLight = new THREE.PointLight(0xffaa33, 2.0, 25);
+			dynamicLight.position.set(0, 2.0, -3.0);
+			group.add(dynamicLight);
+		} else if (scId === 'ocean') {
+			dynamicLight = new THREE.PointLight(0x40e0d0, 1.4, 25);
+			dynamicLight.position.set(0, 2.0, -3.0);
+			group.add(dynamicLight);
+		}
+
+		group.userData = {
+			scId: scId,
+			bgMesh: bgMesh,
+			dynamicLight: dynamicLight
+		};
+
+		return group;
+	}
+
+	// --------------------------------------------------------------------------
+	// 3D LIVING PARTICLE SYSTEM (PASSING IN FRONT OF TILES)
+	// --------------------------------------------------------------------------
+	function build3DParticleSystem(type) {
+		var count = 80;
+		var geom = new THREE.BufferGeometry();
+		var positions = new Float32Array(count * 3);
+		var velocities = [];
+
+		var tex = createParticleTexture(type);
+
+		for (var i = 0; i < count; i++) {
+			var i3 = i * 3;
+
+			// Horizontal spread (X): -9 to +9 across screen
+			positions[i3] = (Math.random() - 0.5) * 18;
+			// Depth corridor (Y): 0.5 to 2.4 (PHYSICALLY IN FRONT OF TILES at Y=0.34!)
+			positions[i3 + 1] = Math.random() * 1.8 + 0.6;
+			// Vertical screen spread (Z): -13 (top) to +11 (bottom)
+			positions[i3 + 2] = Math.random() * 24 - 13;
+
+			var vx = 0, vy = 0, vz = 0;
+			if (type === 'ember') {
+				// Volcanic embers rise upward on screen towards the sky (-Z)
+				vz = -(1.8 + Math.random() * 2.4);
+				vx = (Math.random() - 0.5) * 0.8;
+				vy = (Math.random() - 0.5) * 0.4;
+			} else if (type === 'petal') {
+				// Blossom petals gently flutter down on screen (+Z)
+				vz = 1.2 + Math.random() * 1.8;
+				vx = 0.5 + Math.random() * 0.8;
+				vy = (Math.random() - 0.5) * 0.4;
+			} else if (type === 'snow') {
+				// Soft snowflakes drift down on screen (+Z)
+				vz = 1.0 + Math.random() * 1.5;
+				vx = (Math.random() - 0.5) * 0.5;
+				vy = (Math.random() - 0.5) * 0.3;
+			} else if (type === 'crystal') {
+				// Diamond ice crystals sparkle and descend (+Z)
+				vz = 0.8 + Math.random() * 1.4;
+				vx = (Math.random() - 0.5) * 0.5;
+				vy = (Math.random() - 0.5) * 0.3;
+			} else {
+				// Tropical sea spray motes rise in warm breeze (-Z)
+				vz = -(0.8 + Math.random() * 1.4);
+				vx = 0.4 + Math.random() * 0.7;
+				vy = (Math.random() - 0.5) * 0.3;
+			}
+
+			velocities.push({
+				vx: vx, vy: vy, vz: vz,
+				phase: Math.random() * Math.PI * 2,
+				speed: 1.0 + Math.random() * 2.0
+			});
+		}
+
+		geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+		var size = (type === 'petal') ? 0.90 : ((type === 'ember') ? 0.82 : ((type === 'snow') ? 0.76 : 0.72));
+
+		var mat = new THREE.PointsMaterial({
+			size: size,
+			map: tex,
+			transparent: true,
+			opacity: 0.94,
+			sizeAttenuation: true,
+			depthWrite: false, // Particles never block tile raycasts or clicks
+			blending: (type === 'ember' || type === 'crystal' || type === 'seaMote') ? THREE.AdditiveBlending : THREE.NormalBlending
+		});
+
+		var points = new THREE.Points(geom, mat);
+		points.userData.velocities = velocities;
+		points.userData.type = type;
+
+		return points;
+	}
+
+	// --------------------------------------------------------------------------
+	// DYNAMIC FULL-SCREEN COVER SIZING FOR SCENERY PHOTO
+	// --------------------------------------------------------------------------
+	function onCameraUpdate(camY, centerZ, fov, aspect) {
+		lastCamY = camY || lastCamY;
+		lastCenterZ = (centerZ !== undefined) ? centerZ : lastCenterZ;
+		lastFov = fov || lastFov;
+		lastAspect = aspect || lastAspect;
+
+		var fovRad = THREE.MathUtils.degToRad(lastFov);
+		var halfTan = Math.tan(fovRad * 0.5);
+		var dist = lastCamY - (-0.35);
+		var visHeight = 2 * dist * halfTan;
+		var visWidth = visHeight * lastAspect;
+
+		Object.keys(envGroups).forEach(function (key) {
+			var grp = envGroups[key];
+			if (!grp || !grp.userData || !grp.userData.bgMesh) return;
+			var cfg = SCENERIES[key];
+			var photoAspect = (cfg && cfg.aspectRatio) ? cfg.aspectRatio : 1.50;
+
+			// Cover calculation (ensures photo covers 100% of screen without letterboxing)
+			var w = Math.max(visWidth, visHeight * photoAspect) * 1.04;
+			var h = Math.max(visHeight, visWidth / photoAspect) * 1.04;
+
+			grp.userData.bgMesh.scale.set(w, h, 1);
+			grp.userData.bgMesh.position.set(0, -0.35, lastCenterZ);
+		});
+	}
+
+	// --------------------------------------------------------------------------
+	// LIFECYCLE & SCENERY SWITCHING
+	// --------------------------------------------------------------------------
+	function init(scene, camera, renderer) {
+		sceneRef = scene;
+		cameraRef = camera;
+		rendererRef = renderer;
+
+		if (rootGroup && sceneRef) {
+			sceneRef.remove(rootGroup);
+		}
+
+		rootGroup = new THREE.Group();
+		rootGroup.name = 'WordscapesScenery3D';
+
+		// Build authentic photographic environments
+		envGroups.sakura = buildPhotographicEnvironment('sakura');
+		envGroups.volcano = buildPhotographicEnvironment('volcano');
+		envGroups.snowtown = buildPhotographicEnvironment('snowtown');
+		envGroups.peaks = buildPhotographicEnvironment('peaks');
+		envGroups.ocean = buildPhotographicEnvironment('ocean');
+
+		// Build matching 3D particle systems
+		particleSystems.sakura = build3DParticleSystem('petal');
+		particleSystems.volcano = build3DParticleSystem('ember');
+		particleSystems.snowtown = build3DParticleSystem('snow');
+		particleSystems.peaks = build3DParticleSystem('crystal');
+		particleSystems.ocean = build3DParticleSystem('seaMote');
+
+		// Attach to root group (initially hidden)
+		Object.keys(envGroups).forEach(function (key) {
+			var g = envGroups[key];
+			g.visible = false;
+			rootGroup.add(g);
+
+			var p = particleSystems[key];
+			p.visible = false;
+			rootGroup.add(p);
+		});
+
+		if (sceneRef) {
+			sceneRef.add(rootGroup);
+		}
+
+		if (cameraRef) {
+			onCameraUpdate(cameraRef.position.y, lastCenterZ, cameraRef.fov, cameraRef.aspect);
+		}
+
+		// Restore saved preference or default to sakura
 		var saved = null;
 		try {
 			saved = localStorage.getItem('word_chain_scenery');
 		} catch (e) {}
-		setScenery(saved && SCENERIES[saved] ? saved : 'sakura');
 
-		lastTime = performance.now();
-		render(lastTime);
+		setScenery(saved && SCENERIES[saved] ? saved : 'sakura');
 	}
 
-	function resize() {
-		if (!canvas) return;
-		width = window.innerWidth;
-		height = window.innerHeight;
-		dpr = Math.min(window.devicePixelRatio || 1, 1.35); // Keep ultra efficient
-		canvas.width = Math.floor(width * dpr);
-		canvas.height = Math.floor(height * dpr);
-		if (ctx) ctx.scale(dpr, dpr);
-		initParticles();
+	function applyLighting(scId) {
+		var sc = SCENERIES[scId];
+		if (!sc || !sc.lighting || !sceneRef) return;
+
+		var lights = sceneRef.userData && sceneRef.userData.lights;
+		if (!lights) return;
+
+		// Ambient Light
+		if (lights.ambient && sc.lighting.ambient) {
+			lights.ambient.color.setHex(sc.lighting.ambient.color);
+			lights.ambient.intensity = sc.lighting.ambient.intensity;
+		}
+
+		// Directional Sun Light
+		if (lights.sun && sc.lighting.sun) {
+			lights.sun.color.setHex(sc.lighting.sun.color);
+			lights.sun.intensity = sc.lighting.sun.intensity;
+			if (sc.lighting.sun.pos) {
+				lights.sun.position.set(sc.lighting.sun.pos[0], sc.lighting.sun.pos[1], sc.lighting.sun.pos[2]);
+			}
+		}
+
+		// Fill Light
+		if (lights.fill && sc.lighting.fill) {
+			lights.fill.color.setHex(sc.lighting.fill.color);
+			lights.fill.intensity = sc.lighting.fill.intensity;
+		}
 	}
 
 	function setScenery(id) {
-		if (!SCENERIES[id]) id = 'rain';
-		currentScenery = id;
+		if (!SCENERIES[id]) id = 'sakura';
+		var scId = SCENERIES[id].id;
+		currentScenery = scId;
+
 		try {
-			localStorage.setItem('word_chain_scenery', id);
+			localStorage.setItem('word_chain_scenery', scId);
 		} catch (e) {}
-		initParticles();
+
+		// Toggle visible 3D environment & particle system
+		Object.keys(envGroups).forEach(function (key) {
+			var isCurrent = (key === scId);
+			if (envGroups[key]) envGroups[key].visible = isCurrent;
+			if (particleSystems[key]) particleSystems[key].visible = isCurrent;
+		});
+
+		activeEnvGroup = envGroups[scId];
+		activeParticles = particleSystems[scId];
+
+		// The photo is the background; clear color and fog so the photo is 100% vibrant & unblocked!
+		if (sceneRef) {
+			sceneRef.background = null;
+			sceneRef.fog = null;
+			applyLighting(scId);
+		}
+
+		onCameraUpdate();
 	}
 
 	function setSceneryForLevel(levelIndex) {
-		// Advance scenic worlds every 5 levels
-		var ids = ['sakura', 'sunlit', 'rain', 'autumn', 'aurora'];
-		var idx = Math.floor(levelIndex / 5) % ids.length;
-		setScenery(ids[idx]);
+		var idx = Math.floor(levelIndex / 5) % SCENERY_CYCLE_ORDER.length;
+		setScenery(SCENERY_CYCLE_ORDER[idx]);
 	}
 
-	function initParticles() {
-		particles = [];
-		ripples = [];
-		var sc = SCENERIES[currentScenery] || SCENERIES.rain;
-		var count = sc.particleCount || 40;
+	// --------------------------------------------------------------------------
+	// PER-FRAME ANIMATION (LOCKED 60 FPS, ZERO GC)
+	// --------------------------------------------------------------------------
+	function update(dt, now) {
+		dt = Math.min(dt || 0.016, 0.05);
 
-		for (var i = 0; i < count; i++) {
-			particles.push(createParticle(sc.particleType, true));
-		}
-	}
+		// 1. Update 3D Particles
+		if (activeParticles && activeParticles.visible) {
+			var geom = activeParticles.geometry;
+			var posAttr = geom.getAttribute('position');
+			var pos = posAttr.array;
+			var vels = activeParticles.userData.velocities;
+			var pType = activeParticles.userData.type;
 
-	function createParticle(type, randomY) {
-		var p = {
-			type: type,
-			x: Math.random() * width,
-			y: randomY ? Math.random() * height : -30,
-			size: 0,
-			vx: 0,
-			vy: 0,
-			rot: Math.random() * Math.PI * 2,
-			vrot: (Math.random() - 0.5) * 0.05,
-			opacity: Math.random() * 0.5 + 0.5,
-			color: ''
-		};
+			for (var i = 0; i < vels.length; i++) {
+				var i3 = i * 3;
+				var v = vels[i];
 
-		if (type === 'rain') {
-			p.size = Math.random() * 16 + 14; // Length of rain streak
-			p.vx = -1.2; // Gentle diagonal matching 3D perspective slant
-			p.vy = Math.random() * 8 + 14;
-			p.opacity = Math.random() * 0.4 + 0.25;
-		} else if (type === 'sunbeam') {
-			p.size = Math.random() * 4 + 2;
-			p.vx = (Math.random() - 0.5) * 0.6;
-			p.vy = -(Math.random() * 0.5 + 0.3); // Drifts gently upward in sunbeam
-			p.pulse = Math.random() * Math.PI * 2;
-		} else if (type === 'petal') {
-			p.size = Math.random() * 8 + 6;
-			p.vx = Math.random() * 1.5 + 0.8;
-			p.vy = Math.random() * 1.2 + 1.2;
-			p.sway = Math.random() * Math.PI * 2;
-			p.swaySpeed = Math.random() * 0.03 + 0.02;
-		} else if (type === 'leaf') {
-			p.size = Math.random() * 10 + 7;
-			p.vx = Math.random() * 2.0 + 0.5;
-			p.vy = Math.random() * 1.5 + 1.4;
-			p.sway = Math.random() * Math.PI * 2;
-			p.swaySpeed = Math.random() * 0.025 + 0.015;
-			p.color = Math.random() > 0.5 ? '#e65100' : '#d84315';
-		} else if (type === 'aurora') {
-			// Twinkling stars
-			p.x = Math.random() * width;
-			p.y = Math.random() * (height * 0.65);
-			p.size = Math.random() * 2.2 + 0.8;
-			p.twinkleSpeed = Math.random() * 0.04 + 0.02;
-			p.twinklePhase = Math.random() * Math.PI * 2;
-		}
+				pos[i3] += v.vx * dt;
+				pos[i3 + 1] += v.vy * dt;
+				pos[i3 + 2] += v.vz * dt;
 
-		return p;
-	}
+				// Gentle flutter/convection sway
+				pos[i3] += Math.sin(now * 0.002 * v.speed + v.phase) * 0.012;
 
-	function spawnRipple(x, y) {
-		if (ripples.length > 20) return;
-		ripples.push({
-			x: x,
-			y: y,
-			r: 2,
-			maxR: Math.random() * 14 + 10,
-			opacity: 0.45
-		});
-	}
+				// Vertical screen wrapping (Z is vertical on screen!)
+				if (pType === 'ember' || pType === 'seaMote') {
+					// Rises upward towards top of screen (-Z)
+					if (pos[i3 + 2] < -13.0) {
+						pos[i3 + 2] = 11.5;
+						pos[i3] = (Math.random() - 0.5) * 18;
+					}
+				} else {
+					// Descends downward towards bottom of screen (+Z)
+					if (pos[i3 + 2] > 11.5) {
+						pos[i3 + 2] = -13.0;
+						pos[i3] = (Math.random() - 0.5) * 18;
+					}
+				}
 
-	function render(now) {
-		animFrameId = requestAnimationFrame(render);
-
-		var dt = Math.min((now - lastTime) * 0.001, 0.05);
-		lastTime = now;
-		sceneryTime += dt;
-
-		if (!ctx) return;
-
-		var sc = SCENERIES[currentScenery] || SCENERIES.rain;
-
-		// 1. Draw Scenic Atmospheric Background
-		drawBackground(sc);
-
-		// 2. Draw Scenic Horizon & Mountain Silhouettes
-		drawMountains(sc);
-
-		// 3. Draw Dynamic Atmospheric Particles
-		drawParticles(sc, dt);
-
-		// 4. Draw Ripples (Rain mode)
-		if (sc.particleType === 'rain') {
-			drawRipples();
-		}
-	}
-
-	function drawBackground(sc) {
-		var grad = ctx.createLinearGradient(0, 0, 0, height);
-		grad.addColorStop(0, sc.skyTop);
-		grad.addColorStop(0.7, sc.skyBottom);
-		grad.addColorStop(1, '#1a1008'); // Warm parlor shadow base around bottom board
-		ctx.fillStyle = grad;
-		ctx.fillRect(0, 0, width, height);
-
-		// Sunbeam aura for alpine sunrise
-		if (sc.id === 'sunlit') {
-			var sunG = ctx.createRadialGradient(width * 0.65, height * 0.22, 10, width * 0.65, height * 0.22, width * 0.8);
-			sunG.addColorStop(0, 'rgba(255, 235, 180, 0.35)');
-			sunG.addColorStop(0.4, 'rgba(255, 190, 100, 0.15)');
-			sunG.addColorStop(1, 'rgba(0, 0, 0, 0)');
-			ctx.fillStyle = sunG;
-			ctx.fillRect(0, 0, width, height * 0.7);
-		}
-
-		// Undulating Aurora Borealis Curtains
-		if (sc.id === 'aurora') {
-			drawAuroraWaves();
-		}
-	}
-
-	function drawAuroraWaves() {
-		ctx.save();
-		for (var k = 0; k < 2; k++) {
-			var waveY = height * (0.16 + k * 0.08);
-			var grad = ctx.createLinearGradient(0, waveY - 60, 0, waveY + 80);
-			if (k === 0) {
-				grad.addColorStop(0, 'rgba(34, 197, 94, 0)');
-				grad.addColorStop(0.4, 'rgba(74, 222, 128, 0.28)');
-				grad.addColorStop(0.8, 'rgba(56, 189, 248, 0.15)');
-				grad.addColorStop(1, 'rgba(168, 85, 247, 0)');
-			} else {
-				grad.addColorStop(0, 'rgba(168, 85, 247, 0)');
-				grad.addColorStop(0.5, 'rgba(192, 132, 252, 0.22)');
-				grad.addColorStop(1, 'rgba(34, 197, 94, 0)');
+				if (pos[i3] > 10.0) pos[i3] = -10.0;
+				if (pos[i3] < -10.0) pos[i3] = 10.0;
+				if (pos[i3 + 1] > 2.8) pos[i3 + 1] = 0.6;
+				if (pos[i3 + 1] < 0.4) pos[i3 + 1] = 2.2;
 			}
-
-			ctx.fillStyle = grad;
-			ctx.beginPath();
-			ctx.moveTo(0, waveY);
-			for (var x = 0; x <= width; x += 30) {
-				var yOff = Math.sin((x * 0.008) + sceneryTime * 0.8 + k) * 35 +
-				           Math.sin((x * 0.015) - sceneryTime * 0.5) * 18;
-				ctx.lineTo(x, waveY + yOff);
-			}
-			ctx.lineTo(width, height * 0.55);
-			ctx.lineTo(0, height * 0.55);
-			ctx.closePath();
-			ctx.fill();
+			posAttr.needsUpdate = true;
 		}
-		ctx.restore();
-	}
 
-	function drawMountains(sc) {
-		var colors = sc.mountains || ['#121b20', '#1b2a32', '#263a45'];
-
-		// Far layer
-		ctx.fillStyle = colors[0];
-		ctx.beginPath();
-		ctx.moveTo(0, height * 0.38);
-		ctx.lineTo(width * 0.25, height * 0.30);
-		ctx.lineTo(width * 0.55, height * 0.34);
-		ctx.lineTo(width * 0.85, height * 0.28);
-		ctx.lineTo(width, height * 0.35);
-		ctx.lineTo(width, height);
-		ctx.lineTo(0, height);
-		ctx.closePath();
-		ctx.fill();
-
-		// Mid layer
-		ctx.fillStyle = colors[1];
-		ctx.beginPath();
-		ctx.moveTo(0, height * 0.44);
-		ctx.lineTo(width * 0.35, height * 0.38);
-		ctx.lineTo(width * 0.70, height * 0.42);
-		ctx.lineTo(width, height * 0.39);
-		ctx.lineTo(width, height);
-		ctx.lineTo(0, height);
-		ctx.closePath();
-		ctx.fill();
-
-		// Near ridge
-		ctx.fillStyle = colors[2];
-		ctx.beginPath();
-		ctx.moveTo(0, height * 0.50);
-		ctx.lineTo(width * 0.45, height * 0.46);
-		ctx.lineTo(width, height * 0.49);
-		ctx.lineTo(width, height);
-		ctx.lineTo(0, height);
-		ctx.closePath();
-		ctx.fill();
-
-		// Soft fog mist drifting over lake/valley
-		var fogGrad = ctx.createLinearGradient(0, height * 0.38, 0, height * 0.54);
-		fogGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-		fogGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.08)');
-		fogGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-		ctx.fillStyle = fogGrad;
-		ctx.fillRect(0, height * 0.38, width, height * 0.16);
-	}
-
-	function drawParticles(sc, dt) {
-		var type = sc.particleType;
-
-		for (var i = 0; i < particles.length; i++) {
-			var p = particles[i];
-
-			if (type === 'rain') {
-				// Rain streak
-				p.x += p.vx;
-				p.y += p.vy;
-
-				ctx.strokeStyle = sc.particleColor;
-				ctx.lineWidth = 1.3;
-				ctx.beginPath();
-				ctx.moveTo(p.x, p.y);
-				ctx.lineTo(p.x + p.vx * 1.5, p.y + p.size);
-				ctx.stroke();
-
-				// Spawn splash ripple when hitting lower plane
-				if (p.y > height * 0.65 && Math.random() < 0.12) {
-					spawnRipple(p.x, p.y);
-				}
-
-				if (p.y > height + 20 || p.x < -20) {
-					particles[i] = createParticle('rain', false);
-				}
-			} else if (type === 'sunbeam') {
-				// Floating golden sun mote
-				p.pulse += dt * 2;
-				p.x += p.vx + Math.sin(p.pulse) * 0.3;
-				p.y += p.vy;
-
-				var alpha = (Math.sin(p.pulse) * 0.3 + 0.6) * p.opacity;
-				ctx.fillStyle = 'rgba(255, 238, 170, ' + alpha + ')';
-				ctx.beginPath();
-				ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-				ctx.fill();
-
-				if (p.y < -10 || p.x < 0 || p.x > width) {
-					particles[i] = createParticle('sunbeam', false);
-					particles[i].y = height + 10;
-				}
-			} else if (type === 'petal') {
-				// Drifting sakura petal
-				p.sway += p.swaySpeed;
-				p.x += p.vx + Math.sin(p.sway) * 1.2;
-				p.y += p.vy;
-				p.rot += p.vrot;
-
-				ctx.save();
-				ctx.translate(p.x, p.y);
-				ctx.rotate(p.rot);
-				ctx.fillStyle = sc.particleColor;
-				ctx.beginPath();
-				ctx.ellipse(0, 0, p.size, p.size * 0.55, Math.PI * 0.25, 0, Math.PI * 2);
-				ctx.fill();
-				ctx.restore();
-
-				if (p.y > height + 20 || p.x > width + 20) {
-					particles[i] = createParticle('petal', false);
-				}
-			} else if (type === 'leaf') {
-				// Autumn falling maple leaf
-				p.sway += p.swaySpeed;
-				p.x += p.vx + Math.sin(p.sway) * 1.6;
-				p.y += p.vy;
-				p.rot += p.vrot;
-
-				ctx.save();
-				ctx.translate(p.x, p.y);
-				ctx.rotate(p.rot);
-				ctx.fillStyle = p.color || sc.particleColor;
-				ctx.beginPath();
-				ctx.moveTo(0, -p.size);
-				ctx.lineTo(p.size * 0.6, 0);
-				ctx.lineTo(0, p.size);
-				ctx.lineTo(-p.size * 0.6, 0);
-				ctx.closePath();
-				ctx.fill();
-				ctx.restore();
-
-				if (p.y > height + 20 || p.x > width + 20) {
-					particles[i] = createParticle('leaf', false);
-				}
-			} else if (type === 'aurora') {
-				// Twinkling Star
-				p.twinklePhase += p.twinkleSpeed;
-				var starAlpha = Math.sin(p.twinklePhase) * 0.4 + 0.5;
-				ctx.fillStyle = 'rgba(255, 255, 255, ' + starAlpha + ')';
-				ctx.beginPath();
-				ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-				ctx.fill();
+		// 2. Living Dynamic Lighting FX
+		if (activeEnvGroup && activeEnvGroup.visible && activeEnvGroup.userData.dynamicLight) {
+			var light = activeEnvGroup.userData.dynamicLight;
+			if (currentScenery === 'volcano') {
+				light.intensity = 2.6 + Math.sin(now * 0.007) * 0.8 + Math.sin(now * 0.017) * 0.35;
+			} else if (currentScenery === 'snowtown') {
+				light.intensity = 2.0 + Math.sin(now * 0.004) * 0.3;
+			} else if (currentScenery === 'ocean') {
+				light.intensity = 1.4 + Math.sin(now * 0.003) * 0.25;
 			}
 		}
 	}
 
-	function drawRipples() {
-		ctx.save();
-		for (var i = ripples.length - 1; i >= 0; i--) {
-			var r = ripples[i];
-			r.r += 0.45;
-			r.opacity -= 0.015;
-
-			if (r.opacity <= 0 || r.r >= r.maxR) {
-				ripples.splice(i, 1);
-				continue;
-			}
-
-			ctx.strokeStyle = 'rgba(180, 220, 240, ' + r.opacity + ')';
-			ctx.lineWidth = 1;
-			ctx.beginPath();
-			// Oval ripple viewed at downward perspective angle
-			ctx.ellipse(r.x, r.y, r.r * 1.6, r.r * 0.65, 0, 0, Math.PI * 2);
-			ctx.stroke();
-		}
-		ctx.restore();
-	}
-
+	// --------------------------------------------------------------------------
+	// EXPORTS
+	// --------------------------------------------------------------------------
 	global.WordscapesScenery = {
 		init: init,
-		resize: resize,
+		update: update,
 		setScenery: setScenery,
 		setSceneryForLevel: setSceneryForLevel,
+		applyLighting: applyLighting,
+		onCameraUpdate: onCameraUpdate,
 		getCurrent: function () { return currentScenery; },
-		getSceneries: function () { return SCENERIES; }
+		getSceneries: function () { return SCENERIES; },
+		toggleForeground: function () {}
 	};
 
 })(window);
-

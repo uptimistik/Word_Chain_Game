@@ -43,7 +43,8 @@
 				affirmation: 'game/default/sounds/Afirmation.ogg',
 				greatJob: 'game/default/sounds/Greatjobsoundeffect.ogg',
 				wrong: 'game/default/sounds/WrongWord.ogg',
-				thud: 'game/default/sounds/thud.ogg'
+				thud: 'game/default/sounds/thud.ogg',
+				bell: 'game/default/sounds/freesound_community-bell-98033.ogg'
 			};
 
 			Object.keys(soundFiles).forEach(function (name) {
@@ -131,6 +132,11 @@
 			this.haptic(22);
 		},
 
+		playBell: function (volume) {
+			this.play('bell', volume !== undefined ? volume : 0.95);
+			this.haptic(35);
+		},
+
 		toggleSound: function () {
 			this.soundEnabled = !this.soundEnabled;
 			return this.soundEnabled;
@@ -191,88 +197,57 @@
 	}
 
 	// --------------------------------------------------------------------------
-	// Texture Generator (Authentic Wood Textures, Grain & Laser-Etched Type)
+	// Letter Tile Skins — sourced ONLY from the hand-made 2D tile sets in
+	// OriginalTileImages/ (files named <LETTER><SET>.png, e.g. A0.png ... Z12.png).
+	// Side/edge wood colours are tuned per set so the 3D tile body matches the art.
 	// --------------------------------------------------------------------------
-	var tileBaseImg = new Image();
-	tileBaseImg.src = 'game/default/images/tile.png';
-	tileBaseImg.onload = function () {
-		TextureManager.letterTextures = {};
-		if (typeof allTiles !== 'undefined' && allTiles.length) {
-			for (var i = 0; i < allTiles.length; i++) {
-				var t = allTiles[i];
-				if (t && t.mesh && t.mesh.material && t.mesh.material[2]) {
-					t.mesh.material[2].map = TextureManager.getLetterTexture(t.letter);
-					t.mesh.material[2].needsUpdate = true;
-				}
-			}
-		}
+	var TILE_IMAGE_FOLDER = 'OriginalTileImages/';
+
+	function makeTileSkin(id, setNum, name, desc, sideBase, sideDark, sideLight, tone) {
+		return {
+			id: id,
+			set: setNum,
+			name: name,
+			desc: desc,
+			tone: tone || 'light',
+			sideBase: sideBase, sideDark: sideDark, sideLight: sideLight,
+			// Locked (solved) tiles keep the warm golden edge so solved rows stay readable
+			lockedBase: '#f2de9f', lockedDark: '#aa833e', lockedLight: '#fff1c7',
+			roughness: 0.72, metalness: 0.0
+		};
+	}
+
+	// Display order in the tile selector (classic first)
+	var TILE_SKIN_ORDER = ['classic', 'set0', 'set1', 'set2', 'set3', 'set5', 'set6', 'set7', 'set8', 'set9', 'set10', 'set11', 'set12'];
+
+	// High-contrast pairing rules:
+	// Light tiles (tone: 'light') -> Paired with Dark trays and letter holders
+	// Dark tiles (tone: 'dark')   -> Paired with Light trays and letter holders
+	var TILE_SKINS = {
+		classic: makeTileSkin('classic', 4, 'Classic', 'The original cream wooden tiles', '#e8d4ba', '#9e7b54', '#f7ead8', 'light'),
+		set0: makeTileSkin('set0', 0, 'Candy Gold', 'Glossy golden candy tiles', '#f5a623', '#c46a00', '#ffd36b', 'light'),
+		set1: makeTileSkin('set1', 1, 'Sky Blue', 'Soft sky-blue rounded tiles', '#5bbcf0', '#2f86b8', '#a6dcf8', 'light'),
+		set2: makeTileSkin('set2', 2, 'Charcoal', 'Sleek charcoal keycap tiles', '#4a4a4a', '#262626', '#7a7a7a', 'dark'),
+		set3: makeTileSkin('set3', 3, 'Toy Block', 'Bright primary toy alphabet blocks', '#d4141c', '#8a0a10', '#f2575c', 'light'),
+		set5: makeTileSkin('set5', 5, 'Postage Stamp', 'Airmail postage stamp tiles', '#3fd8f2', '#1a9ab3', '#a3f0fb', 'light'),
+		set6: makeTileSkin('set6', 6, 'Grass Block', 'Blocky grass & dirt tiles', '#8a5a32', '#5a3a1e', '#b07a4a', 'dark'),
+		set7: makeTileSkin('set7', 7, 'Marble Gold', 'White marble with gold lettering', '#d8d8d8', '#9a9a9a', '#f4f4f4', 'light'),
+		set8: makeTileSkin('set8', 8, 'Rusty Stencil', 'Riveted rusty metal stencil plates', '#6e4a3a', '#3e2a20', '#9a6e58', 'dark'),
+		set9: makeTileSkin('set9', 9, 'Mosaic Maze', 'Teal mosaic maze tiles', '#2a9d8f', '#1a6b62', '#7fd1c6', 'light'),
+		set10: makeTileSkin('set10', 10, 'Carved Wood', 'Chunky hand-carved wooden tiles', '#c98a4b', '#8a5526', '#e8b07a', 'light'),
+		set11: makeTileSkin('set11', 11, 'Chocolate', 'Rich milk-chocolate squares', '#7a3e2a', '#4a2318', '#a8644c', 'dark'),
+		set12: makeTileSkin('set12', 12, 'Buddy', 'Cheeky character tiles', '#4a3020', '#2a1a10', '#d4a640', 'dark')
 	};
 
-	// --------------------------------------------------------------------------
-	// Letter Tile Skins & Visual Styles
-	// --------------------------------------------------------------------------
-	var TILE_SKINS = {
-		classic: {
-			id: 'classic',
-			name: 'Classic Wood',
-			faceBase: ['#fbf6ea', '#ebd9bd', '#ddc39d'],
-			textColor: '#2e1909',
-			highlightColor: 'rgba(255, 245, 230, 0.75)',
-			scoreColor: '#6b3f17',
-			borderColor: 'rgba(110, 75, 35, 0.35)',
-			sideBase: '#e8d4ba', sideDark: '#9e7b54', sideLight: '#f7ead8',
-			lockedBase: '#f2de9f', lockedDark: '#aa833e', lockedLight: '#fff1c7',
-			roughness: 0.65, metalness: 0.0
-		},
-		obsidian: {
-			id: 'obsidian',
-			name: 'Midnight Onyx',
-			faceBase: ['#282630', '#181620', '#0f0e14'],
-			textColor: '#f59e0b',
-			highlightColor: 'rgba(251, 191, 36, 0.45)',
-			scoreColor: '#fbbf24',
-			borderColor: 'rgba(245, 158, 11, 0.55)',
-			sideBase: '#332918', sideDark: '#1a140b', sideLight: '#d97706',
-			lockedBase: '#4a3411', lockedDark: '#241705', lockedLight: '#f59e0b',
-			roughness: 0.35, metalness: 0.40
-		},
-		marble: {
-			id: 'marble',
-			name: 'Pearl Marble',
-			faceBase: ['#ffffff', '#f1f5f9', '#e2e8f0'],
-			textColor: '#0f172a',
-			highlightColor: 'rgba(255, 255, 255, 0.9)',
-			scoreColor: '#334155',
-			borderColor: 'rgba(148, 163, 184, 0.4)',
-			sideBase: '#cbd5e1', sideDark: '#64748b', sideLight: '#f8fafc',
-			lockedBase: '#e2e8f0', lockedDark: '#94a3b8', lockedLight: '#ffffff',
-			roughness: 0.38, metalness: 0.20
-		},
-		jade: {
-			id: 'jade',
-			name: 'Imperial Jade',
-			faceBase: ['#f0fdf4', '#dcfce7', '#bbf7d0'],
-			textColor: '#064e3b',
-			highlightColor: 'rgba(255, 255, 255, 0.85)',
-			scoreColor: '#047857',
-			borderColor: 'rgba(16, 185, 129, 0.45)',
-			sideBase: '#10b981', sideDark: '#047857', sideLight: '#6ee7b7',
-			lockedBase: '#34d399', lockedDark: '#065f46', lockedLight: '#a7f3d0',
-			roughness: 0.36, metalness: 0.15
-		},
-		sunset: {
-			id: 'sunset',
-			name: 'Sunset Coral',
-			faceBase: ['#fff1f2', '#ffe4e6', '#fecdd3'],
-			textColor: '#881337',
-			highlightColor: 'rgba(255, 255, 255, 0.85)',
-			scoreColor: '#be123c',
-			borderColor: 'rgba(244, 63, 94, 0.45)',
-			sideBase: '#fb7185', sideDark: '#9f1239', sideLight: '#fecdd3',
-			lockedBase: '#f43f5e', lockedDark: '#881337', lockedLight: '#fda4af',
-			roughness: 0.42, metalness: 0.12
-		}
-	};
+	function getTileImageUrl(skinId, letter) {
+		var skin = TILE_SKINS[skinId] || TILE_SKINS.classic;
+		return TILE_IMAGE_FOLDER + (letter || 'A').toUpperCase() + skin.set + '.png';
+	}
+
+	// Lighting balance for the tile face so the 2D art keeps its true colours
+	// (prevents scene lights + ACES tone mapping from washing the art out).
+	var FACE_DIFFUSE = 0x262626;   // small lit contribution for subtle 3D shading
+	var FACE_EMISSIVE = 0.80;      // art shown at (almost) its native brightness
 
 	var currentSkinId = 'classic';
 	try {
@@ -282,29 +257,38 @@
 
 	var TextureManager = {
 		letterTextures: {},
-		gameSaladTiles: {},
+		tileImages: {}, // keyed by "<skinId>:<LETTER>"
 		slotBracketTexture: null,
+		slotBracketTextures: {},
+		trayThemeTextures: {},
 		slotHoverTexture: null,
 		activeRowBadgeTexture: null,
 		bgTexture: null,
 
-		preloadGameSaladTiles: function () {
+		// Load all 26 letter images for a skin; re-render faces as they arrive.
+		preloadSkinImages: function (skinId) {
 			var self = this;
 			var alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 			for (var i = 0; i < alphabet.length; i++) {
-				var char = alphabet[i];
 				(function (c) {
+					var key = skinId + ':' + c;
+					if (self.tileImages[key]) return;
 					var img = new Image();
+					self.tileImages[key] = img;
 					img.onload = function () {
-						self.gameSaladTiles[c] = img;
-						if (currentSkinId === 'classic' && self.letterTextures[c]) {
-							self.renderLetterOnCanvas(c, self.letterTextures[c].image);
-							self.letterTextures[c].needsUpdate = true;
+						if (currentSkinId === skinId && self.letterTextures[key]) {
+							self.renderLetterOnCanvas(c, self.letterTextures[key].image, skinId);
+							self.letterTextures[key].needsUpdate = true;
 						}
 					};
-					img.src = 'game/default/images/' + c + '4.png';
-				})(char);
+					img.src = getTileImageUrl(skinId, c);
+				})(alphabet[i]);
 			}
+		},
+
+		// Backwards-compatible name used by init()
+		preloadGameSaladTiles: function () {
+			this.preloadSkinImages(currentSkinId);
 		},
 
 		getHardwoodTexture: function (baseColorHex, grainDarkHex, grainLightHex) {
@@ -319,30 +303,45 @@
 			ctx.fillStyle = baseColorHex;
 			ctx.fillRect(0, 0, width, height);
 
-			// Longitudinal wood grain lines
-			for (var y = 0; y < height; y += 3) {
-				var grainAlpha = (Math.sin(y * 0.12) * 0.5 + 0.5) * 0.18 + Math.random() * 0.08;
-				ctx.fillStyle = (Math.sin(y * 0.35) > 0) ? grainDarkHex : grainLightHex;
+			// Longitudinal prominent wood grain lines (ALWAYS rich, visible wooden texture)
+			for (var y = 0; y < height; y += 2.5) {
+				var grainAlpha = (Math.sin(y * 0.14) * 0.5 + 0.5) * 0.32 + Math.random() * 0.12;
+				ctx.fillStyle = (Math.sin(y * 0.32) > 0) ? grainDarkHex : grainLightHex;
 				ctx.globalAlpha = grainAlpha;
 				ctx.beginPath();
 				ctx.moveTo(0, y);
-				for (var x = 0; x <= width; x += 32) {
-					var waveY = y + Math.sin((x + y * 2) * 0.03) * 4 + Math.sin(x * 0.015) * 6;
+				for (var x = 0; x <= width; x += 24) {
+					var waveY = y + Math.sin((x + y * 2) * 0.025) * 5 + Math.sin(x * 0.012) * 7;
 					ctx.lineTo(x, waveY);
 				}
-				ctx.lineTo(width, y + 2.5);
-				ctx.lineTo(0, y + 2.5);
+				ctx.lineTo(width, y + 2.2);
+				ctx.lineTo(0, y + 2.2);
+				ctx.fill();
+			}
+
+			// Annual growth ring bands (darker rich organic grain waves)
+			for (var b = 0; b < 6; b++) {
+				var bandY = (b * 44) + 18;
+				ctx.fillStyle = grainDarkHex;
+				ctx.globalAlpha = 0.22;
+				ctx.beginPath();
+				ctx.moveTo(0, bandY);
+				for (var bx = 0; bx <= width; bx += 20) {
+					ctx.lineTo(bx, bandY + Math.sin(bx * 0.02) * 8 + Math.cos((bx + bandY) * 0.015) * 4);
+				}
+				ctx.lineTo(width, bandY + 6);
+				ctx.lineTo(0, bandY + 6);
 				ctx.fill();
 			}
 
 			// Fine wood pore capillaries
 			ctx.fillStyle = grainDarkHex;
-			ctx.globalAlpha = 0.09;
-			for (var i = 0; i < 350; i++) {
+			ctx.globalAlpha = 0.16;
+			for (var i = 0; i < 450; i++) {
 				var px = Math.random() * width;
 				var py = Math.random() * height;
-				var len = Math.random() * 26 + 8;
-				ctx.fillRect(px, py, len, 1.2);
+				var len = Math.random() * 32 + 10;
+				ctx.fillRect(px, py, len, 1.4);
 			}
 			ctx.globalAlpha = 1.0;
 
@@ -354,116 +353,78 @@
 			return texture;
 		},
 
-		renderLetterOnCanvas: function (letter, canvas) {
+		renderLetterOnCanvas: function (letter, canvas, skinId) {
 			letter = (letter || '').toUpperCase();
-			var skin = TILE_SKINS[currentSkinId] || TILE_SKINS.classic;
+			var sid = skinId || currentSkinId || 'classic';
+			var skin = TILE_SKINS[sid] || TILE_SKINS.classic;
 			var size = canvas.width || 256;
 			var ctx = canvas.getContext('2d');
 			ctx.clearRect(0, 0, size, size);
 
-			// 1. If skin is classic and GameSalad tile image is ready:
-			var gsImg = this.gameSaladTiles[letter];
-			if (skin.id === 'classic' && gsImg && gsImg.complete && gsImg.naturalWidth > 0) {
-				// Draw the authentic GameSalad human, homely tile!
-				ctx.drawImage(gsImg, 0, 0, size, size);
+			// Solid backing in the tile's edge colour so transparent rounded
+			// corners of the 2D art blend into the 3D tile body (no black corners).
+			ctx.fillStyle = skin.sideBase;
+			ctx.fillRect(0, 0, size, size);
 
-				// GameSalad point value in corner
-				var pts = LETTER_POINTS[letter] || 1;
-				ctx.font = '700 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-				ctx.textAlign = 'right';
-				ctx.textBaseline = 'bottom';
-				ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-				ctx.fillText(pts, size - 20, size - 16 + 1.5);
-				ctx.fillStyle = '#3a2211';
-				ctx.fillText(pts, size - 20, size - 16);
+			var img = this.tileImages[sid + ':' + letter];
+			if (img && img.complete && img.naturalWidth > 0) {
+				// Draw the authentic 2D tile art, stretched to the full face
+				ctx.imageSmoothingEnabled = true;
+				ctx.imageSmoothingQuality = 'high';
+				ctx.drawImage(img, 0, 0, size, size);
 				return;
 			}
 
-			// Fallback / Procedural render for other skins
-			var bgGrad = ctx.createRadialGradient(size * 0.5, size * 0.5, 20, size * 0.5, size * 0.5, size * 0.7);
-			bgGrad.addColorStop(0, skin.faceBase[0]);
-			bgGrad.addColorStop(0.7, skin.faceBase[1]);
-			bgGrad.addColorStop(1.0, skin.faceBase[2]);
-			ctx.fillStyle = bgGrad;
-			ctx.fillRect(0, 0, size, size);
-
-			if (skin.id === 'marble') {
-				ctx.strokeStyle = 'rgba(100, 116, 139, 0.18)';
-				ctx.lineWidth = 2;
-				ctx.beginPath();
-				ctx.moveTo(10, 30);
-				ctx.bezierCurveTo(80, 120, 160, 90, 240, 210);
-				ctx.stroke();
-				ctx.beginPath();
-				ctx.moveTo(140, 20);
-				ctx.bezierCurveTo(190, 80, 210, 140, 250, 170);
-				ctx.stroke();
-			} else if (skin.id === 'obsidian') {
-				var glossGrad = ctx.createLinearGradient(0, 0, size, size);
-				glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
-				glossGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.0)');
-				glossGrad.addColorStop(1, 'rgba(245, 158, 11, 0.08)');
-				ctx.fillStyle = glossGrad;
-				ctx.fillRect(0, 0, size, size);
-			} else if (skin.id === 'jade') {
-				ctx.fillStyle = 'rgba(16, 185, 129, 0.10)';
-				for (var y = 10; y < size; y += 12) {
-					ctx.fillRect(0, y + Math.sin(y * 0.06) * 4, size, 2.5);
-				}
-			} else {
-				// Wood / Coral grain
-				ctx.fillStyle = (skin.id === 'sunset') ? 'rgba(225, 29, 72, 0.08)' : 'rgba(140, 95, 50, 0.07)';
-				for (var y = 6; y < size; y += 7) {
-					var wave = Math.sin(y * 0.05) * 6;
-					ctx.fillRect(0, y + wave, size, 2.0);
-				}
-			}
-
-			// Inset borders
-			ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-			ctx.lineWidth = 4;
-			ctx.strokeRect(7, 7, size - 14, size - 14);
-
-			ctx.strokeStyle = skin.borderColor;
-			ctx.lineWidth = 3;
-			ctx.strokeRect(10, 10, size - 20, size - 20);
-
-			// Capital Letter
+			// Placeholder while the image is loading
 			ctx.font = '900 132px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
-
-			ctx.fillStyle = skin.highlightColor;
-			ctx.fillText(letter, size * 0.5, size * 0.48 + 3);
-
-			ctx.fillStyle = skin.textColor;
-			ctx.fillText(letter, size * 0.5, size * 0.48);
-
-			// Letter Point Value
-			var pts = LETTER_POINTS[letter] || 1;
-			ctx.font = '700 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-			ctx.textAlign = 'right';
-			ctx.textBaseline = 'bottom';
-
-			ctx.fillStyle = skin.highlightColor;
-			ctx.fillText(pts, size - 22, size - 18 + 1.5);
-			ctx.fillStyle = skin.scoreColor;
-			ctx.fillText(pts, size - 22, size - 18);
+			ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+			ctx.fillText(letter, size * 0.5, size * 0.5);
 		},
 
-		getLetterTexture: function (letter) {
+		getLetterTexture: function (letter, skinId) {
 			letter = (letter || '').toUpperCase();
-			if (this.letterTextures[letter]) return this.letterTextures[letter];
+			var sid = skinId || currentSkinId || 'classic';
+			var key = sid + ':' + letter;
+			if (this.letterTextures[key]) return this.letterTextures[key];
 
 			var size = 256;
 			var canvas = document.createElement('canvas');
 			canvas.width = size;
 			canvas.height = size;
-			this.renderLetterOnCanvas(letter, canvas);
+			this.renderLetterOnCanvas(letter, canvas, sid);
 
 			var texture = new THREE.CanvasTexture(canvas);
 			texture.encoding = THREE.sRGBEncoding;
-			this.letterTextures[letter] = texture;
+			if (renderer && renderer.capabilities) {
+				texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+			}
+			this.letterTextures[key] = texture;
+
+			var self = this;
+			var img = this.tileImages[key];
+			if (!img) {
+				img = new Image();
+				this.tileImages[key] = img;
+				img.onload = function () {
+					if (self.letterTextures[key]) {
+						self.renderLetterOnCanvas(letter, self.letterTextures[key].image, sid);
+						self.letterTextures[key].needsUpdate = true;
+					}
+				};
+				img.src = getTileImageUrl(sid, letter);
+			} else if (!img.complete) {
+				var prevOnload = img.onload;
+				img.onload = function () {
+					if (typeof prevOnload === 'function') prevOnload();
+					if (self.letterTextures[key]) {
+						self.renderLetterOnCanvas(letter, self.letterTextures[key].image, sid);
+						self.letterTextures[key].needsUpdate = true;
+					}
+				};
+			}
+
 			return texture;
 		},
 
@@ -476,6 +437,7 @@
 
 			var skin = TILE_SKINS[skinId];
 			this.letterTextures = {};
+			this.preloadSkinImages(skinId);
 
 			var sideMap = this.getHardwoodTexture(skin.sideBase, skin.sideDark, skin.sideLight);
 			var lockedSideMap = this.getHardwoodTexture(skin.lockedBase, skin.lockedDark, skin.lockedLight);
@@ -493,14 +455,82 @@
 				materials.tileLocked.needsUpdate = true;
 			}
 
+			// Contrast Pairing: Light tiles -> Dark trays & letter holders; Dark tiles -> Light trays & letter holders
+			this.updateTrayTheme(skinId);
+			this.updateTitleBoardTiles(skinId);
+			if (typeof updateStoragePreviewUI === 'function') updateStoragePreviewUI();
+
 			for (var i = 0; i < allTiles.length; i++) {
 				var t = allTiles[i];
 				if (t && t.mesh && t.mesh.material && t.mesh.material[2]) {
-					t.mesh.material[2].map = this.getLetterTexture(t.letter);
-					t.mesh.material[2].roughness = skin.roughness;
-					t.mesh.material[2].metalness = skin.metalness;
+					var tex = this.getLetterTexture(t.letter);
+					t.mesh.material[2].map = tex;
+					t.mesh.material[2].emissiveMap = tex;
 					t.mesh.material[2].needsUpdate = true;
 				}
+			}
+		},
+
+		preloadTitleShowcaseImages: function () {
+			var self = this;
+			var letters = ['W', 'O', 'R', 'D', 'C', 'H', 'A', 'I', 'N'];
+			for (var i = 0; i < TILE_SKIN_ORDER.length; i++) {
+				var sid = TILE_SKIN_ORDER[i];
+				for (var j = 0; j < letters.length; j++) {
+					(function (s, c) {
+						var key = s + ':' + c;
+						if (self.tileImages[key]) return;
+						var img = new Image();
+						self.tileImages[key] = img;
+						img.src = getTileImageUrl(s, c);
+					})(sid, letters[j]);
+				}
+			}
+		},
+
+		getTileSideMaterial: function (skinId) {
+			if (!this.tileSideMaterials) this.tileSideMaterials = {};
+			if (this.tileSideMaterials[skinId]) return this.tileSideMaterials[skinId];
+			var skin = TILE_SKINS[skinId] || TILE_SKINS.classic;
+			var sideMap = this.getHardwoodTexture(skin.sideBase, skin.sideDark, skin.sideLight);
+			var mat = new THREE.MeshStandardMaterial({
+				map: sideMap,
+				color: 0xffffff,
+				roughness: skin.roughness,
+				metalness: skin.metalness
+			});
+			this.tileSideMaterials[skinId] = mat;
+			return mat;
+		},
+
+		getTitleRackMaterial: function (themeName) {
+			if (!this.titleRackMaterials) this.titleRackMaterials = {};
+			if (this.titleRackMaterials[themeName]) return this.titleRackMaterials[themeName];
+			var theme = this.getTrayThemeTextures(themeName);
+			var mat = new THREE.MeshStandardMaterial({
+				map: theme.rackWood,
+				color: 0xffffff,
+				roughness: theme.rackRoughness,
+				metalness: 0.0
+			});
+			this.titleRackMaterials[themeName] = mat;
+			return mat;
+		},
+
+		updateTitleBoardTiles: function (skinId) {
+			var sid = skinId || currentSkinId || 'classic';
+			var skin = TILE_SKINS[sid] || TILE_SKINS.classic;
+			var tileImgs = document.querySelectorAll('.title-tile-img');
+			if (tileImgs && tileImgs.length) {
+				tileImgs.forEach(function (img) {
+					var letter = img.getAttribute('data-letter') || 'A';
+					img.src = getTileImageUrl(sid, letter);
+				});
+			}
+
+			var styleNameEl = document.getElementById('title-style-name');
+			if (styleNameEl) {
+				styleNameEl.textContent = skin.name.toUpperCase();
 			}
 		},
 
@@ -508,8 +538,11 @@
 			return currentSkinId;
 		},
 
-		getSlotBracketTexture: function () {
-			if (this.slotBracketTexture) return this.slotBracketTexture;
+		getSlotBracketTexture: function (variant) {
+			var isLightTray = (variant === 'lightTray' || variant === true);
+			var key = isLightTray ? 'lightTray' : 'darkTray';
+			if (!this.slotBracketTextures) this.slotBracketTextures = {};
+			if (this.slotBracketTextures[key]) return this.slotBracketTextures[key];
 
 			var size = 256;
 			var canvas = document.createElement('canvas');
@@ -519,15 +552,25 @@
 
 			ctx.clearRect(0, 0, size, size);
 
-			// Soft subtle amber fill
-			ctx.fillStyle = 'rgba(250, 204, 21, 0.08)';
-			drawRoundRect(ctx, 10, 10, size - 20, size - 20, 20);
-			ctx.fill();
+			if (isLightTray) {
+				// Light tray brackets: warm polished brass on rich saddle felt
+				ctx.fillStyle = 'rgba(250, 204, 21, 0.08)';
+				drawRoundRect(ctx, 10, 10, size - 20, size - 20, 20);
+				ctx.fill();
 
-			// Glowing corner brackets [  ]
-			ctx.strokeStyle = '#facc15';
-			ctx.lineWidth = 12;
-			ctx.lineCap = 'round';
+				ctx.strokeStyle = '#facc15';
+				ctx.lineWidth = 12;
+				ctx.lineCap = 'round';
+			} else {
+				// Dark tray brackets: warm glowing amber gold on dark felt
+				ctx.fillStyle = 'rgba(250, 204, 21, 0.08)';
+				drawRoundRect(ctx, 10, 10, size - 20, size - 20, 20);
+				ctx.fill();
+
+				ctx.strokeStyle = '#facc15';
+				ctx.lineWidth = 12;
+				ctx.lineCap = 'round';
+			}
 
 			var arm = 50;
 			var m = 18;
@@ -562,8 +605,117 @@
 
 			var texture = new THREE.CanvasTexture(canvas);
 			texture.encoding = THREE.sRGBEncoding;
+			this.slotBracketTextures[key] = texture;
 			this.slotBracketTexture = texture;
 			return texture;
+		},
+
+		// Cached procedural textures and color tokens for dark vs. light tray themes
+		getTrayThemeTextures: function (theme) {
+			if (!this.trayThemeTextures) this.trayThemeTextures = {};
+			if (this.trayThemeTextures[theme]) return this.trayThemeTextures[theme];
+
+			if (theme === 'light') {
+				// LIGHT TRAYS & LETTER HOLDERS (Never white! Lighter shade of warm golden honey-oak / cedar wood with rich visible grain texture)
+				this.trayThemeTextures.light = {
+					rackWood: this.getHardwoodTexture('#8e5b32', '#4e2c14', '#ad7340'),
+					activeWood: this.getHardwoodTexture('#9f6738', '#5a3318', '#bc8048'),
+					solvedWood: this.getHardwoodTexture('#82522c', '#482610', '#9e6534'),
+					dimmedWood: this.getHardwoodTexture('#764926', '#3e1e0c', '#8e552a'),
+					greenWood: this.getHardwoodTexture('#684122', '#3a200e', '#825028'),
+					feltColor: 0x3c2414,
+					activeEmissive: 0x381e08,
+					activeEmissiveIntensity: 0.35,
+					chevronColor: 0xf59e0b,
+					chevronEmissive: 0x78350f,
+					bracketVariant: 'lightTray',
+					rackRoughness: 0.70,
+					activeRoughness: 0.62,
+					solvedRoughness: 0.72,
+					dimmedRoughness: 0.76,
+					greenRoughness: 0.70
+				};
+			} else {
+				// DARK TRAYS & LETTER HOLDERS (Paired with light tiles)
+				// Rich dark roasted walnut / espresso racks, dark evergreen pine staging tray, charcoal felt, gold brackets
+				this.trayThemeTextures.dark = {
+					rackWood: this.getHardwoodTexture('#2c1b10', '#150c07', '#462c1c'),
+					activeWood: this.getHardwoodTexture('#3e2213', '#1e0f07', '#5d351e'),
+					solvedWood: this.getHardwoodTexture('#26170e', '#120a05', '#3e2617'),
+					dimmedWood: this.getHardwoodTexture('#18100a', '#0b0704', '#261b11'),
+					greenWood: this.getHardwoodTexture('#192b1d', '#0c160e', '#2b4731'),
+					feltColor: 0x14100c,
+					activeEmissive: 0x381705,
+					activeEmissiveIntensity: 0.40,
+					chevronColor: 0xf59e0b,
+					chevronEmissive: 0x78350f,
+					bracketVariant: 'darkTray',
+					rackRoughness: 0.76,
+					activeRoughness: 0.68,
+					solvedRoughness: 0.78,
+					dimmedRoughness: 0.82,
+					greenRoughness: 0.76
+				};
+			}
+			return this.trayThemeTextures[theme];
+		},
+
+		// Dynamically switch trays and letter holders to maintain optimal contrast with current tiles:
+		// Light tiles -> Dark trays & letter holders
+		// Dark tiles  -> Light trays & letter holders
+		updateTrayTheme: function (skinId) {
+			var skin = TILE_SKINS[skinId] || TILE_SKINS[currentSkinId] || TILE_SKINS.classic;
+			var isLightTile = (skin.tone !== 'dark');
+			var themeName = isLightTile ? 'dark' : 'light';
+			var theme = this.getTrayThemeTextures(themeName);
+
+			if (materials.yellowTray) {
+				materials.yellowTray.map = theme.rackWood;
+				materials.yellowTray.roughness = theme.rackRoughness;
+				materials.yellowTray.needsUpdate = true;
+			}
+			if (materials.yellowTrayActive) {
+				materials.yellowTrayActive.map = theme.activeWood;
+				materials.yellowTrayActive.roughness = theme.activeRoughness;
+				materials.yellowTrayActive.emissive.setHex(theme.activeEmissive);
+				materials.yellowTrayActive.emissiveIntensity = theme.activeEmissiveIntensity;
+				materials.yellowTrayActive.needsUpdate = true;
+			}
+			if (materials.yellowTraySolved) {
+				materials.yellowTraySolved.map = theme.solvedWood;
+				materials.yellowTraySolved.roughness = theme.solvedRoughness;
+				materials.yellowTraySolved.needsUpdate = true;
+			}
+			if (materials.yellowTrayDimmed) {
+				materials.yellowTrayDimmed.map = theme.dimmedWood;
+				materials.yellowTrayDimmed.roughness = theme.dimmedRoughness;
+				materials.yellowTrayDimmed.needsUpdate = true;
+			}
+			if (materials.greenTray) {
+				materials.greenTray.map = theme.greenWood;
+				materials.greenTray.roughness = theme.greenRoughness;
+				materials.greenTray.needsUpdate = true;
+			}
+			if (materials.slotFelt) {
+				materials.slotFelt.color.setHex(theme.feltColor);
+				materials.slotFelt.needsUpdate = true;
+			}
+			if (materials.activeSlotBracket) {
+				materials.activeSlotBracket.map = this.getSlotBracketTexture(theme.bracketVariant);
+				materials.activeSlotBracket.needsUpdate = true;
+			}
+			if (materials.chevron) {
+				materials.chevron.color.setHex(theme.chevronColor);
+				materials.chevron.emissive.setHex(theme.chevronEmissive);
+				materials.chevron.needsUpdate = true;
+			}
+
+			// Immediately refresh rack and lip material assignments across all rows
+			if (typeof updateActiveRowVisuals === 'function') {
+				try {
+					updateActiveRowVisuals();
+				} catch (e) {}
+			}
 		},
 
 		getSlotHoverTexture: function () {
@@ -697,6 +849,9 @@
 		ownedSkins: ['classic'],
 		ownedSceneries: ['sakura'],
 		activeTrial: null, // { type: 'skin'|'scenery', id: string, roundLevel: number }
+		lastGiftReceivedLevel: null,
+		levelsSinceLastGift: 0,
+		lastGiftType: 'skin',
 
 		init: function () {
 			try {
@@ -705,6 +860,8 @@
 					this.ownedSkins = savedSkins;
 				}
 			} catch (e) {}
+			// Drop any legacy (non-2D-art) skins from older saves
+			this.ownedSkins = this.ownedSkins.filter(function (id) { return !!TILE_SKINS[id]; });
 			if (this.ownedSkins.indexOf('classic') === -1) {
 				this.ownedSkins.push('classic');
 			}
@@ -718,6 +875,69 @@
 			if (this.ownedSceneries.indexOf('sakura') === -1) {
 				this.ownedSceneries.push('sakura');
 			}
+
+			try {
+				var savedLastLevel = localStorage.getItem('word_chain_last_gift_level');
+				if (savedLastLevel !== null && savedLastLevel !== '' && !isNaN(parseInt(savedLastLevel, 10))) {
+					this.lastGiftReceivedLevel = parseInt(savedLastLevel, 10);
+				}
+				var savedLevelsSince = localStorage.getItem('word_chain_levels_since_gift');
+				if (savedLevelsSince !== null && savedLevelsSince !== '' && !isNaN(parseInt(savedLevelsSince, 10))) {
+					this.levelsSinceLastGift = parseInt(savedLevelsSince, 10);
+				} else {
+					// Initial progress: spaced so first reward appears on Level 5, then 4-5 levels after
+					this.levelsSinceLastGift = 0;
+				}
+				this.lastGiftType = localStorage.getItem('word_chain_last_gift_type') || 'skin';
+			} catch (e) {}
+		},
+
+		hasAnyUnownedReward: function () {
+			var hasUnownedSkin = TILE_SKIN_ORDER.some(function (id) {
+				return id !== 'classic' && !UnlockManager.isOwned('skin', id);
+			});
+			if (hasUnownedSkin) return true;
+			var sceneries = ['volcano', 'snowtown', 'peaks', 'ocean'];
+			return sceneries.some(function (id) {
+				return !UnlockManager.isOwned('scenery', id);
+			});
+		},
+
+		// Spacing: A gift appears strictly 4-5 levels AFTER receiving one gift (never back-to-back)
+		isEligibleForGift: function (levelIndex) {
+			if (!this.hasAnyUnownedReward()) return false;
+
+			// Brand new player receives first gift on Level 5 (index 4)
+			if (this.lastGiftReceivedLevel === null) {
+				return levelIndex >= 4;
+			}
+
+			// Must be at least 4-5 levels after receiving the last gift
+			if (this.levelsSinceLastGift >= 5 && Math.abs(levelIndex - this.lastGiftReceivedLevel) >= 4) {
+				return true;
+			}
+
+			return false;
+		},
+
+		onLevelCompleted: function (levelIndex) {
+			this.levelsSinceLastGift++;
+			try {
+				localStorage.setItem('word_chain_levels_since_gift', String(this.levelsSinceLastGift));
+			} catch (e) {}
+		},
+
+		onGiftReceived: function (levelIndex, reward) {
+			this.lastGiftReceivedLevel = levelIndex;
+			this.levelsSinceLastGift = 0;
+			if (reward && reward.type) {
+				this.lastGiftType = reward.type;
+				try { localStorage.setItem('word_chain_last_gift_type', reward.type); } catch (e) {}
+			}
+			try {
+				localStorage.setItem('word_chain_last_gift_level', String(levelIndex));
+				localStorage.setItem('word_chain_levels_since_gift', '0');
+			} catch (e) {}
 		},
 
 		isOwned: function (type, id) {
@@ -788,6 +1008,7 @@
 
 			// Trial ended! Show modal prompt
 			var trialItem = self.activeTrial;
+			onHandled = once(onHandled);
 			var modal = document.getElementById('trial-ended-modal');
 			var nameEl = document.getElementById('trial-ended-name');
 			var showcaseEl = document.getElementById('trial-ended-showcase');
@@ -806,14 +1027,7 @@
 			if (showcaseEl) {
 				showcaseEl.innerHTML = '';
 				if (trialItem.type === 'skin') {
-					var preview = document.createElement('div');
-					preview.className = 'reward-tile-preview-3d';
-					var skin = TILE_SKINS[trialItem.id] || TILE_SKINS.classic;
-					preview.style.background = skin.faceBase[0];
-					preview.style.color = skin.textColor;
-					preview.style.border = '2px solid ' + skin.borderColor;
-					preview.innerHTML = '<span>A</span><span class="preview-score">1</span>';
-					showcaseEl.appendChild(preview);
+					showcaseEl.appendChild(createSkinPreviewEl(trialItem.id, 'reward-tile-preview-3d'));
 				} else {
 					var scCard = document.createElement('div');
 					scCard.className = 'reward-scenery-preview-card';
@@ -864,30 +1078,241 @@
 			updateThemeModalUI();
 		},
 
-		getRewardForLevelRow: function (levelIndex, rowIndex) {
-			var rewardsByLevel = [
-				{
-					2: { type: 'skin', id: 'obsidian', name: 'Midnight Onyx', desc: 'Sleek obsidian stone with polished gold laser lettering', skin: TILE_SKINS.obsidian },
-					4: { type: 'scenery', id: 'sunlit', name: 'Alpine Lake', desc: 'Golden dawn mountain lake with glowing sunbeams', icon: '☀️' }
-				},
-				{
-					2: { type: 'skin', id: 'marble', name: 'Pearl Marble', desc: 'Luminous Italian marble with deep slate numerals', skin: TILE_SKINS.marble },
-					4: { type: 'scenery', id: 'aurora', name: 'Northern Lights', desc: 'Ethereal emerald & violet polar aurora under starry skies', icon: '🌌' }
-				},
-				{
-					2: { type: 'skin', id: 'jade', name: 'Imperial Jade', desc: 'Polished emerald jade stone with rich forest markings', skin: TILE_SKINS.jade },
-					4: { type: 'scenery', id: 'autumn', name: 'Autumn Woods', desc: 'Crisp golden woods with falling amber & crimson leaves', icon: '🍂' }
-				},
-				{
-					2: { type: 'skin', id: 'sunset', name: 'Sunset Coral', desc: 'Warm coral blush wood with rose quartz laser etching', skin: TILE_SKINS.sunset },
-					4: { type: 'scenery', id: 'rain', name: 'Rainy Forest', desc: 'Peaceful twilight woodland sanctuary with gentle rain & ripples', icon: '🌧️' }
-				}
-			];
+		makeSkinReward: function (skinId) {
+			var skin = TILE_SKINS[skinId] || TILE_SKINS.classic;
+			return { type: 'skin', id: skin.id, name: skin.name, desc: skin.desc, skin: skin };
+		},
 
-			var lvlRewards = rewardsByLevel[levelIndex % rewardsByLevel.length];
-			return (lvlRewards && lvlRewards[rowIndex]) ? lvlRewards[rowIndex] : null;
+		getNextReward: function (levelIndex) {
+			var giftableSkins = TILE_SKIN_ORDER.filter(function (id) {
+				return id !== 'classic' && !UnlockManager.isOwned('skin', id);
+			});
+			var sceneryRewards = [
+				{ type: 'scenery', id: 'volcano', name: 'Volcano Night', desc: 'Fiery magma eruption at night with glowing ember sparks', icon: '🌋' },
+				{ type: 'scenery', id: 'snowtown', name: 'Winter Village', desc: 'Snowy alpine village at night with warm golden chalet lights', icon: '🏔️' },
+				{ type: 'scenery', id: 'peaks', name: 'Alpine Peaks', desc: 'Majestic daytime snow mountain slopes and powder crystals', icon: '❄️' },
+				{ type: 'scenery', id: 'ocean', name: 'Tropical Pier', desc: 'Crystal turquoise ocean dock with shimmering water glints', icon: '🏝️' }
+			];
+			var giftableSceneries = sceneryRewards.filter(function (sc) {
+				return !UnlockManager.isOwned('scenery', sc.id);
+			});
+
+			// Alternate between skin and scenery rewards for rich variety
+			var preferScenery = (this.lastGiftType === 'skin');
+			if (preferScenery && giftableSceneries.length > 0) {
+				return giftableSceneries[levelIndex % giftableSceneries.length];
+			}
+			if (giftableSkins.length > 0) {
+				var sid = giftableSkins[levelIndex % giftableSkins.length];
+				return this.makeSkinReward(sid);
+			}
+			if (giftableSceneries.length > 0) {
+				return giftableSceneries[levelIndex % giftableSceneries.length];
+			}
+			return null;
+		},
+
+		getRewardForLevelRow: function (levelIndex, rowIndex) {
+			// Single gift box per eligible level on Row 2 (appears ~4-5 levels after receiving one gift)
+			if (rowIndex !== 2) return null;
+
+			if (!this.isEligibleForGift(levelIndex)) {
+				return null;
+			}
+
+			return this.getNextReward(levelIndex);
 		}
 	};
+
+	// Small preview of a 2D tile set (uses the set's real "A" tile image)
+	function createSkinPreviewEl(skinId, className) {
+		var skin = TILE_SKINS[skinId] || TILE_SKINS.classic;
+		var el = document.createElement('div');
+		el.className = (className || 'skin-preview') + ' skin-img-preview';
+		var img = document.createElement('img');
+		img.src = getTileImageUrl(skin.id, 'A');
+		img.alt = skin.name;
+		img.draggable = false;
+		el.appendChild(img);
+		return el;
+	}
+
+	// ==========================================================================
+	// FANCY FELT-FLOORED CUBBY HOLE SYSTEM (3 TILES A-B-C IN EACH OF 12+ STYLES)
+	// ==========================================================================
+	function updateStoragePreviewUI() {
+		var curSkinId = TextureManager.getCurrentSkin ? TextureManager.getCurrentSkin() : 'classic';
+		var skinObj = TILE_SKINS[curSkinId] || TILE_SKINS.classic;
+
+		// 1. Title Screen Entrance Bar
+		var titlePreviewA = document.getElementById('title-preview-tile-a');
+		var titlePreviewB = document.getElementById('title-preview-tile-b');
+		var titlePreviewC = document.getElementById('title-preview-tile-c');
+		var titleStyleName = document.getElementById('title-style-name');
+
+		if (titlePreviewA) titlePreviewA.src = getTileImageUrl(curSkinId, 'A');
+		if (titlePreviewB) titlePreviewB.src = getTileImageUrl(curSkinId, 'B');
+		if (titlePreviewC) titlePreviewC.src = getTileImageUrl(curSkinId, 'C');
+		if (titleStyleName) titleStyleName.textContent = skinObj.name.toUpperCase();
+
+		// 2. Settings Modal Portal
+		var settingsPreviewA = document.getElementById('settings-preview-tile-a');
+		var settingsPreviewB = document.getElementById('settings-preview-tile-b');
+		var settingsPreviewC = document.getElementById('settings-preview-tile-c');
+		var settingsStorageSub = document.getElementById('settings-storage-sub');
+
+		if (settingsPreviewA) settingsPreviewA.src = getTileImageUrl(curSkinId, 'A');
+		if (settingsPreviewB) settingsPreviewB.src = getTileImageUrl(curSkinId, 'B');
+		if (settingsPreviewC) settingsPreviewC.src = getTileImageUrl(curSkinId, 'C');
+		if (settingsStorageSub) settingsStorageSub.textContent = 'Current: ' + skinObj.name + ' (12+ Styles)';
+	}
+
+	function renderStorageCubbies() {
+		var container = document.getElementById('cubby-grid');
+		if (!container) return;
+		container.innerHTML = '';
+
+		var curSkin = TextureManager.getCurrentSkin ? TextureManager.getCurrentSkin() : 'classic';
+
+		TILE_SKIN_ORDER.forEach(function (id) {
+			var skin = TILE_SKINS[id];
+			if (!skin) return;
+
+			var isEquipped = (id === curSkin);
+			var isOwned = UnlockManager.isOwned('skin', id);
+			var isTrial = UnlockManager.isTrial('skin', id);
+
+			var cubby = document.createElement('div');
+			cubby.className = 'cubby-box' + (isEquipped ? ' active' : '');
+			cubby.setAttribute('data-skin', id);
+			cubby.setAttribute('title', skin.name + ' • ' + skin.desc);
+
+			// 1. The Fancy Felt Floor
+			var feltFloor = document.createElement('div');
+			feltFloor.className = 'cubby-felt-floor';
+
+			// 2. The 3 Tiles: A, B, and C resting physically on the felt floor!
+			var stage = document.createElement('div');
+			stage.className = 'cubby-tiles-stage';
+
+			['A', 'B', 'C'].forEach(function (letter) {
+				var unit = document.createElement('div');
+				unit.className = 'cubby-tile-unit unit-' + letter.toLowerCase();
+
+				// Contact shadow oval directly on the felt floor
+				var shadow = document.createElement('div');
+				shadow.className = 'cubby-tile-shadow';
+				unit.appendChild(shadow);
+
+				var tileImg = document.createElement('img');
+				tileImg.src = getTileImageUrl(id, letter);
+				tileImg.alt = letter;
+				tileImg.className = 'cubby-tile-img';
+				tileImg.draggable = false;
+				unit.appendChild(tileImg);
+
+				stage.appendChild(unit);
+			});
+			feltFloor.appendChild(stage);
+			cubby.appendChild(feltFloor);
+
+			// 3. Brass Plaque Nameplate
+			var plaque = document.createElement('div');
+			plaque.className = 'cubby-plaque';
+
+			var nameEl = document.createElement('span');
+			nameEl.className = 'cubby-name';
+			nameEl.textContent = skin.name;
+			plaque.appendChild(nameEl);
+
+			// Concierge Service Call Bell replaces the select button!
+			if (isEquipped) {
+				var bellBtn = document.createElement('div');
+				bellBtn.className = 'cubby-bell-action equipped';
+				bellBtn.innerHTML = '<img class="bell-icon bell-down" src="OriginalTileImages/BELLGOLD_DOWN.png" alt="Bell" /><span class="bell-text">EQUIPPED</span>';
+				plaque.appendChild(bellBtn);
+			} else if (isOwned) {
+				var bellBtn = document.createElement('button');
+				bellBtn.type = 'button';
+				bellBtn.className = 'cubby-bell-action select';
+				bellBtn.innerHTML = '<img class="bell-icon bell-up" src="OriginalTileImages/BELLGOLD_UP.png" alt="Bell" /><span class="bell-text">SELECT</span>';
+				plaque.appendChild(bellBtn);
+			} else if (isTrial) {
+				var bellBtn = document.createElement('div');
+				bellBtn.className = 'cubby-bell-action trial';
+				bellBtn.innerHTML = '<img class="bell-icon bell-up" src="OriginalTileImages/BELLSILVER_UP.png" alt="Bell" /><span class="bell-text">TRIAL</span>';
+				plaque.appendChild(bellBtn);
+			} else {
+				var badge = document.createElement('span');
+				badge.className = 'cubby-badge badge-store';
+				badge.textContent = '🔒 WATCH AD';
+				plaque.appendChild(badge);
+			}
+			cubby.appendChild(plaque);
+
+			// Tactile interaction: Select or Unlock via Store
+			cubby.addEventListener('click', function (e) {
+				e.stopPropagation();
+				var targetId = this.getAttribute('data-skin');
+				if (!targetId) return;
+
+				if (UnlockManager.isOwned('skin', targetId) || UnlockManager.isTrial('skin', targetId)) {
+					TextureManager.setSkin(targetId);
+					AudioManager.playBell();
+					showToast('🛎️ Equipped ' + (TILE_SKINS[targetId] ? TILE_SKINS[targetId].name : targetId) + ' Tiles!');
+					renderStorageCubbies();
+					updateStoragePreviewUI();
+					updateThemeModalUI();
+				} else {
+					var skinObj = TILE_SKINS[targetId];
+					var skinName = skinObj ? skinObj.name : targetId;
+					AdMobRewardService.showRewardAd({ type: 'skin', id: targetId, name: skinName }, function () {
+						UnlockManager.unlockPermanent('skin', targetId);
+						TextureManager.setSkin(targetId);
+						AudioManager.playBell();
+						showToast('🎉 LOCKED IN! You now own ' + skinName + ' forever!');
+						renderStorageCubbies();
+						updateStoragePreviewUI();
+						updateThemeModalUI();
+					});
+				}
+			});
+
+			container.appendChild(cubby);
+		});
+	}
+
+	function openTileStorageModal() {
+		var modal = document.getElementById('tile-storage-modal');
+		if (!modal) return;
+		renderStorageCubbies();
+		updateStoragePreviewUI();
+		modal.classList.add('show');
+		AudioManager.play('tilehit', 0.9);
+		AudioManager.haptic(20);
+	}
+
+	function closeTileStorageModal() {
+		var modal = document.getElementById('tile-storage-modal');
+		if (!modal) return;
+		modal.classList.remove('show');
+		AudioManager.play('tilehit', 0.8);
+	}
+
+	function renderSkinSelector() {
+		renderStorageCubbies();
+		updateStoragePreviewUI();
+	}
+
+	// Ensures a callback can only ever run once (guards against double-advancing)
+	function once(fn) {
+		var called = false;
+		return function () {
+			if (called || typeof fn !== 'function') return;
+			called = true;
+			return fn.apply(this, arguments);
+		};
+	}
 
 	var AdMobRewardService = {
 		testAdUnitId: 'ca-app-pub-3940256099942544/5224354917',
@@ -904,7 +1329,13 @@
 			var grantNotice = document.getElementById('admob-grant-notice');
 			var statusTag = document.getElementById('admob-server-status');
 
-			if (!modal) return;
+			if (!modal) {
+				self.isAdPlaying = false;
+				if (typeof onDismissed === 'function') onDismissed();
+				return;
+			}
+			// Clear any inline display left behind by other ad flows (e.g. key recharge)
+			modal.style.display = '';
 			modal.classList.add('show');
 			closeBtn.disabled = true;
 			grantNotice.classList.remove('show');
@@ -934,17 +1365,19 @@
 					AudioManager.play('greatJob', 0.9);
 					AudioManager.haptic(40);
 					rewardGranted = true;
-
-					if (typeof onRewarded === 'function') {
-						onRewarded(rewardItem);
-					}
 				}
 			}, 100);
 
+			// Exactly ONE outcome fires, and only after the player closes the ad,
+			// so the game never advances behind the ad overlay or advances twice.
 			closeBtn.onclick = function () {
+				closeBtn.onclick = null;
+				clearInterval(timerInterval);
 				modal.classList.remove('show');
 				self.isAdPlaying = false;
-				if (typeof onDismissed === 'function') {
+				if (rewardGranted) {
+					if (typeof onRewarded === 'function') onRewarded(rewardItem);
+				} else if (typeof onDismissed === 'function') {
 					onDismissed();
 				}
 			};
@@ -952,7 +1385,22 @@
 	};
 
 	// --------------------------------------------------------------------------
-	// Speedometer & Speed Ranking Manager
+	// Level Metadata Helper: The name of the level is the FIRST word in the chain
+	// --------------------------------------------------------------------------
+	function getLevelName(levelIndex) {
+		var allLevels = window.WORD_CHAIN_LEVELS || [];
+		var lvl = allLevels[levelIndex];
+		if (lvl && lvl.words && lvl.words[0] && lvl.words[0].answer) {
+			return lvl.words[0].answer.toUpperCase();
+		}
+		if (currentLevelData && currentLevelData.words && currentLevelData.words[0] && currentLevelData.words[0].answer) {
+			return currentLevelData.words[0].answer.toUpperCase();
+		}
+		return 'LEVEL ' + (levelIndex + 1);
+	}
+
+	// --------------------------------------------------------------------------
+	// Speedometer & Speed Ranking Manager (3D Magical Gauge & Star Progress)
 	// --------------------------------------------------------------------------
 	var SpeedometerManager = {
 		STORAGE_KEY: 'scruffle_3d_speed_records_v1',
@@ -964,15 +1412,14 @@
 		displayedSpeed: 0,
 		currentLevelSpeed: 0,
 		isLevelActive: false,
+		lastTileSnapTime: 0,
 
 		TIERS: [
-			{ minWpm: 45, tier: 'S+', title: 'GODSPEED', color: '#ff007f', gradient: 'linear-gradient(135deg, #ff007f, #ffd700)' },
-			{ minWpm: 35, tier: 'S',  title: 'LIGHTNING', color: '#ffd700', gradient: 'linear-gradient(135deg, #ffd700, #ff8c00)' },
-			{ minWpm: 26, tier: 'A+', title: 'SPEED DEMON', color: '#ff7300', gradient: 'linear-gradient(135deg, #ff7300, #ff3b30)' },
-			{ minWpm: 18, tier: 'A',  title: 'RAPID SOLVER', color: '#00e5ff', gradient: 'linear-gradient(135deg, #00e5ff, #0077ff)' },
-			{ minWpm: 12, tier: 'B',  title: 'SWIFT CHAINER', color: '#4ade80', gradient: 'linear-gradient(135deg, #4ade80, #10b981)' },
-			{ minWpm: 6,  tier: 'C',  title: 'STEADY SOLVER', color: '#94a3b8', gradient: 'linear-gradient(135deg, #94a3b8, #64748b)' },
-			{ minWpm: 0,  tier: 'D',  title: 'ROOKIE', color: '#64748b', gradient: 'linear-gradient(135deg, #64748b, #475569)' }
+			{ minWpm: 45, tier: 'S+', title: 'GODSPEED', cssTier: 'tier-godspeed', color: '#ff007f', gradient: 'linear-gradient(135deg, #ff007f, #ffd700)' },
+			{ minWpm: 35, tier: 'S',  title: 'LIGHTNING', cssTier: 'tier-lightning', color: '#ec4899', gradient: 'linear-gradient(135deg, #ec4899, #a855f7)' },
+			{ minWpm: 25, tier: 'A',  title: 'TURBO',     cssTier: 'tier-turbo', color: '#f59e0b', gradient: 'linear-gradient(135deg, #f59e0b, #ef4444)' },
+			{ minWpm: 15, tier: 'B',  title: 'SWIFT',     cssTier: 'tier-swift', color: '#10b981', gradient: 'linear-gradient(135deg, #10b981, #06b6d4)' },
+			{ minWpm: 0,  tier: 'C',  title: 'CRUISE',    cssTier: 'tier-cruise', color: '#00e5ff', gradient: 'linear-gradient(135deg, #00e5ff, #3b82f6)' }
 		],
 
 		init: function () {
@@ -986,13 +1433,21 @@
 				this.records = { levels: {} };
 			}
 
+			// Ensure legacy records have star ratings calculated
+			var levels = this.records.levels || {};
+			for (var k in levels) {
+				if (levels[k] && levels[k].bestWpm && !levels[k].stars) {
+					levels[k].stars = this.calculateStarsForWpm(levels[k].bestWpm);
+				}
+			}
+
 			// Pre-populate demo records if speed=1 query parameter is set
 			if (window.location && window.location.search && window.location.search.indexOf('speed=1') !== -1) {
 				if (Object.keys(this.records.levels).length === 0) {
-					this.records.levels[0] = { bestWpm: 34.2, bestTimeSec: 7.0, timestamp: Date.now() - 3600000 };
-					this.records.levels[1] = { bestWpm: 42.0, bestTimeSec: 5.7, timestamp: Date.now() - 2400000 };
-					this.records.levels[2] = { bestWpm: 38.5, bestTimeSec: 6.2, timestamp: Date.now() - 1200000 };
-					this.records.levels[3] = { bestWpm: 46.8, bestTimeSec: 4.8, timestamp: Date.now() - 300000 };
+					this.records.levels[0] = { bestWpm: 34.2, bestTimeSec: 7.0, stars: 3, timestamp: Date.now() - 3600000 };
+					this.records.levels[1] = { bestWpm: 42.0, bestTimeSec: 5.7, stars: 3, timestamp: Date.now() - 2400000 };
+					this.records.levels[2] = { bestWpm: 24.5, bestTimeSec: 8.2, stars: 2, timestamp: Date.now() - 1200000 };
+					this.records.levels[3] = { bestWpm: 46.8, bestTimeSec: 4.8, stars: 3, timestamp: Date.now() - 300000 };
 					this.saveRecords();
 				}
 				this.targetSpeed = 42.0;
@@ -1009,6 +1464,138 @@
 			} catch (e) {}
 			this.updateTitleScreenUI();
 			this.updateSettingsLevelUI(currentLevelIndex || 0);
+		},
+
+		calculateStarsForWpm: function (wpm) {
+			if (!wpm || wpm <= 0) return 0;
+			if (wpm >= 28) return 3; // ⭐⭐⭐ Lightning Fast (>=28 WPM)
+			if (wpm >= 15) return 2; // ⭐⭐ Swift (>=15 WPM)
+			return 1;                // ⭐ Steady/Completed (<15 WPM)
+		},
+
+		getTotalStars: function () {
+			var total = 0;
+			var levels = this.records.levels || {};
+			var allLevels = window.WORD_CHAIN_LEVELS || [];
+			var count = allLevels.length || 30;
+			for (var i = 0; i < count; i++) {
+				var rec = levels[i];
+				if (rec) {
+					total += (rec.stars || this.calculateStarsForWpm(rec.bestWpm || 0));
+				}
+			}
+			return total;
+		},
+
+		isLevelUnlocked: function (levelIndex) {
+			if (levelIndex === 0) return true;
+			var prev = this.records.levels && this.records.levels[levelIndex - 1];
+			if (prev && (prev.bestWpm > 0 || prev.stars > 0)) return true;
+			if (levelIndex <= (currentLevelIndex || 0)) return true;
+			return false;
+		},
+
+		getResumeLevelIndex: function () {
+			var allLevels = window.WORD_CHAIN_LEVELS || [];
+			var maxLvl = allLevels.length || 30;
+
+			var saved = null;
+			try {
+				saved = parseInt(localStorage.getItem('word_chain_last_level'), 10);
+			} catch (e) {}
+
+			var levels = (this.records && this.records.levels) || {};
+
+			if (!isNaN(saved) && saved >= 0 && saved < maxLvl && this.isLevelUnlocked(saved)) {
+				var rec = levels[saved];
+				if (rec && rec.stars >= 1 && (saved + 1) < maxLvl && this.isLevelUnlocked(saved + 1)) {
+					var nextRec = levels[saved + 1];
+					if (!nextRec || !nextRec.stars) {
+						return saved + 1;
+					}
+				}
+				return saved;
+			}
+
+			// Find first level without stars among unlocked levels
+			for (var i = 0; i < maxLvl; i++) {
+				if (this.isLevelUnlocked(i)) {
+					var r = levels[i];
+					if (!r || !r.stars || r.stars < 1) {
+						return i;
+					}
+				}
+			}
+
+			return 0;
+		},
+
+		checkDailyStreak: function () {
+			var todayStr = new Date().toISOString().slice(0, 10);
+			var lastLogin = null;
+			var streak = 1;
+			try {
+				lastLogin = localStorage.getItem('word_chain_last_login_date');
+				streak = parseInt(localStorage.getItem('word_chain_daily_streak') || '1', 10);
+			} catch (e) {}
+			if (isNaN(streak) || streak < 1) streak = 1;
+
+			if (!lastLogin) {
+				try {
+					localStorage.setItem('word_chain_last_login_date', todayStr);
+					localStorage.setItem('word_chain_daily_streak', '1');
+				} catch (e) {}
+				streak = 1;
+			} else if (lastLogin !== todayStr) {
+				var lastDate = new Date(lastLogin);
+				var todayDate = new Date(todayStr);
+				var diffDays = Math.round((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+				if (diffDays === 1) {
+					streak += 1;
+				} else if (diffDays > 1) {
+					streak = 1;
+				}
+				try {
+					localStorage.setItem('word_chain_last_login_date', todayStr);
+					localStorage.setItem('word_chain_daily_streak', String(streak));
+				} catch (e) {}
+			}
+
+			var lastClaimed = null;
+			try {
+				lastClaimed = localStorage.getItem('word_chain_last_gift_date');
+			} catch (e) {}
+			var canClaim = (lastClaimed !== todayStr);
+
+			return {
+				streak: streak,
+				canClaim: canClaim,
+				todayStr: todayStr
+			};
+		},
+
+		claimDailyGift: function () {
+			var streakInfo = this.checkDailyStreak();
+			if (!streakInfo.canClaim) {
+				showToast('🎁 Daily Bonus already claimed today! Come back tomorrow!');
+				return false;
+			}
+			try {
+				localStorage.setItem('word_chain_last_gift_date', streakInfo.todayStr);
+				var storedKeys = parseInt(localStorage.getItem('word_chain_keys_balance') || '20', 10);
+				if (isNaN(storedKeys)) storedKeys = 20;
+				storedKeys += 10;
+				localStorage.setItem('word_chain_keys_balance', String(storedKeys));
+			} catch (e) {}
+
+			var badgeEl = document.getElementById('key-count-badge');
+			if (badgeEl) badgeEl.textContent = String(storedKeys || 30);
+
+			AudioManager.play('greatJob', 0.95);
+			AudioManager.haptic(40);
+			showToast('🎉 +10 HINT KEYS CLAIMED! Daily streak: ' + streakInfo.streak + ' days 🔥');
+			this.updateTitleScreenUI();
+			return true;
 		},
 
 		getTierForWpm: function (wpm) {
@@ -1032,18 +1619,21 @@
 
 			var numEl = document.getElementById('speedo-number');
 			if (numEl) numEl.textContent = '0';
-			var badgeEl = document.getElementById('speedo-sub-badge');
-			if (badgeEl) {
-				badgeEl.textContent = 'CRUISE';
-				badgeEl.style.color = '#00e5ff';
-			}
-			var needleEl = document.getElementById('speedo-needle');
-			if (needleEl) needleEl.setAttribute('transform', 'rotate(-90 50 50)');
-			var fillEl = document.getElementById('speedo-fill');
-			if (fillEl) fillEl.style.strokeDashoffset = '115';
+			this.applyTierVisuals(0);
 
 			var winCard = document.getElementById('win-speed-card');
 			if (winCard) winCard.classList.remove('show');
+			var celebCard = document.getElementById('win-celebration-card');
+			if (celebCard) celebCard.classList.remove('show');
+		},
+
+		onTileInteraction: function () {
+			if (!this.isLevelActive) return;
+			var now = performance.now();
+			if (now - this.lastTileSnapTime < 120) return;
+			this.lastTileSnapTime = now;
+			// Provide an energetic needle boost on tile snap
+			this.targetSpeed = Math.min(65, this.targetSpeed + 1.6);
 		},
 
 		onWordSolved: function (wordIdx, totalWords) {
@@ -1051,49 +1641,55 @@
 			this.wordsSolvedThisLevel++;
 
 			// Instantaneous WPM for this specific word
-			var wordElapsedSec = Math.max(0.3, (now - this.lastWordSolveTime) / 1000);
+			var wordElapsedSec = Math.max(0.4, (now - this.lastWordSolveTime) / 1000);
 			var instantWpm = Math.min(80, (1 / wordElapsedSec) * 60);
 
 			// Cumulative level WPM
-			var totalElapsedSec = Math.max(0.6, (now - this.levelStartTime) / 1000);
+			var totalElapsedSec = Math.max(0.8, (now - this.levelStartTime) / 1000);
 			var cumulativeWpm = (this.wordsSolvedThisLevel / totalElapsedSec) * 60;
 
 			this.currentLevelSpeed = Math.round(cumulativeWpm * 10) / 10;
 			this.lastWordSolveTime = now;
 
-			// Rev the needle towards the faster speed with inertia
+			// Rev the needle towards whichever is faster
 			this.targetSpeed = Math.min(80, Math.max(instantWpm, cumulativeWpm));
 
 			// Visual pulse feedback on speedometer
 			var hudSpeedo = document.getElementById('hud-speedometer');
 			if (hudSpeedo) {
 				hudSpeedo.classList.add('speedo-pulse');
-				if (this.targetSpeed >= 40) {
-					hudSpeedo.classList.add('speedo-hyper');
-				}
 				setTimeout(function () {
 					hudSpeedo.classList.remove('speedo-pulse');
-				}, 400);
+				}, 450);
 			}
 		},
 
 		onLevelCompleted: function (levelIndex) {
 			this.isLevelActive = false;
 			var totalElapsedSec = Math.max(0.8, (performance.now() - this.levelStartTime) / 1000);
-			var finalWpm = Math.round((Math.max(1, this.wordsSolvedThisLevel) / totalElapsedSec) * 60 * 10) / 10;
+			var wordsCount = Math.max(1, this.wordsSolvedThisLevel || (currentLevelData ? currentLevelData.words.length : 5));
+			var finalWpm = Math.round((wordsCount / totalElapsedSec) * 60 * 10) / 10;
 			this.currentLevelSpeed = finalWpm;
+			this.displayedSpeed = finalWpm;
+			this.targetSpeed = finalWpm;
 
-			var prevRecord = this.records.levels[levelIndex];
-			var isNewRecord = !prevRecord || finalWpm > prevRecord.bestWpm;
+			var starsEarned = this.calculateStarsForWpm(finalWpm);
+			var prevRecord = this.records.levels[levelIndex] || {};
+			var prevStars = prevRecord.stars || this.calculateStarsForWpm(prevRecord.bestWpm || 0);
+			var bestStars = Math.max(prevStars, starsEarned);
+			var bestWpm = Math.max(prevRecord.bestWpm || 0, finalWpm);
+			var isNewRecord = !prevRecord.bestWpm || finalWpm > prevRecord.bestWpm;
+			this.isLastRunNewRecord = isNewRecord;
 
-			if (isNewRecord) {
-				this.records.levels[levelIndex] = {
-					bestWpm: finalWpm,
-					bestTimeSec: Math.round(totalElapsedSec * 10) / 10,
-					timestamp: Date.now()
-				};
-				this.saveRecords();
-			}
+			this.records.levels[levelIndex] = {
+				bestWpm: bestWpm,
+				bestTimeSec: prevRecord.bestTimeSec ? Math.min(prevRecord.bestTimeSec, Math.round(totalElapsedSec * 10) / 10) : Math.round(totalElapsedSec * 10) / 10,
+				stars: bestStars,
+				lastWpm: finalWpm,
+				lastStars: starsEarned,
+				timestamp: Date.now()
+			};
+			this.saveRecords();
 
 			// Show win celebration speed card
 			var winCard = document.getElementById('win-speed-card');
@@ -1106,62 +1702,201 @@
 			this.updateTitleScreenUI();
 			this.updateSettingsLevelUI(levelIndex);
 
-			return { finalWpm: finalWpm, isNewRecord: isNewRecord };
+			return { finalWpm: finalWpm, starsEarned: starsEarned, isNewRecord: isNewRecord };
+		},
+
+		domCached: false,
+		numEl: null,
+		needleGroup: null,
+		fillEl: null,
+		hudSpeedo: null,
+		auraEl: null,
+		badgeEl: null,
+		lastRoundedSpeed: -1,
+		lastAngleFixed: '',
+		lastFillOffsetFixed: '',
+		lastTierClass: '',
+
+		cacheDOMElements: function () {
+			this.numEl = document.getElementById('speedo-number');
+			this.needleGroup = document.getElementById('speedo-needle-group') || document.getElementById('speedo-needle');
+			this.fillEl = document.getElementById('speedo-fill');
+			this.hudSpeedo = document.getElementById('hud-speedometer');
+			this.auraEl = document.getElementById('speedo-magical-aura');
+			this.badgeEl = document.getElementById('speedo-sub-badge');
+			this.domCached = true;
+		},
+
+		applyTierVisuals: function (speed) {
+			if (!this.domCached) this.cacheDOMElements();
+			var tier = this.getTierForWpm(speed);
+			if (tier.cssTier === this.lastTierClass) return;
+			this.lastTierClass = tier.cssTier;
+
+			if (this.hudSpeedo) {
+				this.hudSpeedo.classList.remove('tier-cruise', 'tier-swift', 'tier-turbo', 'tier-lightning', 'tier-godspeed');
+				this.hudSpeedo.classList.add(tier.cssTier);
+			}
+			if (this.auraEl) {
+				this.auraEl.classList.remove('tier-cruise', 'tier-swift', 'tier-turbo', 'tier-lightning', 'tier-godspeed');
+				this.auraEl.classList.add(tier.cssTier);
+			}
+
+			if (this.badgeEl) {
+				if (speed >= 45) {
+					this.badgeEl.textContent = 'GODSPEED 🌟';
+					this.badgeEl.style.color = '#ff007f';
+				} else if (speed >= 35) {
+					this.badgeEl.textContent = 'LIGHTNING ⚡';
+					this.badgeEl.style.color = '#ec4899';
+				} else if (speed >= 25) {
+					this.badgeEl.textContent = 'TURBO 🔥';
+					this.badgeEl.style.color = '#f59e0b';
+				} else if (speed >= 15) {
+					this.badgeEl.textContent = 'SWIFT ✨';
+					this.badgeEl.style.color = '#10b981';
+				} else {
+					this.badgeEl.textContent = 'CRUISE';
+					this.badgeEl.style.color = '#00e5ff';
+				}
+			}
 		},
 
 		updateLoop: function () {
 			if (!this.isLevelActive) return;
+			if (!this.domCached) this.cacheDOMElements();
 
-			// Gradual needle drop / decay when idle
-			if (this.targetSpeed > 0) {
-				this.targetSpeed = Math.max(0, this.targetSpeed - 0.08);
+			var now = performance.now();
+			var totalElapsedSec = Math.max(1.0, (now - this.levelStartTime) / 1000);
+			var runningCumulativeWpm = (this.wordsSolvedThisLevel / totalElapsedSec) * 60;
+
+			// Rather than decaying artificially to 0, gently relax toward the player's true running pace
+			if (this.wordsSolvedThisLevel > 0) {
+				if (this.targetSpeed > runningCumulativeWpm) {
+					this.targetSpeed = Math.max(runningCumulativeWpm, this.targetSpeed - 0.025);
+				}
+			} else {
+				if (this.targetSpeed > 0) {
+					this.targetSpeed = Math.max(0, this.targetSpeed - 0.015);
+				}
 			}
 
-			// Smooth lerp for needle
+			// Springy interpolation
 			this.displayedSpeed += (this.targetSpeed - this.displayedSpeed) * 0.12;
 
 			var roundedSpeed = Math.round(this.displayedSpeed);
-			var numEl = document.getElementById('speedo-number');
-			if (numEl) numEl.textContent = roundedSpeed;
+			if (roundedSpeed !== this.lastRoundedSpeed) {
+				this.lastRoundedSpeed = roundedSpeed;
+				if (this.numEl) this.numEl.textContent = roundedSpeed;
+			}
 
 			// Needle angle: 0 WPM -> -90deg, 60 WPM -> +90deg
 			var angle = (Math.min(60, Math.max(0, this.displayedSpeed)) / 60) * 180 - 90;
-			var needleEl = document.getElementById('speedo-needle');
-			if (needleEl) {
-				needleEl.setAttribute('transform', 'rotate(' + angle.toFixed(1) + ' 50 50)');
+
+			// Dynamic mechanical vibration / jitter at high speeds
+			if (this.displayedSpeed >= 25) {
+				var jitterAmp = Math.min(2.2, (this.displayedSpeed - 20) * 0.07);
+				angle += (Math.random() - 0.5) * jitterAmp;
+			}
+
+			var angleStr = angle.toFixed(1);
+			if (angleStr !== this.lastAngleFixed) {
+				this.lastAngleFixed = angleStr;
+				if (this.needleGroup) {
+					this.needleGroup.setAttribute('transform', 'rotate(' + angleStr + ' 50 50)');
+				}
 			}
 
 			// Gauge arc fill offset (115 is empty, 0 is full)
 			var fillOffset = 115 - (Math.min(60, Math.max(0, this.displayedSpeed)) / 60) * 115;
-			var fillEl = document.getElementById('speedo-fill');
-			if (fillEl) {
-				fillEl.style.strokeDashoffset = fillOffset.toFixed(1);
-			}
-
-			// Sub badge status
-			var badgeEl = document.getElementById('speedo-sub-badge');
-			if (badgeEl) {
-				if (this.displayedSpeed >= 45) {
-					badgeEl.textContent = 'HYPER ⚡';
-					badgeEl.style.color = '#ff007f';
-				} else if (this.displayedSpeed >= 32) {
-					badgeEl.textContent = 'TURBO 🔥';
-					badgeEl.style.color = '#ff8c00';
-				} else if (this.displayedSpeed >= 18) {
-					badgeEl.textContent = 'RAPID 🚀';
-					badgeEl.style.color = '#ffd700';
-				} else if (this.displayedSpeed >= 8) {
-					badgeEl.textContent = 'SWIFT ✨';
-					badgeEl.style.color = '#00e5ff';
-				} else {
-					badgeEl.textContent = 'CRUISE';
-					badgeEl.style.color = '#94a3b8';
+			var fillOffsetStr = fillOffset.toFixed(1);
+			if (fillOffsetStr !== this.lastFillOffsetFixed) {
+				this.lastFillOffsetFixed = fillOffsetStr;
+				if (this.fillEl) {
+					this.fillEl.style.strokeDashoffset = fillOffsetStr;
 				}
 			}
 
-			var hudSpeedo = document.getElementById('hud-speedometer');
-			if (hudSpeedo && this.displayedSpeed < 40) {
-				hudSpeedo.classList.remove('speedo-hyper');
+			this.applyTierVisuals(this.displayedSpeed);
+		},
+
+		renderLevelSelectModal: function () {
+			var gridEl = document.getElementById('level-select-grid');
+			var totalStarsEl = document.getElementById('level-select-total-stars');
+			if (!gridEl) return;
+
+			var allLevels = window.WORD_CHAIN_LEVELS || [];
+			var totalStars = this.getTotalStars();
+			if (totalStarsEl) totalStarsEl.textContent = totalStars;
+
+			gridEl.innerHTML = '';
+			for (var i = 0; i < allLevels.length; i++) {
+				var lvlData = allLevels[i];
+				var rec = this.records.levels && this.records.levels[i];
+				var isUnlocked = this.isLevelUnlocked(i);
+				var isCurrent = (i === currentLevelIndex);
+				var bestWpm = rec ? (rec.bestWpm || 0) : 0;
+				var stars = rec ? (rec.stars || this.calculateStarsForWpm(bestWpm)) : 0;
+				var wordCount = (lvlData && lvlData.words) ? lvlData.words.length : 5;
+				var levelName = getLevelName(i);
+
+				var card = document.createElement('div');
+				card.className = 'level-grid-card' +
+					(isUnlocked ? ' unlocked' : ' locked') +
+					(isCurrent ? ' current' : '') +
+					(stars > 0 ? ' completed' : '');
+				card.setAttribute('data-level-index', i);
+
+				var header = document.createElement('div');
+				header.className = 'card-lvl-header';
+				header.innerHTML = '<span class="card-lvl-badge">LVL ' + (i + 1) + '</span>' +
+					(isCurrent ? '<span class="card-current-tag">ACTIVE</span>' : '');
+				card.appendChild(header);
+
+				var nameEl = document.createElement('div');
+				nameEl.className = 'card-level-name';
+				nameEl.textContent = levelName;
+				card.appendChild(nameEl);
+
+				var wordsInfo = document.createElement('div');
+				wordsInfo.className = 'card-words-count';
+				wordsInfo.textContent = wordCount + ' Words';
+				card.appendChild(wordsInfo);
+
+				// 3 Stars display
+				var starsDiv = document.createElement('div');
+				starsDiv.className = 'card-stars-row';
+				for (var s = 1; s <= 3; s++) {
+					var starSpan = document.createElement('span');
+					starSpan.className = 'lvl-star ' + (s <= stars ? 'earned' : 'empty');
+					starSpan.textContent = (s <= stars ? '⭐' : '★');
+					starsDiv.appendChild(starSpan);
+				}
+				card.appendChild(starsDiv);
+
+				var speedDiv = document.createElement('div');
+				speedDiv.className = 'card-speed-badge';
+				if (bestWpm > 0) {
+					speedDiv.innerHTML = '⚡ ' + bestWpm + ' <span class="wpm-unit">WPM</span>';
+				} else if (isUnlocked) {
+					speedDiv.textContent = 'READY ▶';
+				} else {
+					speedDiv.innerHTML = '🔒 LOCKED';
+				}
+				card.appendChild(speedDiv);
+
+				if (isUnlocked) {
+					(function (targetIdx) {
+						card.addEventListener('click', function () {
+							loadLevel(targetIdx);
+							hideLevelSelectModal();
+							AudioManager.play('tilehit', 0.9);
+							AudioManager.haptic(30);
+						});
+					})(i);
+				}
+
+				gridEl.appendChild(card);
 			}
 		},
 
@@ -1171,15 +1906,17 @@
 			var count = keys.length;
 			if (count === 0) {
 				return {
-					tierObj: this.TIERS[this.TIERS.length - 1], // Rookie D
+					tierObj: this.TIERS[this.TIERS.length - 1],
 					avgWpm: 0,
 					peakWpm: 0,
-					completedCount: 0
+					completedCount: 0,
+					totalStars: 0
 				};
 			}
 
 			var sumWpm = 0;
 			var peakWpm = 0;
+			var self = this;
 			keys.forEach(function (k) {
 				var wpm = levels[k].bestWpm || 0;
 				sumWpm += wpm;
@@ -1193,46 +1930,121 @@
 				tierObj: tierObj,
 				avgWpm: avgWpm,
 				peakWpm: Math.round(peakWpm * 10) / 10,
-				completedCount: count
+				completedCount: count,
+				totalStars: this.getTotalStars()
 			};
 		},
 
 		updateTitleScreenUI: function () {
 			var stats = this.getOverallStats();
-			var tierEl = document.getElementById('title-rank-tier');
-			var nameEl = document.getElementById('title-rank-name');
-			var avgEl = document.getElementById('title-rank-avg-wpm');
-			var peakEl = document.getElementById('title-rank-peak-wpm');
-			var lvlEl = document.getElementById('title-rank-levels');
+			var streakInfo = this.checkDailyStreak();
+			var resumeIdx = this.getResumeLevelIndex();
+			var allLevels = window.WORD_CHAIN_LEVELS || [];
+			var maxLvl = allLevels.length || 30;
+			var resumeLvlName = getLevelName(resumeIdx);
+			var isReturning = stats.completedCount > 0;
 
+			// 1. Streak Pill
+			var streakText = document.getElementById('title-streak-text');
+			if (streakText) {
+				streakText.textContent = streakInfo.streak + '-DAY STREAK';
+			}
+
+			// 2. Rank Pill
+			var tierEl = document.getElementById('title-rank-tier');
 			if (tierEl) {
 				tierEl.textContent = 'RANK ' + stats.tierObj.tier;
 				tierEl.style.background = stats.tierObj.gradient;
 			}
-			if (nameEl) {
-				nameEl.textContent = stats.tierObj.title;
+
+			// 3. Daily Gift Button
+			var giftBtn = document.getElementById('btn-daily-gift');
+			var giftLabel = document.getElementById('title-gift-label');
+			if (giftBtn && giftLabel) {
+				if (streakInfo.canClaim) {
+					giftBtn.classList.add('claimable');
+					giftBtn.classList.remove('claimed');
+					giftLabel.textContent = '+10 KEYS';
+				} else {
+					giftBtn.classList.remove('claimable');
+					giftBtn.classList.add('claimed');
+					giftLabel.textContent = 'CLAIMED';
+				}
 			}
-			if (avgEl) {
-				avgEl.textContent = stats.avgWpm > 0 ? (stats.avgWpm + ' WPM') : '--';
+
+			// 4. Level Spotlight
+			var badgeEl = document.getElementById('title-resume-badge');
+			var starsSummary = document.getElementById('title-total-stars-summary');
+			var lvlNumEl = document.getElementById('title-resume-lvl-num');
+			var lvlNameEl = document.getElementById('title-resume-lvl-name');
+			var fillEl = document.getElementById('title-progress-fill');
+			var textEl = document.getElementById('title-progress-text');
+
+			if (badgeEl) {
+				badgeEl.textContent = isReturning ? 'RESUME GAME' : 'GET STARTED';
 			}
-			if (peakEl) {
-				peakEl.textContent = stats.peakWpm > 0 ? (stats.peakWpm + ' WPM') : '--';
+			if (starsSummary) {
+				starsSummary.textContent = '⭐ ' + stats.totalStars + '/' + (maxLvl * 3) + ' STARS';
 			}
-			if (lvlEl) {
-				lvlEl.textContent = stats.completedCount + '/30';
+			if (lvlNumEl) {
+				lvlNumEl.textContent = 'LVL ' + (resumeIdx + 1) + ':';
+			}
+			if (lvlNameEl) {
+				lvlNameEl.textContent = resumeLvlName;
+			}
+			if (fillEl) {
+				var pct = Math.max(3, Math.min(100, Math.round((stats.completedCount / maxLvl) * 100)));
+				fillEl.style.width = pct + '%';
+			}
+			if (textEl) {
+				textEl.textContent = stats.completedCount + ' / ' + maxLvl + ' Levels Solved (' + Math.round((stats.completedCount / maxLvl) * 100) + '%)';
+			}
+
+			// 5. Play Button Labels
+			var playMain = document.getElementById('title-play-btn-label');
+			var playSub = document.getElementById('title-play-sub-label');
+			if (playMain) {
+				playMain.textContent = isReturning ? ('CONTINUE LVL ' + (resumeIdx + 1)) : 'START GAME';
+			}
+			if (playSub) {
+				playSub.textContent = isReturning ? ('Word: ' + resumeLvlName + ' • Tap to Play!') : 'Level 1: TENNIS • Tap to Play!';
 			}
 		},
 
 		updateSettingsLevelUI: function (levelIndex) {
+			var numEl = document.getElementById('settings-level-num');
+			var nameEl = document.getElementById('settings-level-name');
+			var levelName = getLevelName(levelIndex);
+			if (numEl) numEl.textContent = (levelIndex + 1);
+			if (nameEl) nameEl.textContent = levelName;
+
+			var homeNumEl = document.getElementById('home-level-num');
+			var homeNameEl = document.getElementById('home-level-name');
+			if (homeNumEl) homeNumEl.textContent = (levelIndex + 1);
+			if (homeNameEl) homeNameEl.textContent = levelName;
+
 			var recEl = document.getElementById('settings-level-record');
-			if (!recEl) return;
+			var homeRecEl = document.getElementById('home-level-record');
 			var rec = this.records.levels && this.records.levels[levelIndex];
+			var recText = '';
+			var recColor = '#94a3b8';
 			if (rec && rec.bestWpm) {
-				recEl.textContent = '⚡ Best: ' + rec.bestWpm + ' WPM (' + rec.bestTimeSec + 's)';
-				recEl.style.color = '#ffd700';
+				var starsStr = '';
+				var starCount = rec.stars || this.calculateStarsForWpm(rec.bestWpm);
+				for (var s = 0; s < starCount; s++) starsStr += '⭐';
+				recText = '⚡ Best: ' + rec.bestWpm + ' WPM (' + rec.bestTimeSec + 's) ' + starsStr;
+				recColor = '#ffd700';
 			} else {
-				recEl.textContent = '⚡ Best: -- WPM (Unsolved)';
-				recEl.style.color = '#94a3b8';
+				recText = '⚡ Best: -- WPM (Unsolved)';
+				recColor = '#94a3b8';
+			}
+			if (recEl) {
+				recEl.textContent = recText;
+				recEl.style.color = recColor;
+			}
+			if (homeRecEl) {
+				homeRecEl.textContent = recText;
+				homeRecEl.style.color = recColor;
 			}
 		}
 	};
@@ -1248,7 +2060,16 @@
 	var stagingTrayGroup;
 	var chainSlots = [];   // Array of { type: 'chain', row: r, col: c, mesh, slotPos, tile: null }
 	var stagingSlots = []; // Array of { type: 'staging', index: i, mesh, slotPos, tile: null }
-	var chainRowData = []; // Array of row metadata: { row, rowGroup, rackMesh, lipMesh, rz, rackWidth, wordLen, slots, brackets }
+	var chainRowData = []; // Array of row metadata: { row, rowGroup, rackMesh, lipMesh, rz, rowY, rackTilt, rackWidth, wordLen, slots, brackets }
+
+	// Camera Perspective View Mode: 'incline' (3D Star Wars / Guitar Hero angled highway) vs 'classic' (Traditional top-down view)
+	var perspectiveMode = (function () {
+		try {
+			var saved = localStorage.getItem('word_chain_perspective_mode');
+			if (saved === 'classic' || saved === 'incline') return saved;
+		} catch (e) {}
+		return 'incline';
+	})();
 
 	// Active Row & Snap Visual Indicators
 	var activeRowIndicatorGroup = null;
@@ -1261,6 +2082,7 @@
 	var ghostTileMesh = null;
 	var currentGhostSlot = null;
 	var currentGhostLetter = null;
+	var titleScreenEl = null;
 
 	// Tiles
 	var allTiles = [];     // Array of Tile instances
@@ -1291,59 +2113,59 @@
 	var materials = {};
 
 	function initMaterials() {
-		var rackWoodMap = TextureManager.getHardwoodTexture('#be8432', '#6b4112', '#e2af68');
-		var activeWoodMap = TextureManager.getHardwoodTexture('#df9419', '#7e3e07', '#ffcb6d');
-		var solvedWoodMap = TextureManager.getHardwoodTexture('#9c6a28', '#52340f', '#c49048');
-		var dimmedWoodMap = TextureManager.getHardwoodTexture('#583b20', '#2d1b0c', '#79532e');
-		var greenWoodMap = TextureManager.getHardwoodTexture('#2f5a3a', '#173620', '#4a8258');
-		var tileSideWoodMap = TextureManager.getHardwoodTexture('#e8d4ba', '#9e7b54', '#f7ead8');
+		var startSkin = TILE_SKINS[currentSkinId] || TILE_SKINS.classic;
+		var isLightTile = (startSkin.tone !== 'dark');
+		var themeName = isLightTile ? 'dark' : 'light';
+		var trayTheme = TextureManager.getTrayThemeTextures(themeName);
+
+		var tileSideWoodMap = TextureManager.getHardwoodTexture(startSkin.sideBase, startSkin.sideDark, startSkin.sideLight);
 		var tileLockedWoodMap = TextureManager.getHardwoodTexture('#f2de9f', '#aa833e', '#fff1c7');
 
-		// Yellow Teak Wood (Chained word racks - Default warm wood)
+		// Word Chain Racks (Default rack wood)
 		materials.yellowTray = new THREE.MeshStandardMaterial({
-			map: rackWoodMap,
+			map: trayTheme.rackWood,
 			color: 0xffffff,
-			roughness: 0.76,
+			roughness: trayTheme.rackRoughness,
 			metalness: 0.0
 		});
 
-		// Active row rack (Warm glowing honey amber carved wood)
+		// Active row rack (Highlighted illuminated carved wood)
 		materials.yellowTrayActive = new THREE.MeshStandardMaterial({
-			map: activeWoodMap,
+			map: trayTheme.activeWood,
 			color: 0xffffff,
-			emissive: 0x3d1f03,
-			emissiveIntensity: 0.35,
-			roughness: 0.68,
+			emissive: trayTheme.activeEmissive,
+			emissiveIntensity: trayTheme.activeEmissiveIntensity,
+			roughness: trayTheme.activeRoughness,
 			metalness: 0.0
 		});
 
-		// Solved row rack (Settled antique warm teak wood)
+		// Solved row rack (Settled antique carved wood)
 		materials.yellowTraySolved = new THREE.MeshStandardMaterial({
-			map: solvedWoodMap,
+			map: trayTheme.solvedWood,
 			color: 0xffffff,
-			roughness: 0.78,
+			roughness: trayTheme.solvedRoughness,
 			metalness: 0.0
 		});
 
-		// Pending row rack (Darkened walnut oak wood)
+		// Pending row rack (Muted dimmed carved wood)
 		materials.yellowTrayDimmed = new THREE.MeshStandardMaterial({
-			map: dimmedWoodMap,
+			map: trayTheme.dimmedWood,
 			color: 0xffffff,
-			roughness: 0.82,
+			roughness: trayTheme.dimmedRoughness,
 			metalness: 0.0
 		});
 
-		// Green Moss Wood (Player hand / staging tray)
+		// Letter Holder Tray (Player hand / staging tray)
 		materials.greenTray = new THREE.MeshStandardMaterial({
-			map: greenWoodMap,
+			map: trayTheme.greenWood,
 			color: 0xffffff,
-			roughness: 0.76,
+			roughness: trayTheme.greenRoughness,
 			metalness: 0.0
 		});
 
 		// Tray slot felt lining
 		materials.slotFelt = new THREE.MeshStandardMaterial({
-			color: 0x16120e,
+			color: trayTheme.feltColor,
 			roughness: 0.90,
 			metalness: 0.0
 		});
@@ -1358,7 +2180,7 @@
 
 		// Active slot brackets (corner targets [ ])
 		materials.activeSlotBracket = new THREE.MeshBasicMaterial({
-			map: TextureManager.getSlotBracketTexture(),
+			map: TextureManager.getSlotBracketTexture(trayTheme.bracketVariant),
 			transparent: true,
 			opacity: 0.75,
 			depthWrite: false
@@ -1366,8 +2188,8 @@
 
 		// 3D Chevron Arrow Material
 		materials.chevron = new THREE.MeshStandardMaterial({
-			color: 0xf59e0b,
-			emissive: 0x78350f,
+			color: trayTheme.chevronColor,
+			emissive: trayTheme.chevronEmissive,
 			roughness: 0.35,
 			metalness: 0.4
 		});
@@ -1398,7 +2220,7 @@
 			metalness: 0.2
 		});
 
-		// 3D Gift Box Materials (Ruby Red body with Polished Gold ribbon)
+		// 3D Gift Box Materials (Ruby Red body with Polished Gold ribbon for Tiles)
 		materials.giftBoxRuby = new THREE.MeshStandardMaterial({
 			color: 0xdf1c3f,
 			roughness: 0.35,
@@ -1411,6 +2233,23 @@
 			emissiveIntensity: 0.25,
 			roughness: 0.25,
 			metalness: 0.6
+		});
+
+		// 3D Gift Box Materials (Emerald Green body with Luminous Gold ribbon for Environments)
+		materials.giftBoxEmerald = new THREE.MeshStandardMaterial({
+			color: 0x10b981,
+			emissive: 0x064e3b,
+			emissiveIntensity: 0.22,
+			roughness: 0.35,
+			metalness: 0.15
+		});
+
+		materials.giftBoxEmeraldRibbon = new THREE.MeshStandardMaterial({
+			color: 0xfef08a,
+			emissive: 0xa16207,
+			emissiveIntensity: 0.25,
+			roughness: 0.22,
+			metalness: 0.65
 		});
 	}
 
@@ -1426,10 +2265,18 @@
 		var geom = new THREE.BoxGeometry(1.04, 0.28, 1.04);
 
 		// Multi-material: Top face (Index 2 in BoxGeometry is +Y face)
+		// The 2D art drives the face mostly through emissiveMap so it renders at its
+		// true colours; a small diffuse term keeps subtle 3D shading when tilted.
+		var faceTex = TextureManager.getLetterTexture(letter);
 		var faceMat = new THREE.MeshStandardMaterial({
-			map: TextureManager.getLetterTexture(letter),
-			roughness: 0.62,
-			metalness: 0.0
+			map: faceTex,
+			color: FACE_DIFFUSE,
+			emissive: 0xffffff,
+			emissiveMap: faceTex,
+			emissiveIntensity: FACE_EMISSIVE,
+			roughness: 0.9,
+			metalness: 0.0,
+			toneMapped: false
 		});
 
 		var sideMat = this.isLocked ? materials.tileLocked : materials.tileWood;
@@ -1504,11 +2351,12 @@
 		var faceMat = this.mesh.material[2];
 		if (faceMat) {
 			if (isLit) {
-				faceMat.emissive.setHex(0xf59e0b);
-				faceMat.emissiveIntensity = 0.95;
+				// Warm golden glow over the tile art
+				faceMat.emissive.setHex(0xffd27a);
+				faceMat.emissiveIntensity = 1.25;
 			} else {
-				faceMat.emissive.setHex(0x000000);
-				faceMat.emissiveIntensity = 0.0;
+				faceMat.emissive.setHex(0xffffff);
+				faceMat.emissiveIntensity = FACE_EMISSIVE;
 			}
 			faceMat.needsUpdate = true;
 		}
@@ -1518,6 +2366,9 @@
 		this.inSnap = true;
 		this.snapTimer = 0;
 		this.snapDuration = 0.20;
+		if (typeof SpeedometerManager !== 'undefined') {
+			SpeedometerManager.onTileInteraction();
+		}
 	};
 
 	Tile.prototype.startWave = function (delaySec) {
@@ -1555,42 +2406,56 @@
 
 		// Smooth position interpolation
 		this.mesh.position.x += ((this.targetPosition.x + shakeExtraX) - this.mesh.position.x) * lerpRate;
-		this.mesh.position.z += (this.targetPosition.z - this.mesh.position.z) * lerpRate;
-
-		// Y elevation with spring settle
-		var targetY = this.targetPosition.y + (this.isDragging ? 1.35 : 0);
 
 		// Wave jump physics
 		var waveExtraY = 0;
+		var waveExtraZ = 0;
 		var waveTiltX = 0;
 		if (this.inWave) {
 			this.waveTimer += dt;
 			if (this.waveTimer >= 0 && this.waveTimer <= this.waveDuration) {
 				var p = this.waveTimer / this.waveDuration;
-				waveExtraY = Math.sin(p * Math.PI) * this.wavePeakHeight;
-				waveTiltX = Math.sin(p * Math.PI * 2) * -0.16;
+				var waveAmount = Math.sin(p * Math.PI) * this.wavePeakHeight;
+				// Leaps visually UP on screen (-Z) with subtle tray lift (+Y)
+				waveExtraZ = -waveAmount * 0.85;
+				waveExtraY = waveAmount * 0.28;
+				waveTiltX = Math.sin(p * Math.PI * 2) * -0.14;
 			} else if (this.waveTimer > this.waveDuration) {
 				this.inWave = false;
 				this.mesh.rotation.x = this.targetRotation.x;
 			}
 		}
 
-		// Winning combination 0.2s hop physics
+		// Winning combination upwards hop physics:
+		// Jumps visually UP along the board towards top of screen (-Z) with natural physical lift (+Y)
+		// NEVER jumps forward into camera/player's face (+Y only).
 		var hopExtraY = 0;
+		var hopExtraZ = 0;
+		var hopTiltX = 0;
 		if (this.inHop) {
 			this.hopTimer += dt;
 			if (this.hopTimer <= this.hopDuration) {
 				var hp = this.hopTimer / this.hopDuration;
-				hopExtraY = Math.sin(hp * Math.PI) * this.hopPeakHeight;
+				var hopAmount = Math.sin(hp * Math.PI) * this.hopPeakHeight;
+				// Screen-up is towards -Z (top of the board); rack-normal lift is +Y
+				hopExtraZ = -hopAmount * 0.90;
+				hopExtraY = hopAmount * 0.28;
+				hopTiltX = -Math.sin(hp * Math.PI) * 0.10;
 			} else {
 				this.inHop = false;
 			}
 		}
 
-		this.mesh.position.y += ((targetY + waveExtraY + hopExtraY) - this.mesh.position.y) * 0.35;
+		// Interpolate Z: include wave & hop upward displacement smoothly
+		var targetZ = this.targetPosition.z + waveExtraZ + hopExtraZ;
+		this.mesh.position.z += (targetZ - this.mesh.position.z) * ((this.inHop || this.inWave) ? 0.35 : lerpRate);
+
+		// Y elevation with spring settle
+		var targetY = this.targetPosition.y + (this.isDragging ? 1.35 : 0) + waveExtraY + hopExtraY;
+		this.mesh.position.y += (targetY - this.mesh.position.y) * 0.35;
 
 		// Rotation tilt interpolation
-		this.mesh.rotation.x += ((this.targetRotation.x + waveTiltX) - this.mesh.rotation.x) * 0.25;
+		this.mesh.rotation.x += ((this.targetRotation.x + waveTiltX + hopTiltX) - this.mesh.rotation.x) * 0.25;
 		this.mesh.rotation.z += ((this.targetRotation.z + shakeTiltZ) - this.mesh.rotation.z) * 0.25;
 		this.mesh.rotation.y += (this.targetRotation.y - this.mesh.rotation.y) * 0.2;
 
@@ -1681,6 +2546,7 @@
 		var trayHeight = 0.36;
 
 		stagingTrayGroup.position.set(0, 0, stagingZ);
+		stagingTrayGroup.rotation.x = 0;
 
 		// Main wooden beam
 		var beamGeom = new THREE.BoxGeometry(trayWidth, trayHeight, trayDepth);
@@ -1696,6 +2562,8 @@
 
 		// Slots inside tray
 		var startX = -((slotCount - 1) * slotWidth) * 0.5;
+		var localTileY = trayHeight + 0.14;
+
 		for (var i = 0; i < slotCount; i++) {
 			var sx = startX + i * slotWidth;
 			var slotMesh = new THREE.Mesh(
@@ -1706,7 +2574,11 @@
 			slotMesh.position.set(sx, trayHeight + 0.01, 0);
 			stagingTrayGroup.add(slotMesh);
 
-			var worldPos = new THREE.Vector3(sx, trayHeight + 0.14, stagingZ);
+			var worldPos = new THREE.Vector3(
+				sx,
+				localTileY,
+				stagingZ
+			);
 
 			stagingSlots.push({
 				type: 'staging',
@@ -1751,14 +2623,19 @@
 		var rackDepth = 1.30;
 		var rackHeight = 0.34;
 
+		var inclineStep = 0;
+		var rackTilt = 0;
+
 		for (var r = 0; r < numRows; r++) {
 			var wordObj = words[r];
 			var wordLen = wordObj.answer.length;
 			var rackWidth = wordLen * slotWidth + 0.50;
 			var rz = startZ + r * rowSpacing;
+			var rowY = 0;
 
 			var rowGroup = new THREE.Group();
-			rowGroup.position.set(0, 0, rz);
+			rowGroup.position.set(0, rowY, rz);
+			rowGroup.rotation.x = rackTilt;
 
 			// Wooden Rack Beam
 			var rackGeom = new THREE.BoxGeometry(rackWidth, rackHeight, rackDepth);
@@ -1800,7 +2677,11 @@
 				rowGroup.add(bracketMesh);
 				rowBrackets.push(bracketMesh);
 
-				var slotWorldPos = new THREE.Vector3(sx, rackHeight + 0.14, rz);
+				var slotWorldPos = new THREE.Vector3(
+					sx,
+					rackHeight + 0.14,
+					rz
+				);
 
 				var slotObj = {
 					type: 'chain',
@@ -1823,17 +2704,21 @@
 				rackMesh: rackMesh,
 				lipMesh: lipMesh,
 				rz: rz,
+				rowY: rowY,
+				rackTilt: rackTilt,
 				rackWidth: rackWidth,
+				rackHeight: rackHeight,
 				wordLen: wordLen,
 				slots: rowSlots,
 				brackets: rowBrackets
 			});
 
-			// 3D Gift Box Spawn for rows with unearned unlocks
-			if (r > 0) {
-				var rowReward = UnlockManager.getRewardForLevelRow(currentLevelIndex, r);
+			// 3D Gift Box Spawn: strictly 1 gift box per eligible level on row 2 (or row 1 if short level)
+			var targetGiftRow = (numRows > 3) ? 2 : 1;
+			if (r === targetGiftRow) {
+				var rowReward = UnlockManager.getRewardForLevelRow(currentLevelIndex, 2);
 				if (rowReward && !UnlockManager.isOwned(rowReward.type, rowReward.id)) {
-					var giftBox = create3DGiftBox(r, rowReward, rackWidth, rz, rackHeight);
+					var giftBox = create3DGiftBox(r, rowReward, rackWidth, rz, rackHeight, rowY, rackTilt);
 					activeGiftBoxes.push(giftBox);
 				}
 			}
@@ -1855,14 +2740,18 @@
 				if (activeRowIndicatorGroup) {
 					activeRowIndicatorGroup.visible = true;
 					var halfW = rowInfo.rackWidth * 0.5;
+					var rowY = rowInfo.rowY || 0;
+					var rackTilt = rowInfo.rackTilt || 0;
 
 					// Left chevron points right ▶
 					if (chevronMesh) {
-						chevronMesh.position.set(-halfW - 0.36, 0.28, rowInfo.rz);
+						chevronMesh.position.set(-halfW - 0.36, 0.28 + rowY, rowInfo.rz);
+						chevronMesh.rotation.x = -Math.PI * 0.5 + rackTilt;
 					}
 					// Right chevron points left ◀
 					if (chevronRightMesh) {
-						chevronRightMesh.position.set(halfW + 0.36, 0.28, rowInfo.rz);
+						chevronRightMesh.position.set(halfW + 0.36, 0.28 + rowY, rowInfo.rz);
+						chevronRightMesh.rotation.x = -Math.PI * 0.5 + rackTilt;
 					}
 				}
 			} else if (r < currentWordIndex) {
@@ -1894,34 +2783,41 @@
 	}
 
 	// --------------------------------------------------------------------------
-	// 3D Gift Box Rewards & Unboxing
+	// 3D Gift Box Rewards & Unboxing (Color Coded: Red for Tiles, Green for Environments)
 	// --------------------------------------------------------------------------
-	function create3DGiftBox(rowIdx, reward, rackWidth, rz, rackHeight) {
+	function create3DGiftBox(rowIdx, reward, rackWidth, rz, rackHeight, rowY, rackTilt) {
+		rowY = (rowY !== undefined ? rowY : 0);
+		rackTilt = (rackTilt !== undefined ? rackTilt : 0);
+		var isEnvironment = (reward && reward.type === 'scenery');
+		var boxMaterial = isEnvironment ? materials.giftBoxEmerald : materials.giftBoxRuby;
+		var ribbonMaterial = isEnvironment ? materials.giftBoxEmeraldRibbon : materials.giftBoxGold;
+		var glowColor = isEnvironment ? 0x10b981 : 0xffa040;
+
 		var giftGroup = new THREE.Group();
 		var posX = rackWidth * 0.5 + 0.46;
-		var baseY = rackHeight + 0.22;
+		var baseY = rackHeight + 0.22 + rowY;
 		giftGroup.position.set(posX, baseY, rz);
-		giftGroup.rotation.x = -0.12;
+		giftGroup.rotation.x = -0.12 + rackTilt;
 		giftGroup.rotation.y = -0.18;
 
-		// Box Body (Ruby Red)
+		// Box Body (Ruby Red for Tiles, Emerald Green for Environments)
 		var boxGeom = new THREE.BoxGeometry(0.52, 0.44, 0.52);
-		var boxMesh = new THREE.Mesh(boxGeom, materials.giftBoxRuby);
+		var boxMesh = new THREE.Mesh(boxGeom, boxMaterial);
 		boxMesh.position.y = 0.22;
 		giftGroup.add(boxMesh);
 
-		// Gold Ribbon Band horizontal
-		var ribbonH = new THREE.Mesh(new THREE.BoxGeometry(0.53, 0.10, 0.53), materials.giftBoxGold);
+		// Ribbon Band horizontal
+		var ribbonH = new THREE.Mesh(new THREE.BoxGeometry(0.53, 0.10, 0.53), ribbonMaterial);
 		ribbonH.position.y = 0.22;
 		giftGroup.add(ribbonH);
 
-		// Gold Ribbon Band vertical 1
-		var ribbonV1 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.45, 0.53), materials.giftBoxGold);
+		// Ribbon Band vertical 1
+		var ribbonV1 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.45, 0.53), ribbonMaterial);
 		ribbonV1.position.y = 0.22;
 		giftGroup.add(ribbonV1);
 
-		// Gold Ribbon Band vertical 2
-		var ribbonV2 = new THREE.Mesh(new THREE.BoxGeometry(0.53, 0.45, 0.10), materials.giftBoxGold);
+		// Ribbon Band vertical 2
+		var ribbonV2 = new THREE.Mesh(new THREE.BoxGeometry(0.53, 0.45, 0.10), ribbonMaterial);
 		ribbonV2.position.y = 0.22;
 		giftGroup.add(ribbonV2);
 
@@ -1930,44 +2826,44 @@
 		lidGroup.position.y = 0.44;
 
 		var lidGeom = new THREE.BoxGeometry(0.56, 0.10, 0.56);
-		var lidMesh = new THREE.Mesh(lidGeom, materials.giftBoxRuby);
+		var lidMesh = new THREE.Mesh(lidGeom, boxMaterial);
 		lidMesh.position.y = 0.05;
 		lidGroup.add(lidMesh);
 
-		var lidRibbon1 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.11, 0.57), materials.giftBoxGold);
+		var lidRibbon1 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.11, 0.57), ribbonMaterial);
 		lidRibbon1.position.y = 0.05;
 		lidGroup.add(lidRibbon1);
 
-		var lidRibbon2 = new THREE.Mesh(new THREE.BoxGeometry(0.57, 0.11, 0.10), materials.giftBoxGold);
+		var lidRibbon2 = new THREE.Mesh(new THREE.BoxGeometry(0.57, 0.11, 0.10), ribbonMaterial);
 		lidRibbon2.position.y = 0.05;
 		lidGroup.add(lidRibbon2);
 
 		// Bow knot loops
-		var bow1 = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 8, 16), materials.giftBoxGold);
+		var bow1 = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 8, 16), ribbonMaterial);
 		bow1.rotation.x = Math.PI * 0.5;
 		bow1.rotation.z = Math.PI * 0.25;
 		bow1.position.set(-0.06, 0.13, -0.06);
 		lidGroup.add(bow1);
 
-		var bow2 = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 8, 16), materials.giftBoxGold);
+		var bow2 = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 8, 16), ribbonMaterial);
 		bow2.rotation.x = Math.PI * 0.5;
 		bow2.rotation.z = -Math.PI * 0.25;
 		bow2.position.set(0.06, 0.13, 0.06);
 		lidGroup.add(bow2);
 
-		var bowCenter = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), materials.giftBoxGold);
+		var bowCenter = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), ribbonMaterial);
 		bowCenter.position.set(0, 0.12, 0);
 		lidGroup.add(bowCenter);
 
 		giftGroup.add(lidGroup);
 
-		// Golden Aura Glow beneath box
+		// Aura Glow beneath box (Emerald Green or Warm Ruby Amber)
 		var glowGeo = new THREE.PlaneGeometry(0.72, 0.72);
 		var glowMat = new THREE.MeshBasicMaterial({
 			map: TextureManager.getSlotHoverTexture(),
-			color: 0xffd166,
+			color: glowColor,
 			transparent: true,
-			opacity: 0.5,
+			opacity: 0.65,
 			depthWrite: false
 		});
 		var glowMesh = new THREE.Mesh(glowGeo, glowMat);
@@ -1983,11 +2879,17 @@
 			group: giftGroup,
 			lid: lidGroup,
 			baseY: baseY,
+			rowY: rowY,
+			rackTilt: rackTilt,
+			rackHeight: rackHeight,
+			rackWidth: rackWidth,
+			rz: rz,
+			isEnvironment: isEnvironment,
 			isOpening: false
 		};
 	}
 
-	function createSparkleBurst(x, y, z, count) {
+	function createSparkleBurst(x, y, z, count, isEnvironment) {
 		if (!confettiGroup) {
 			confettiGroup = new THREE.Group();
 			scene.add(confettiGroup);
@@ -1995,9 +2897,9 @@
 		var starShape = createStarShape(0.20, 0.09);
 		var starGeom = new THREE.ShapeGeometry(starShape);
 		var starMat = new THREE.MeshStandardMaterial({
-			color: 0xffd700,
-			emissive: 0xffaa00,
-			emissiveIntensity: 0.8,
+			color: isEnvironment ? 0x34d399 : 0xffd700,
+			emissive: isEnvironment ? 0x059669 : 0xffaa00,
+			emissiveIntensity: 0.85,
 			roughness: 0.2,
 			metalness: 0.7,
 			side: THREE.DoubleSide
@@ -2037,10 +2939,10 @@
 		}, 150);
 		AudioManager.haptic(50);
 
-		// Sparkle burst from box
+		// Sparkle burst from box (color-coded)
 		var boxPos = new THREE.Vector3();
 		giftBoxObj.group.getWorldPosition(boxPos);
-		createSparkleBurst(boxPos.x, boxPos.y + 0.4, boxPos.z, 28);
+		createSparkleBurst(boxPos.x, boxPos.y + 0.4, boxPos.z, 28, giftBoxObj.isEnvironment);
 
 		var startTime = performance.now();
 		var duration = 850;
@@ -2065,6 +2967,7 @@
 				var idx = activeGiftBoxes.indexOf(giftBoxObj);
 				if (idx !== -1) activeGiftBoxes.splice(idx, 1);
 
+				UnlockManager.onGiftReceived(currentLevelIndex, giftBoxObj.reward);
 				showGiftUnlockModal(giftBoxObj.reward, onFinish);
 			}
 		}
@@ -2072,11 +2975,13 @@
 	}
 
 	function showGiftUnlockModal(reward, onDismiss) {
+		onDismiss = once(onDismiss);
 		var modal = document.getElementById('gift-box-modal');
 		var titleEl = document.getElementById('reward-item-title');
 		var nameEl = document.getElementById('reward-item-name');
 		var descEl = document.getElementById('reward-item-desc');
 		var showcaseEl = document.getElementById('reward-item-showcase');
+		var ribbonEl = modal ? modal.querySelector('.reward-badge-ribbon') : null;
 		var btnAd = document.getElementById('btn-reward-watch-ad');
 		var btnTry = document.getElementById('btn-reward-try');
 
@@ -2086,24 +2991,23 @@
 		}
 
 		if (reward.type === 'skin') {
-			if (titleEl) titleEl.textContent = 'Tile Skin Discovered!';
+			if (ribbonEl) ribbonEl.textContent = '🎁 TILE SET DISCOVERED!';
+			if (titleEl) titleEl.textContent = 'Letter Tile Set Unlocked!';
 			if (nameEl) nameEl.textContent = reward.name;
 			if (descEl) descEl.textContent = reward.desc;
+			modal.classList.add('modal-theme-skin');
+			modal.classList.remove('modal-theme-scenery');
 			if (showcaseEl) {
 				showcaseEl.innerHTML = '';
-				var preview = document.createElement('div');
-				preview.className = 'reward-tile-preview-3d';
-				var skin = reward.skin || TILE_SKINS[reward.id] || TILE_SKINS.classic;
-				preview.style.background = skin.faceBase[0];
-				preview.style.color = skin.textColor;
-				preview.style.border = '2px solid ' + skin.borderColor;
-				preview.innerHTML = '<span>A</span><span class="preview-score">1</span>';
-				showcaseEl.appendChild(preview);
+				showcaseEl.appendChild(createSkinPreviewEl(reward.id, 'reward-tile-preview-3d'));
 			}
 		} else {
-			if (titleEl) titleEl.textContent = 'Living Background Discovered!';
+			if (ribbonEl) ribbonEl.textContent = '🌿 ENVIRONMENT DISCOVERED!';
+			if (titleEl) titleEl.textContent = 'Living Scenery Background!';
 			if (nameEl) nameEl.textContent = reward.name;
 			if (descEl) descEl.textContent = reward.desc;
+			modal.classList.add('modal-theme-scenery');
+			modal.classList.remove('modal-theme-skin');
 			if (showcaseEl) {
 				showcaseEl.innerHTML = '';
 				var scCard = document.createElement('div');
@@ -2152,6 +3056,9 @@
 		var targetIndex = levelIndex % (window.WORD_CHAIN_LEVELS ? window.WORD_CHAIN_LEVELS.length : 30);
 		UnlockManager.checkTrialExpiration(targetIndex);
 		currentLevelIndex = targetIndex;
+		try {
+			localStorage.setItem('word_chain_last_level', String(targetIndex));
+		} catch (e) {}
 		var allLevels = window.WORD_CHAIN_LEVELS || [];
 		currentLevelData = allLevels[currentLevelIndex] || {
 			id: 1,
@@ -2183,8 +3090,11 @@
 			var slot = row0Slots[i];
 			if (slot) {
 				var tile = new Tile(letter, true); // Locked
+				var rTilt = chainRowData[0] ? (chainRowData[0].rackTilt || 0) : 0;
 				tile.mesh.position.copy(slot.worldPos);
 				tile.targetPosition.copy(slot.worldPos);
+				tile.mesh.rotation.x = rTilt;
+				tile.targetRotation.x = rTilt;
 				tile.currentSlot = slot;
 				slot.tile = tile;
 				scene.add(tile.mesh);
@@ -2232,6 +3142,8 @@
 				// Fun cascading drop from above
 				tile.mesh.position.set(slot.worldPos.x, slot.worldPos.y + 4.5 + i * 0.4, slot.worldPos.z);
 				tile.targetPosition.copy(slot.worldPos);
+				tile.mesh.rotation.x = 0;
+				tile.targetRotation.set(0, 0, 0);
 				tile.currentSlot = slot;
 				slot.tile = tile;
 
@@ -2361,16 +3273,29 @@
 					if (hoverSlot && hoverSlotHighlightMesh) {
 						hoverSlotHighlightMesh.visible = true;
 						hoverSlotHighlightMesh.position.set(hoverSlot.worldPos.x, hoverSlot.worldPos.y + 0.02, hoverSlot.worldPos.z);
+						var slotTilt = (hoverSlot.type === 'chain' && chainRowData[hoverSlot.row]) ? (chainRowData[hoverSlot.row].rackTilt || 0) : 0;
+						hoverSlotHighlightMesh.rotation.x = -Math.PI * 0.5 + slotTilt;
 					} else if (hoverSlotHighlightMesh) {
 						hoverSlotHighlightMesh.visible = false;
 					}
 				}
 			} else {
-				// Hover highlight check
-				raycaster.setFromCamera(pointer, camera);
-				var tileMeshes = allTiles.filter(function (t) { return !t.isLocked; }).map(function (t) { return t.mesh; });
-				var intersects = raycaster.intersectObjects(tileMeshes);
-				dom.style.cursor = intersects.length > 0 ? 'grab' : 'default';
+				// Hover cursor check (desktop mouse only, skipped on mobile touch for 60FPS speed)
+				if (e.pointerType !== 'touch') {
+					raycaster.setFromCamera(pointer, camera);
+					var hasHit = false;
+					for (var t = 0; t < allTiles.length; t++) {
+						var tileObj = allTiles[t];
+						if (!tileObj.isLocked && tileObj.mesh) {
+							var res = raycaster.intersectObject(tileObj.mesh);
+							if (res.length > 0) {
+								hasHit = true;
+								break;
+							}
+						}
+					}
+					dom.style.cursor = hasHit ? 'grab' : 'default';
+				}
 			}
 		});
 
@@ -2407,6 +3332,7 @@
 						targetSlot.tile = tile;
 						tile.currentSlot = targetSlot;
 						tile.setTarget(targetSlot.worldPos.x, targetSlot.worldPos.y, targetSlot.worldPos.z);
+						tile.targetRotation.set(0, 0, 0);
 						tile.startSnapFx();
 						AudioManager.playSnap(1.35);
 						updateSlotBrackets();
@@ -2427,6 +3353,7 @@
 						targetSlot.tile = tile;
 						tile.currentSlot = targetSlot;
 						tile.setTarget(targetSlot.worldPos.x, targetSlot.worldPos.y, targetSlot.worldPos.z);
+						tile.targetRotation.set(0, 0, 0);
 						tile.startSnapFx();
 						AudioManager.playSnap(1.1);
 						updateSlotBrackets();
@@ -2464,12 +3391,14 @@
 						oldSlot.tile = otherTile;
 						otherTile.currentSlot = oldSlot;
 						otherTile.setTarget(oldSlot.worldPos.x, oldSlot.worldPos.y, oldSlot.worldPos.z);
+						otherTile.targetRotation.set(0, 0, 0);
 					} else {
 						var emptyStaging = stagingSlots.find(function (s) { return s.tile === null; });
 						if (emptyStaging) {
 							emptyStaging.tile = otherTile;
 							otherTile.currentSlot = emptyStaging;
 							otherTile.setTarget(emptyStaging.worldPos.x, emptyStaging.worldPos.y, emptyStaging.worldPos.z);
+							otherTile.targetRotation.set(0, 0, 0);
 						} else {
 							otherTile.currentSlot = null;
 						}
@@ -2481,6 +3410,7 @@
 				bestSlot.tile = tile;
 				tile.currentSlot = bestSlot;
 				tile.setTarget(bestSlot.worldPos.x, bestSlot.worldPos.y, bestSlot.worldPos.z);
+				tile.targetRotation.set(0, 0, 0);
 				tile.startSnapFx();
 				AudioManager.playSnap(1.35);
 
@@ -2490,6 +3420,7 @@
 				// Revert to current slot
 				if (tile.currentSlot) {
 					tile.setTarget(tile.currentSlot.worldPos.x, tile.currentSlot.worldPos.y, tile.currentSlot.worldPos.z);
+					tile.targetRotation.set(0, 0, 0);
 				}
 				AudioManager.play('thud', 0.5);
 			}
@@ -2507,6 +3438,15 @@
 	 * then after 0.20s both go dark again.
 	 * Allows players to mentally verbalize the chain (e.g. "TENNIS ... MATCH!").
 	 */
+	/**
+	 * Correct chain sequential upwards word jump:
+	 * Tray 1 (previous chained word) tiles jump upwards together with natural varied heights (0.36s),
+	 * fall and land back on their tray,
+	 * followed by a natural short pause (0.40s),
+	 * then Tray 2 (just solved word) tiles jump upwards together with natural varied heights (0.36s),
+	 * fall and land back on their tray.
+	 * Identical to the title screen's natural, physical upwards hop cadence with zero cartoon distortion or flashing fx.
+	 */
 	function playChainComboSequence(row1Idx, row2Idx, onComplete) {
 		isComboPlaying = true;
 		var row1 = chainRowData[row1Idx];
@@ -2515,52 +3455,37 @@
 		var tiles1 = row1 ? row1.slots.map(function (s) { return s.tile; }).filter(Boolean) : [];
 		var tiles2 = row2 ? row2.slots.map(function (s) { return s.tile; }).filter(Boolean) : [];
 
-		// 1. Light up & jump Word 1 for 0.20s
-		tiles1.forEach(function (t) {
-			t.setLit(true);
-			t.startHop(0.20, 0.65);
+		// Natural varied height patterns for physical bounce feel
+		var hPattern1 = [0.55, 0.68, 0.50, 0.65, 0.52, 0.66, 0.48, 0.60];
+		var hPattern2 = [0.50, 0.68, 0.56, 0.70, 0.52, 0.64, 0.50, 0.62];
+
+		// 1. Tray 1 tiles jump upwards together with natural varied heights (0.32s duration)
+		tiles1.forEach(function (t, i) {
+			var h = hPattern1[i % hPattern1.length];
+			t.startHop(0.32, h);
 		});
-		if (row1 && row1.lipMesh) row1.lipMesh.material = materials.yellowTrayActive;
-		AudioManager.playSnap(1.4);
+		AudioManager.play('tilehit', 0.75);
 		AudioManager.haptic(25);
 
-		// 2. After 0.20s, Word 1 finishes jump and unlights (0.10s pause)
+		// 2. Tray 1 lands (0.32s) + natural pause (0.12s) = 0.44s
 		setTimeout(function () {
-			tiles1.forEach(function (t) {
-				t.setLit(false);
+			// Tray 2 tiles jump upwards together with natural varied heights (0.32s duration)
+			tiles2.forEach(function (t, j) {
+				var h = hPattern2[j % hPattern2.length];
+				t.startHop(0.32, h);
 			});
-			if (row1 && row1.lipMesh) row1.lipMesh.material = materials.yellowTraySolved;
+			AudioManager.play('tilehit', 0.85);
+			AudioManager.haptic(30);
 
-			// 3. After 0.10s pause, Word 2 lights up & jumps for 0.20s
+			// 3. Tray 2 lands (0.32s) + brief settle (0.12s) = 0.44s
 			setTimeout(function () {
-				tiles2.forEach(function (t) {
-					t.setLit(true);
-					t.startHop(0.20, 0.65);
-				});
-				if (row2 && row2.lipMesh) row2.lipMesh.material = materials.yellowTrayActive;
-				AudioManager.playSnap(1.55);
-				AudioManager.haptic(30);
+				isComboPlaying = false;
+				if (typeof onComplete === 'function') {
+					onComplete();
+				}
+			}, 440);
 
-				// 4. After 0.20s, Word 2 finishes jump and both go dark again
-				setTimeout(function () {
-					tiles2.forEach(function (t) {
-						t.setLit(false);
-					});
-					if (row2 && row2.lipMesh) row2.lipMesh.material = materials.yellowTraySolved;
-
-					// 5. After 0.20s resting period, proceed to next row or win
-					setTimeout(function () {
-						isComboPlaying = false;
-						if (typeof onComplete === 'function') {
-							onComplete();
-						}
-					}, 200);
-
-				}, 200); // 0.20s lighting of word 2
-
-			}, 100); // 0.10s pause
-
-		}, 200); // 0.20s lighting of word 1
+		}, 440);
 	}
 
 	function checkWordCompletion() {
@@ -2605,11 +3530,7 @@
 				s.tile.mesh.material[5] = materials.tileLocked;
 			});
 
-			var word1Str = currentLevelData.words[currentWordIndex - 1].answer;
-			showToast(word1Str + ' ' + targetWord + '!');
-
-			// Trigger sequential winning combination cadence:
-			// Word 1 lights & jumps (0.2s) -> pause (0.1s) -> Word 2 lights & jumps (0.2s) -> both dark (0.2s)
+			// Trigger sequential winning combination upwards jump:
 			var word1Row = currentWordIndex - 1;
 			var word2Row = currentWordIndex;
 
@@ -2623,6 +3544,9 @@
 						if (typeof SpeedometerManager !== 'undefined') {
 							SpeedometerManager.onLevelCompleted(currentLevelIndex);
 						}
+						if (typeof UnlockManager !== 'undefined' && typeof UnlockManager.onLevelCompleted === 'function') {
+							UnlockManager.onLevelCompleted(currentLevelIndex);
+						}
 						if (activeRowIndicatorGroup) activeRowIndicatorGroup.visible = false;
 						setTimeout(function () {
 							triggerWinCelebration();
@@ -2635,13 +3559,14 @@
 				}
 
 				// Check if there is an active gift box reward on this solved row
+				// (once(): the row may only advance a single time, even if several
+				// modal/ad callbacks fire)
+				var proceedOnce = once(proceedToNextStep);
 				var foundGb = activeGiftBoxes.find(function (g) { return g.rowIdx === word2Row; });
 				if (foundGb) {
-					open3DGiftBox(foundGb, function () {
-						proceedToNextStep();
-					});
+					open3DGiftBox(foundGb, proceedOnce);
 				} else {
-					proceedToNextStep();
+					proceedOnce();
 				}
 			});
 		} else {
@@ -2672,8 +3597,17 @@
 	// --------------------------------------------------------------------------
 	function shuffleStaging() {
 		dismissGhostTile();
-		var stagingTiles = stagingSlots.map(function (s) { return s.tile; }).filter(Boolean);
-		if (stagingTiles.length <= 1) return;
+
+		// Collect all staging slots that currently contain a letter
+		var occupiedSlots = stagingSlots.filter(function (s) { return s.tile !== null; });
+		if (occupiedSlots.length <= 1) return;
+
+		var stagingTiles = occupiedSlots.map(function (s) { return s.tile; });
+
+		// Clear slot tile references first to prevent cross-contamination
+		occupiedSlots.forEach(function (s) {
+			s.tile = null;
+		});
 
 		// Fisher-Yates shuffle
 		for (var i = stagingTiles.length - 1; i > 0; i--) {
@@ -2683,15 +3617,21 @@
 			stagingTiles[j] = temp;
 		}
 
-		stagingTiles.forEach(function (tile, idx) {
-			var slot = stagingSlots[idx];
+		// Reassign shuffled tiles to the exact same occupied tray slots
+		occupiedSlots.forEach(function (slot, idx) {
+			var tile = stagingTiles[idx];
 			slot.tile = tile;
 			tile.currentSlot = slot;
-			tile.setTarget(slot.worldPos.x, slot.worldPos.y + 0.8, slot.worldPos.z);
+			// Target exact tray felt surface (worldPos.y) so tiles never drift or float in the air
+			tile.setTarget(slot.worldPos.x, slot.worldPos.y, slot.worldPos.z);
+			tile.targetRotation.set(0, 0, 0);
+			// Trigger a joyful bouncy hop that settles cleanly onto the felt slot
+			tile.startHop(0.24, 0.40);
 		});
 
 		updateSlotBrackets();
-		AudioManager.play('tilehit', 0.8);
+		AudioManager.play('tilehit', 0.85);
+		AudioManager.haptic(25);
 	}
 
 	function recallActiveRow() {
@@ -2708,6 +3648,7 @@
 					targetSlot.tile = tile;
 					tile.currentSlot = targetSlot;
 					tile.setTarget(targetSlot.worldPos.x, targetSlot.worldPos.y, targetSlot.worldPos.z);
+					tile.targetRotation.set(0, 0, 0);
 				}
 			}
 		});
@@ -2763,6 +3704,8 @@
 
 		ghostTileMesh = new THREE.Mesh(geom, mats);
 		ghostTileMesh.position.set(slot.worldPos.x, slot.worldPos.y + 0.16, slot.worldPos.z);
+		var slotTilt = (slot.type === 'chain' && chainRowData[slot.row]) ? (chainRowData[slot.row].rackTilt || 0) : 0;
+		ghostTileMesh.rotation.x = slotTilt;
 		ghostTileMesh.userData.isGhost = true;
 		ghostTileMesh.userData.letter = letter;
 		ghostTileMesh.userData.slot = slot;
@@ -2807,6 +3750,7 @@
 				emptyStaging.tile = wrongTile;
 				wrongTile.currentSlot = emptyStaging;
 				wrongTile.setTarget(emptyStaging.worldPos.x, emptyStaging.worldPos.y + 0.8, emptyStaging.worldPos.z);
+				wrongTile.targetRotation.set(0, 0, 0);
 			}
 		}
 
@@ -2817,6 +3761,7 @@
 		}
 		foundTile.startSnapFx();
 		foundTile.setTarget(targetSlot.worldPos.x, targetSlot.worldPos.y, targetSlot.worldPos.z);
+		foundTile.targetRotation.set(0, 0, 0);
 
 		updateSlotBrackets();
 		AudioManager.playSnap(1.35);
@@ -2876,6 +3821,23 @@
 		showToast('Ghost tile: Look for "' + requiredLetter + '"!');
 	}
 
+	function showLevelSelectModal() {
+		var modal = document.getElementById('level-select-modal');
+		if (modal) {
+			if (typeof SpeedometerManager !== 'undefined') {
+				SpeedometerManager.renderLevelSelectModal();
+			}
+			modal.classList.add('show');
+			AudioManager.play('tilehit', 0.9);
+			AudioManager.haptic(20);
+		}
+	}
+
+	function hideLevelSelectModal() {
+		var modal = document.getElementById('level-select-modal');
+		if (modal) modal.classList.remove('show');
+	}
+
 	function showThemeModal() {
 		var modal = document.getElementById('theme-modal');
 		if (modal) {
@@ -2891,7 +3853,7 @@
 
 	function updateThemeModalUI() {
 		var currentSkin = TextureManager.getCurrentSkin ? TextureManager.getCurrentSkin() : 'classic';
-		var currentScenery = (global.WordscapesScenery && global.WordscapesScenery.getCurrent) ? global.WordscapesScenery.getCurrent() : 'rain';
+		var currentScenery = (global.WordscapesScenery && global.WordscapesScenery.getCurrent) ? global.WordscapesScenery.getCurrent() : 'sakura';
 
 		document.querySelectorAll('.skin-opt').forEach(function (btn) {
 			var skinId = btn.getAttribute('data-skin');
@@ -2952,11 +3914,25 @@
 	// UI & HUD
 	// --------------------------------------------------------------------------
 	function updateHUD() {
+		var currentLvlName = getLevelName(currentLevelIndex);
+
 		var levelNumEl = document.getElementById('hud-level-num');
 		if (levelNumEl) levelNumEl.textContent = (currentLevelIndex + 1);
 
+		var levelNameEl = document.getElementById('hud-level-name');
+		if (levelNameEl) levelNameEl.textContent = currentLvlName;
+
 		var settingsLvlEl = document.getElementById('settings-level-num');
 		if (settingsLvlEl) settingsLvlEl.textContent = (currentLevelIndex + 1);
+
+		var settingsNameEl = document.getElementById('settings-level-name');
+		if (settingsNameEl) settingsNameEl.textContent = currentLvlName;
+
+		var homeLvlNum = document.getElementById('home-level-num');
+		if (homeLvlNum) homeLvlNum.textContent = (currentLevelIndex + 1);
+
+		var homeLvlName = document.getElementById('home-level-name');
+		if (homeLvlName) homeLvlName.textContent = currentLvlName;
 
 		var targetBadgeEl = document.getElementById('hud-target-badge');
 		if (targetBadgeEl && currentLevelData && currentLevelData.words) {
@@ -3236,9 +4212,17 @@
 		}, 2400);
 	}
 
+	var winCelebrationTimeout = null;
+
 	function triggerWinCelebration() {
 		isCelebratingWin = true;
 		dismissGhostTile();
+
+		// Clear any pending win card timeout
+		if (winCelebrationTimeout) {
+			clearTimeout(winCelebrationTimeout);
+			winCelebrationTimeout = null;
+		}
 
 		// Hide active row chevrons, staging tray, and bottom buttons during celebration
 		if (activeRowIndicatorGroup) activeRowIndicatorGroup.visible = false;
@@ -3264,13 +4248,96 @@
 		AudioManager.haptic(50);
 		setTimeout(function () { AudioManager.haptic(35); }, 200);
 
-		// 5. Show 3D-styled NEXT arrow button on the right edge
+		// 5. Hide duplicate floating next button to prevent UI clutter
 		var btnNext = document.getElementById('btn-floating-next');
-		if (btnNext) btnNext.classList.add('show');
+		if (btnNext) btnNext.classList.remove('show');
+
+		// 6. Pre-render celebratory card contents so it is 100% prepared
+		var celebCard = document.getElementById('win-celebration-card');
+		if (celebCard && typeof SpeedometerManager !== 'undefined') {
+			var celebTitleEl = document.getElementById('win-celeb-level-title');
+			if (celebTitleEl) {
+				celebTitleEl.textContent = 'LVL ' + (currentLevelIndex + 1) + ' • ' + getLevelName(currentLevelIndex);
+			}
+
+			var recBadge = document.getElementById('win-celeb-record-badge');
+			if (recBadge) {
+				var isNewRec = (typeof SpeedometerManager !== 'undefined' && SpeedometerManager.isLastRunNewRecord);
+				recBadge.style.display = isNewRec ? 'inline-block' : 'none';
+			}
+
+			var rec = (SpeedometerManager.records.levels && SpeedometerManager.records.levels[currentLevelIndex]) || {};
+			var stars = rec.lastStars || SpeedometerManager.calculateStarsForWpm(rec.lastWpm || rec.bestWpm || 20);
+			var wpm = rec.lastWpm || rec.bestWpm || 0;
+
+			var starsContainer = document.getElementById('win-celeb-stars');
+			if (starsContainer) {
+				starsContainer.innerHTML = '';
+				for (var s = 1; s <= 3; s++) {
+					var starEl = document.createElement('span');
+					starEl.className = 'win-celeb-star' + (s <= stars ? ' earned' : ' empty');
+					starEl.textContent = (s <= stars ? '⭐' : '★');
+					starEl.style.animationDelay = (s * 0.18) + 's';
+					starsContainer.appendChild(starEl);
+				}
+			}
+
+			var wpmEl = document.getElementById('win-celeb-wpm');
+			if (wpmEl) wpmEl.textContent = '⚡ ' + wpm + ' WPM';
+
+			var tierEl = document.getElementById('win-celeb-tier');
+			if (tierEl) {
+				if (stars >= 3) {
+					tierEl.textContent = '⭐⭐⭐ LIGHTNING FAST!';
+					tierEl.style.color = '#ffd700';
+				} else if (stars === 2) {
+					tierEl.textContent = '⭐⭐ SWIFT SOLVER!';
+					tierEl.style.color = '#38bdf8';
+				} else {
+					tierEl.textContent = '⭐ STEADY SOLVER!';
+					tierEl.style.color = '#94a3b8';
+				}
+			}
+
+			// End-of-game dialog popup appears smoothly after completion fanfare
+			// so only the level report and congratulations remain
+			winCelebrationTimeout = setTimeout(function () {
+				if (isCelebratingWin && celebCard) {
+					// Hide the 3D board, racks, tiles, and message tiles so only the level report and congratulations remain
+					if (chainRacksGroup) chainRacksGroup.visible = false;
+					if (stagingTrayGroup) stagingTrayGroup.visible = false;
+					if (activeRowIndicatorGroup) activeRowIndicatorGroup.visible = false;
+					allTiles.forEach(function (tile) {
+						if (tile && tile.mesh) tile.mesh.visible = false;
+					});
+					chainSlots.forEach(function (s) {
+						if (s.tile && s.tile.mesh) s.tile.mesh.visible = false;
+					});
+					victoryMessageTiles.forEach(function (t) {
+						if (t && t.mesh) t.mesh.visible = false;
+					});
+					activeGiftBoxes.forEach(function (gb) {
+						if (gb && gb.group) gb.group.visible = false;
+					});
+
+					// Hide top HUD header so screen remains clean and focused exclusively on the level report
+					var hudHeader = document.getElementById('hud-header');
+					if (hudHeader) hudHeader.style.display = 'none';
+
+					celebCard.classList.add('show');
+					AudioManager.play('tilehit', 0.9);
+					AudioManager.haptic(30);
+				}
+			}, 1500);
+		}
 	}
 
 	function stopWinCelebration() {
 		isCelebratingWin = false;
+		if (winCelebrationTimeout) {
+			clearTimeout(winCelebrationTimeout);
+			winCelebrationTimeout = null;
+		}
 		if (mexicanWaveInterval) {
 			clearInterval(mexicanWaveInterval);
 			mexicanWaveInterval = null;
@@ -3279,13 +4346,24 @@
 		var btnNext = document.getElementById('btn-floating-next');
 		if (btnNext) btnNext.classList.remove('show');
 
+		var celebCard = document.getElementById('win-celebration-card');
+		if (celebCard) celebCard.classList.remove('show');
+
 		var winSpeedCard = document.getElementById('win-speed-card');
 		if (winSpeedCard) winSpeedCard.classList.remove('show');
 
+		// Restore 3D board and controls for normal gameplay
+		if (chainRacksGroup) chainRacksGroup.visible = true;
 		if (stagingTrayGroup) stagingTrayGroup.visible = true;
+		allTiles.forEach(function (tile) {
+			if (tile && tile.mesh) tile.mesh.visible = true;
+		});
 		stagingSlots.forEach(function (s) {
 			if (s.tile) s.tile.mesh.visible = true;
 		});
+
+		var hudHeader = document.getElementById('hud-header');
+		if (hudHeader) hudHeader.style.display = 'flex';
 
 		var hudBottom = document.getElementById('hud-bottom');
 		if (hudBottom) hudBottom.style.display = 'flex';
@@ -3318,7 +4396,7 @@
 	}
 
 	// --------------------------------------------------------------------------
-	// Responsive Camera Framing & Animation Loop
+	// Responsive Camera Framing & Dynamic Full-Vertical System
 	// --------------------------------------------------------------------------
 	function updateCameraFraming() {
 		if (!camera || !renderer) return;
@@ -3326,58 +4404,140 @@
 		var aspect = window.innerWidth / window.innerHeight;
 		camera.aspect = aspect;
 
-		if (aspect < 0.65) {
-			// Mobile portrait (phones: 390x844, 412x915, etc. aspect ~0.45-0.60)
-			// Widest racks and staging tray fill 90-93% of screen width with comfortable edge clearance!
-			var reqWidth = 11.2;
-			var fov = 46;
-			var fovRad = THREE.MathUtils.degToRad(fov);
-			var halfFovTan = Math.tan(fovRad * 0.5);
-			var reqDist = (reqWidth / aspect) / (2 * halfFovTan);
+		var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
+		var stagingZ = (numRows >= 8) ? 4.8 : (numRows === 7 ? 4.3 : 3.6);
+		var startZ = (numRows >= 8) ? -5.8 : (numRows === 7 ? -5.0 : -4.2);
+		var centerZ = (startZ + stagingZ) * 0.5 - 0.15;
 
-			camera.fov = fov;
-			camera.position.set(0, reqDist * 0.96, 1.8);
-			camera.lookAt(0, 0, -0.2);
-		} else if (aspect < 1.0) {
-			// Tablet / wider portrait (iPad aspect ~0.75)
-			var t = (aspect - 0.65) / 0.35;
-			camera.fov = THREE.MathUtils.lerp(47, 42, t);
-			camera.position.set(
-				0,
-				THREE.MathUtils.lerp(20.0, 17.5, t),
-				THREE.MathUtils.lerp(2.6, 5.5, t)
-			);
-			camera.lookAt(0, 0, THREE.MathUtils.lerp(0.45, 0.0, t));
-		} else {
-			// Landscape / desktop
-			camera.fov = 38;
-			camera.position.set(0, 16.5, 9.0);
-			camera.lookAt(0, 0, -0.3);
+		var fov = 46;
+		var fovRad = THREE.MathUtils.degToRad(fov);
+		var halfFovTan = Math.tan(fovRad * 0.5);
+
+		// Board width & vertical rack span
+		var reqWidth = (numRows >= 8) ? 11.2 : ((numRows === 7) ? 10.9 : 10.6);
+		var reqHeight = (stagingZ - startZ) + 4.5;
+
+		var camY_by_width = (reqWidth / aspect) / (2 * halfFovTan);
+		var camY_by_height = reqHeight / (2 * halfFovTan);
+		var camY = Math.max(camY_by_width, camY_by_height);
+
+		if (perspectiveMode === 'classic') {
+			camY *= 1.05;
 		}
+
+		camera.fov = fov;
+		camera.up.set(0, 0, -1);
+		camera.position.set(0, camY, centerZ);
+		camera.lookAt(0, 0, centerZ);
 
 		camera.updateProjectionMatrix();
 		renderer.setSize(window.innerWidth, window.innerHeight);
+
+		// Synchronize panoramic backdrop photo dynamically
+		if (global.WordscapesScenery && typeof global.WordscapesScenery.onCameraUpdate === 'function') {
+			global.WordscapesScenery.onCameraUpdate(camY, centerZ, fov, aspect);
+		}
+	}
+
+	function applyPerspectiveMode(mode) {
+		if (mode === 'incline' || mode === 'classic') {
+			perspectiveMode = mode;
+		}
+		try {
+			localStorage.setItem('word_chain_perspective_mode', perspectiveMode);
+		} catch (e) {}
+
+		// Reposition chain rows, racks, slots, and tiles (Full vertical, zero tilt)
+		for (var r = 0; r < chainRowData.length; r++) {
+			var rowInfo = chainRowData[r];
+			rowInfo.rowY = 0;
+			rowInfo.rackTilt = 0;
+			rowInfo.rowGroup.position.y = 0;
+			rowInfo.rowGroup.rotation.x = 0;
+
+			for (var c = 0; c < rowInfo.slots.length; c++) {
+				var slot = rowInfo.slots[c];
+				slot.worldPos.y = rowInfo.rackHeight + 0.14;
+				slot.worldPos.z = rowInfo.rz;
+
+				if (slot.tile && !slot.tile.isDragging) {
+					slot.tile.setTarget(slot.worldPos.x, slot.worldPos.y, slot.worldPos.z);
+					slot.tile.targetRotation.set(0, 0, 0);
+				}
+			}
+		}
+
+		// Reposition active 3D gift boxes
+		activeGiftBoxes.forEach(function (gb) {
+			if (!gb || !gb.group) return;
+			var r = gb.rowIdx;
+			var rInfo = chainRowData[r];
+			if (rInfo) {
+				var baseY = (rInfo.rackHeight + 0.22);
+				gb.baseY = baseY;
+				gb.rowY = 0;
+				gb.rackTilt = 0;
+				gb.group.position.y = baseY;
+				gb.group.rotation.x = 0;
+			}
+		});
+
+		// Reposition chevrons
+		updateActiveRowVisuals();
+
+		// Update camera framing with new angle / distance
+		updateCameraFraming();
+
+		// Update UI toggle icons and settings modal active state
+		updatePerspectiveModeUI();
+	}
+
+	function togglePerspectiveMode() {
+		var newMode = (perspectiveMode === 'incline') ? 'classic' : 'incline';
+		applyPerspectiveMode(newMode);
+		var label = (newMode === 'incline') ? '📐 Standard Vertical' : '📐 Panoramic Vertical';
+		showToast(label);
+		AudioManager.play('tilehit', 0.9);
+		AudioManager.haptic(20);
+	}
+
+	function updatePerspectiveModeUI() {
+		var btnToggleCam = document.getElementById('btn-toggle-cam');
+		var iconEl = document.getElementById('cam-toggle-icon');
+		var isIncline = (perspectiveMode === 'incline');
+
+		if (btnToggleCam) {
+			btnToggleCam.title = isIncline ? 'Current: 3D Incline Highway (Tap for Classic)' : 'Current: Classic View (Tap for 3D Incline)';
+			btnToggleCam.setAttribute('aria-label', btnToggleCam.title);
+			btnToggleCam.classList.toggle('active-incline', isIncline);
+		}
+		if (iconEl) {
+			iconEl.textContent = isIncline ? '🎸' : '📐';
+		}
+
+		var optIncline = document.getElementById('opt-cam-incline');
+		var optClassic = document.getElementById('opt-cam-classic');
+		if (optIncline && optClassic) {
+			optIncline.classList.toggle('active', isIncline);
+			optClassic.classList.toggle('active', !isIncline);
+		}
 	}
 
 	function onWindowResize() {
-		updateCameraFraming();
+		applyPerspectiveMode();
 	}
 
 	var lastTime = 0;
-	var lastFrameTime = 0;
-	var fpsInterval = 1000 / 60; // Max 60 FPS cap to protect against 120Hz ProMotion thermal overload
 
 	function animate(now) {
 		requestAnimationFrame(animate);
 
-		var elapsed = now - lastFrameTime;
-		if (elapsed < fpsInterval - 1) return;
-		lastFrameTime = now;
-
-		var dt = Math.min((now - lastTime) * 0.001, 0.05);
+		var dt = (now - lastTime) * 0.001;
+		if (dt < 0.009) return; // Smooth 60 FPS pacing without dropping frames on 60Hz displays
 		lastTime = now;
+		dt = Math.min(dt, 0.05);
 
-		// Update tile animations & physics
+		// Update in-game tile animations & physics
 		for (var i = 0; i < allTiles.length; i++) {
 			allTiles[i].update(dt);
 		}
@@ -3428,6 +4588,21 @@
 			SpeedometerManager.updateLoop();
 		}
 
+		// Idle title screen camera breathing to make the 3D world feel living & dynamic
+		if (titleScreenEl && !titleScreenEl.classList.contains('hide') && camera) {
+			camera.position.x = Math.sin(now * 0.0006) * 0.22;
+			var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
+			var sZ = (numRows >= 8) ? 4.8 : (numRows === 7 ? 4.3 : 3.6);
+			var stZ = (numRows >= 8) ? -5.8 : (numRows === 7 ? -5.0 : -4.2);
+			var cZ = (stZ + sZ) * 0.5 - 0.15;
+			camera.lookAt(0, 0, cZ);
+		}
+
+		// Living 3D Scenery & Particles (drifting around and IN FRONT of tiles!)
+		if (global.WordscapesScenery && typeof global.WordscapesScenery.update === 'function') {
+			global.WordscapesScenery.update(dt, now);
+		}
+
 		renderer.render(scene, camera);
 	}
 
@@ -3442,7 +4617,8 @@
 		scene.background = null;
 
 		// 2. Camera
-		camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+		camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 100);
+		camera.up.set(0, 0, -1);
 
 		// 3. Renderer (Optimized for cool, locked 60FPS mobile performance with transparent background)
 		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -3471,10 +4647,13 @@
 		fillLight.position.set(-8, 8, -6);
 		scene.add(fillLight);
 
+		// Store lights on scene for dynamic Wordscapes environment tinting
+		scene.userData.lights = { ambient: ambientLight, sun: sunLight, fill: fillLight };
+
 		// 5. Initialize Subsystems (Living Wordscapes Scenery Engine + 3D Table & Trays)
 		UnlockManager.init();
 		if (global.WordscapesScenery && typeof global.WordscapesScenery.init === 'function') {
-			global.WordscapesScenery.init();
+			global.WordscapesScenery.init(scene, camera, renderer);
 		}
 		TextureManager.preloadGameSaladTiles();
 		initMaterials();
@@ -3487,45 +4666,183 @@
 
 		var totalLevels = (window.WORD_CHAIN_LEVELS && window.WORD_CHAIN_LEVELS.length) ? window.WORD_CHAIN_LEVELS.length : 30;
 
-		// Title Screen & Settings Bindings
-		var titleScreenEl = document.getElementById('title-screen');
+		// Title Screen & Settings Bindings (Clean Minimalist Redesign)
+		titleScreenEl = document.getElementById('title-screen');
 		var btnTitlePlay = document.getElementById('btn-title-play');
+		var btnTitleVs = document.getElementById('btn-title-vs');
 		var btnTitleSettings = document.getElementById('btn-title-settings');
+		var btnTitleTrophy = document.getElementById('btn-title-trophy');
 		var btnSettings = document.getElementById('btn-settings');
 		var btnReturnTitle = document.getElementById('btn-return-title');
+
+		// Title Screen Word Chain Showcase System
+		// Rhythmic continuous word jump and font style cycling every 2.6 seconds
+		var titleShowcaseIndex = 0;
+		var titleShowcaseInterval = null;
+
+		function cycleTitleSkin(targetSkinId) {
+			if (targetSkinId) {
+				var idx = TILE_SKIN_ORDER.indexOf(targetSkinId);
+				if (idx !== -1) titleShowcaseIndex = idx;
+			} else {
+				titleShowcaseIndex = (titleShowcaseIndex + 1) % TILE_SKIN_ORDER.length;
+			}
+			var skinId = TILE_SKIN_ORDER[titleShowcaseIndex];
+			if (TextureManager && typeof TextureManager.updateTitleBoardTiles === 'function') {
+				TextureManager.updateTitleBoardTiles(skinId);
+			}
+		}
+
+		function startTitleShowcase() {
+			stopTitleShowcase();
+			if (TextureManager && typeof TextureManager.preloadTitleShowcaseImages === 'function') {
+				TextureManager.preloadTitleShowcaseImages();
+			}
+			var cur = TextureManager.getCurrentSkin ? TextureManager.getCurrentSkin() : (currentSkinId || 'classic');
+			TextureManager.updateTitleBoardTiles(cur);
+			if (typeof updateStoragePreviewUI === 'function') updateStoragePreviewUI();
+		}
+
+		function stopTitleShowcase() {
+			if (titleShowcaseInterval) {
+				clearInterval(titleShowcaseInterval);
+				titleShowcaseInterval = null;
+			}
+		}
 
 		function showTitleScreen() {
 			if (titleScreenEl) {
 				titleScreenEl.classList.remove('hidden');
+				titleScreenEl.classList.remove('hide');
 				titleScreenEl.style.display = 'flex';
+				titleScreenEl.style.pointerEvents = 'auto';
 			}
+			startTitleShowcase();
 			if (typeof SpeedometerManager !== 'undefined') {
 				SpeedometerManager.updateTitleScreenUI();
 			}
 		}
 
 		function hideTitleScreen() {
+			stopTitleShowcase();
 			if (titleScreenEl) {
 				titleScreenEl.classList.add('hide');
 				titleScreenEl.classList.add('hidden');
 				titleScreenEl.style.display = 'none';
+				titleScreenEl.style.pointerEvents = 'none';
 			}
+			if (camera) {
+				camera.position.x = 0;
+			}
+			updateCameraFraming();
 			AudioManager.unlockAudio();
 		}
 
-		if (btnTitlePlay) {
-			btnTitlePlay.addEventListener('click', function () {
-				hideTitleScreen();
-				AudioManager.play('tilehit', 1.0);
-			});
-		}
-		if (window.location && window.location.search && window.location.search.indexOf('play=1') !== -1) {
+		// Initial start of Title Screen Word Chain Showcase
+		startTitleShowcase();
+
+		// 1. SOLO PLAY Button (Touch & Click debounced)
+		var lastSoloTap = 0;
+		function triggerSoloPlay(e) {
+			if (e) e.stopPropagation();
+			var now = performance.now();
+			if (now - lastSoloTap < 350) return;
+			lastSoloTap = now;
+
+			var resumeIdx = (typeof SpeedometerManager !== 'undefined') ? SpeedometerManager.getResumeLevelIndex() : 0;
+			if (currentLevelIndex !== resumeIdx) {
+				loadLevel(resumeIdx);
+			}
 			hideTitleScreen();
+			AudioManager.play('tilehit', 1.0);
+			AudioManager.haptic(30);
+		}
+
+		if (btnTitlePlay) {
+			btnTitlePlay.addEventListener('click', triggerSoloPlay);
+			btnTitlePlay.addEventListener('touchend', function (e) {
+				e.preventDefault();
+				triggerSoloPlay(e);
+			}, { passive: false });
+		}
+
+		// 2. VS MODE Button
+		var lastVsTap = 0;
+		function triggerVsMode(e) {
+			if (e) e.stopPropagation();
+			var now = performance.now();
+			if (now - lastVsTap < 350) return;
+			lastVsTap = now;
+
+			AudioManager.playSnap(1.3);
+			AudioManager.haptic(25);
+			showToast('⚔️ VS MODE: 2-Player Head-to-Head & AI Battles coming soon in Season 2!');
+		}
+
+		if (btnTitleVs) {
+			btnTitleVs.addEventListener('click', triggerVsMode);
+			btnTitleVs.addEventListener('touchend', function (e) {
+				e.preventDefault();
+				triggerVsMode(e);
+			}, { passive: false });
+		}
+
+		// 3. Interactive Word Chain Title Board: Tap to jump tiles
+		var titleGameBoard = document.getElementById('title-game-board');
+		if (titleGameBoard) {
+			function onTitleBoardTap(e) {
+				if (e) e.stopPropagation();
+				AudioManager.playSnap(1.4);
+				AudioManager.haptic(25);
+				var tileBoxes = titleGameBoard.querySelectorAll('.title-tile-box');
+				tileBoxes.forEach(function (box) {
+					box.classList.remove('hop');
+					void box.offsetWidth;
+					box.classList.add('hop');
+				});
+			}
+			titleGameBoard.addEventListener('click', onTitleBoardTap);
+			titleGameBoard.addEventListener('touchend', function (e) {
+				e.preventDefault();
+				onTitleBoardTap(e);
+			}, { passive: false });
+		}
+
+		// 4. Bottom Footer Navigation: Settings on left, Trophy on right
+		var lastSettingsTap = 0;
+		function triggerSettings(e) {
+			if (e) e.stopPropagation();
+			var now = performance.now();
+			if (now - lastSettingsTap < 350) return;
+			lastSettingsTap = now;
+			showThemeModal();
+			AudioManager.play('tilehit', 0.9);
+			AudioManager.haptic(20);
 		}
 		if (btnTitleSettings) {
-			btnTitleSettings.addEventListener('click', function () {
-				showThemeModal();
-			});
+			btnTitleSettings.addEventListener('click', triggerSettings);
+			btnTitleSettings.addEventListener('touchend', function (e) {
+				e.preventDefault();
+				triggerSettings(e);
+			}, { passive: false });
+		}
+
+		var lastTrophyTap = 0;
+		function triggerTrophy(e) {
+			if (e) e.stopPropagation();
+			var now = performance.now();
+			if (now - lastTrophyTap < 350) return;
+			lastTrophyTap = now;
+			showLevelSelectModal();
+			AudioManager.play('tilehit', 0.9);
+			AudioManager.haptic(20);
+		}
+		if (btnTitleTrophy) {
+			btnTitleTrophy.addEventListener('click', triggerTrophy);
+			btnTitleTrophy.addEventListener('touchend', function (e) {
+				e.preventDefault();
+				triggerTrophy(e);
+			}, { passive: false });
 		}
 		if (btnSettings) {
 			btnSettings.addEventListener('click', function () {
@@ -3552,28 +4869,42 @@
 		var btnThemeClose = document.getElementById('btn-theme-close');
 		if (btnThemeClose) btnThemeClose.addEventListener('click', hideThemeModal);
 
-		// Tile Skin option buttons
-		document.querySelectorAll('.skin-opt').forEach(function (btn) {
-			btn.addEventListener('click', function () {
-				var skinId = this.getAttribute('data-skin');
-				if (!skinId) return;
+		// Initialize Fancy Felt-Floored Cubby Storage System & Store
+		renderStorageCubbies();
+		updateStoragePreviewUI();
 
-				if (UnlockManager.isOwned('skin', skinId) || UnlockManager.isTrial('skin', skinId)) {
-					TextureManager.setSkin(skinId);
-					updateThemeModalUI();
-					AudioManager.play('tilehit', 0.9);
-					AudioManager.haptic(20);
-					showToast('Equipped ' + (TILE_SKINS[skinId] ? TILE_SKINS[skinId].name : skinId));
-				} else {
-					var skinObj = TILE_SKINS[skinId];
-					var skinName = skinObj ? skinObj.name : skinId;
-					AdMobRewardService.showRewardAd({ type: 'skin', id: skinId, name: skinName }, function () {
-						UnlockManager.unlockPermanent('skin', skinId);
-						showToast('🎉 LOCKED IN! You now own ' + skinName + ' forever!');
-					});
-				}
+		// Title Screen Storage Entrance Bar
+		var btnTitleStorageBar = document.getElementById('btn-title-storage-bar');
+		if (btnTitleStorageBar) {
+			btnTitleStorageBar.addEventListener('click', function (e) {
+				e.stopPropagation();
+				openTileStorageModal();
 			});
-		});
+		}
+
+		// Title Screen Footer Storage Icon
+		var btnTitleStorageIcon = document.getElementById('btn-title-storage-icon');
+		if (btnTitleStorageIcon) {
+			btnTitleStorageIcon.addEventListener('click', function (e) {
+				e.stopPropagation();
+				openTileStorageModal();
+			});
+		}
+
+		// Settings Modal Storage Portal Button
+		var btnSettingsOpenStorage = document.getElementById('btn-settings-open-storage');
+		if (btnSettingsOpenStorage) {
+			btnSettingsOpenStorage.addEventListener('click', function (e) {
+				e.stopPropagation();
+				openTileStorageModal();
+			});
+		}
+
+		// Storage Cabinet Close Button
+		var btnStorageClose = document.getElementById('btn-storage-close');
+		if (btnStorageClose) {
+			btnStorageClose.addEventListener('click', closeTileStorageModal);
+		}
 
 		// Living Scenery option buttons
 		document.querySelectorAll('.scenery-opt').forEach(function (btn) {
@@ -3664,7 +4995,7 @@
 			});
 		}
 
-		// Win Celebration Replay Button for Speed Record
+		// Win Celebration Replay Buttons
 		var btnWinReplay = document.getElementById('btn-win-replay');
 		if (btnWinReplay) {
 			btnWinReplay.addEventListener('click', function () {
@@ -3675,12 +5006,60 @@
 			});
 		}
 
-		// Title Screen Speed Ranking Card click -> open level select in settings
+		var btnWinReplayCard = document.getElementById('btn-win-replay-card');
+		if (btnWinReplayCard) {
+			btnWinReplayCard.addEventListener('click', function () {
+				AudioManager.play('tilehit', 1.0);
+				AudioManager.haptic(35);
+				stopWinCelebration();
+				loadLevel(currentLevelIndex);
+			});
+		}
+
+		// Level Select Modal Bindings
+		var btnLevelSelectClose = document.getElementById('btn-level-select-close');
+		if (btnLevelSelectClose) btnLevelSelectClose.addEventListener('click', hideLevelSelectModal);
+
+		var hudLeftPill = document.querySelector('.hud-left-pill');
+		if (hudLeftPill) {
+			hudLeftPill.style.cursor = 'pointer';
+			hudLeftPill.setAttribute('title', 'Tap to open Level Select & Star Progress');
+			hudLeftPill.addEventListener('click', showLevelSelectModal);
+		}
+
+		var btnTitleAllLevels = document.getElementById('btn-title-all-levels');
+		if (btnTitleAllLevels) btnTitleAllLevels.addEventListener('click', showLevelSelectModal);
+
+		var btnSettingsAllLevels = document.getElementById('btn-settings-all-levels');
+		if (btnSettingsAllLevels) btnSettingsAllLevels.addEventListener('click', function () {
+			hideThemeModal();
+			showLevelSelectModal();
+		});
+
+		var btnWinLevels = document.getElementById('btn-win-levels');
+		if (btnWinLevels) {
+			btnWinLevels.addEventListener('click', function () {
+				stopWinCelebration();
+				showLevelSelectModal();
+			});
+		}
+
+		var btnWinNext = document.getElementById('btn-win-next');
+		if (btnWinNext) {
+			btnWinNext.addEventListener('click', function () {
+				AudioManager.play('tilehit', 1.0);
+				AudioManager.haptic(35);
+				stopWinCelebration();
+				loadLevel(currentLevelIndex + 1);
+			});
+		}
+
+		// Title Screen Speed Ranking Card click -> open level select
 		var titleRankCard = document.getElementById('title-speed-rank-card');
 		if (titleRankCard) {
 			titleRankCard.style.cursor = 'pointer';
 			titleRankCard.addEventListener('click', function () {
-				showThemeModal();
+				showLevelSelectModal();
 				AudioManager.play('tilehit', 0.8);
 			});
 		}
@@ -3696,14 +5075,49 @@
 			});
 		}
 
+		// Camera Perspective View Mode Bindings (3D Incline vs Classic)
+		var btnToggleCam = document.getElementById('btn-toggle-cam');
+		if (btnToggleCam) {
+			btnToggleCam.addEventListener('click', function () {
+				togglePerspectiveMode();
+			});
+		}
+
+		var optCamIncline = document.getElementById('opt-cam-incline');
+		if (optCamIncline) {
+			optCamIncline.addEventListener('click', function () {
+				applyPerspectiveMode('incline');
+				AudioManager.play('tilehit', 0.9);
+				AudioManager.haptic(20);
+				showToast('🎸 3D Incline Highway View');
+			});
+		}
+
+		var optCamClassic = document.getElementById('opt-cam-classic');
+		if (optCamClassic) {
+			optCamClassic.addEventListener('click', function () {
+				applyPerspectiveMode('classic');
+				AudioManager.play('tilehit', 0.9);
+				AudioManager.haptic(20);
+				showToast('📐 Classic View');
+			});
+		}
+
+		updatePerspectiveModeUI();
+
 		window.addEventListener('resize', onWindowResize);
 
 		// Expose public API for controls and automation testing
+		global.TextureManager = TextureManager;
 		global.WordChain3D = {
 			loadLevel: loadLevel,
+			showLevelSelect: showLevelSelectModal,
 			shuffle: shuffleStaging,
 			recall: recallActiveRow,
 			hint: provideHint,
+			togglePerspective: togglePerspectiveMode,
+			setPerspective: applyPerspectiveMode,
+			getPerspective: function () { return perspectiveMode; },
 			celebrateWin: triggerWinCelebration,
 			stopCelebration: stopWinCelebration,
 			showThemeModal: showThemeModal,
@@ -3724,6 +5138,10 @@
 			getSkin: function () {
 				return TextureManager.getCurrentSkin ? TextureManager.getCurrentSkin() : 'classic';
 			},
+			getTrayTheme: function () {
+				var curSkin = TILE_SKINS[TextureManager.getCurrentSkin ? TextureManager.getCurrentSkin() : 'classic'];
+				return (curSkin && curSkin.tone === 'dark') ? 'light' : 'dark';
+			},
 			setScenery: function (sceneryId) {
 				if (global.WordscapesScenery) {
 					global.WordscapesScenery.setScenery(sceneryId);
@@ -3734,11 +5152,15 @@
 				return (global.WordscapesScenery && global.WordscapesScenery.getCurrent) ? global.WordscapesScenery.getCurrent() : null;
 			},
 			getState: function () {
+				var curSkin = TILE_SKINS[TextureManager.getCurrentSkin ? TextureManager.getCurrentSkin() : 'classic'];
+				var trayThemeName = (curSkin && curSkin.tone === 'dark') ? 'light' : 'dark';
 				return {
 					level: currentLevelIndex + 1,
 					activeRow: currentWordIndex + 1,
 					totalRows: currentLevelData ? currentLevelData.words.length : 0,
 					skin: TextureManager.getCurrentSkin ? TextureManager.getCurrentSkin() : 'classic',
+					tileTone: curSkin ? curSkin.tone : 'light',
+					trayTheme: trayThemeName,
 					scenery: (global.WordscapesScenery && global.WordscapesScenery.getCurrent) ? global.WordscapesScenery.getCurrent() : null,
 					stagingTiles: stagingSlots.map(function (s) { return s.tile ? s.tile.letter : null; }),
 					activeRowTiles: chainSlots.filter(function (s) { return s.row === currentWordIndex; }).map(function (s) { return s.tile ? s.tile.letter : null; }),
@@ -3748,6 +5170,8 @@
 						musicSrc: AudioManager.musicTrack ? AudioManager.musicTrack.src : null
 					},
 					materials: {
+						trayTheme: trayThemeName,
+						feltColorHex: (materials.slotFelt && materials.slotFelt.color) ? ('#' + materials.slotFelt.color.getHexString()) : null,
 						yellowTrayRoughness: materials.yellowTray ? materials.yellowTray.roughness : null,
 						yellowTrayMetalness: materials.yellowTray ? materials.yellowTray.metalness : null,
 						greenTrayRoughness: materials.greenTray ? materials.greenTray.roughness : null
@@ -3789,48 +5213,49 @@
 			}
 		};
 
-		// 7. Load Level (supports ?level=X query parameter)
+		// 7. Load Level (supports ?level=X query parameter or automatic smart resume for returning players!)
 		var urlParams = new URLSearchParams(window.location.search);
 		var startLvl = parseInt(urlParams.get('level'), 10);
-		loadLevel(!isNaN(startLvl) && startLvl > 0 ? (startLvl - 1) : 0);
+		var resumeLvl = (typeof SpeedometerManager !== 'undefined') ? SpeedometerManager.getResumeLevelIndex() : 0;
+		var initialLevel = (!isNaN(startLvl) && startLvl > 0) ? (startLvl - 1) : resumeLvl;
+		loadLevel(initialLevel);
 
-		if (urlParams.get('autostart') === '1' || urlParams.get('play') === '1') {
+		var shouldStartPlaying = (urlParams.get('autostart') === '1' || urlParams.get('play') === '1' || urlParams.get('hint') === '1' || urlParams.get('win') === '1' || urlParams.get('gift') === '1' || urlParams.get('ad') === '1' || urlParams.get('settings') === '1' || urlParams.get('trialend') === '1');
+
+		if (shouldStartPlaying) {
 			hideTitleScreen();
+		} else {
+			showTitleScreen();
 		}
+
 		if (urlParams.get('hint') === '1') {
-			hideTitleScreen();
 			setTimeout(function () {
 				provideHint();
 			}, 300);
 		}
 		if (urlParams.get('win') === '1') {
-			hideTitleScreen();
 			setTimeout(function () {
 				triggerWinCelebration();
 			}, 300);
 		}
 		if (urlParams.get('gift') === '1') {
-			hideTitleScreen();
 			setTimeout(function () {
-				showGiftUnlockModal(UnlockManager.getRewardForLevelRow(0, 2) || { type: 'skin', id: 'obsidian', name: 'Midnight Onyx', desc: 'Sleek obsidian stone with polished gold laser lettering', skin: TILE_SKINS.obsidian });
+				showGiftUnlockModal(UnlockManager.getRewardForLevelRow(0, 2) || UnlockManager.makeSkinReward('set0'));
 			}, 300);
 		}
 		if (urlParams.get('ad') === '1') {
-			hideTitleScreen();
 			setTimeout(function () {
-				AdMobRewardService.showRewardAd({ type: 'skin', id: 'obsidian', name: 'Midnight Onyx' });
+				AdMobRewardService.showRewardAd({ type: 'skin', id: 'set0', name: TILE_SKINS.set0.name });
 			}, 300);
 		}
 		if (urlParams.get('settings') === '1') {
-			hideTitleScreen();
 			setTimeout(function () {
 				showThemeModal();
 			}, 300);
 		}
 		if (urlParams.get('trialend') === '1') {
-			hideTitleScreen();
 			setTimeout(function () {
-				UnlockManager.activeTrial = { type: 'skin', id: 'obsidian', roundLevel: 999 };
+				UnlockManager.activeTrial = { type: 'skin', id: 'set0', roundLevel: 999 };
 				UnlockManager.checkTrialExpiration(0);
 			}, 300);
 		}

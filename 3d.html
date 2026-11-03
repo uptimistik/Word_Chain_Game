@@ -3,717 +3,225 @@
 
 <head>
 
-<!-- [ORIGINALTILEIMAGES HAND-DRAWN <LETTER><SKIN_ID>.png TILE ENGINE v3] -->
-<script>
-(function() {
-  // 1. Complete Hand-Drawn GameSalad Tile Skins (Skins 0 through 12, format: ./OriginalTileImages/<LETTER><SKIN_ID>.png)
-  window.ORIGINAL_TILE_SKINS = {
-  "0": {
-    "A": "./OriginalTileImages/A0.png",
-    "B": "./OriginalTileImages/B0.png",
-    "C": "./OriginalTileImages/C0.png",
-    "D": "./OriginalTileImages/D0.png",
-    "E": "./OriginalTileImages/E0.png",
-    "F": "./OriginalTileImages/F0.png",
-    "G": "./OriginalTileImages/G0.png",
-    "H": "./OriginalTileImages/H0.png",
-    "I": "./OriginalTileImages/I0.png",
-    "J": "./OriginalTileImages/J0.png",
-    "K": "./OriginalTileImages/K0.png",
-    "L": "./OriginalTileImages/L0.png",
-    "M": "./OriginalTileImages/M0.png",
-    "N": "./OriginalTileImages/N0.png",
-    "O": "./OriginalTileImages/O0.png",
-    "P": "./OriginalTileImages/P0.png",
-    "Q": "./OriginalTileImages/Q0.png",
-    "R": "./OriginalTileImages/R0.png",
-    "S": "./OriginalTileImages/S0.png",
-    "T": "./OriginalTileImages/T0.png",
-    "U": "./OriginalTileImages/U0.png",
-    "V": "./OriginalTileImages/V0.png",
-    "W": "./OriginalTileImages/W0.png",
-    "X": "./OriginalTileImages/X0.png",
-    "Y": "./OriginalTileImages/Y0.png",
-    "Z": "./OriginalTileImages/Z0.png"
-  },
-  "1": {
-    "A": "./OriginalTileImages/A1.png",
-    "B": "./OriginalTileImages/B1.png",
-    "C": "./OriginalTileImages/C1.png",
-    "D": "./OriginalTileImages/D1.png",
-    "E": "./OriginalTileImages/E1.png",
-    "F": "./OriginalTileImages/F1.png",
-    "G": "./OriginalTileImages/G1.png",
-    "H": "./OriginalTileImages/H1.png",
-    "I": "./OriginalTileImages/I1.png",
-    "J": "./OriginalTileImages/J1.png",
-    "K": "./OriginalTileImages/K1.png",
-    "L": "./OriginalTileImages/L1.png",
-    "M": "./OriginalTileImages/M1.png",
-    "N": "./OriginalTileImages/N1.png",
-    "O": "./OriginalTileImages/O1.png",
-    "P": "./OriginalTileImages/P1.png",
-    "Q": "./OriginalTileImages/Q1.png",
-    "R": "./OriginalTileImages/R1.png",
-    "S": "./OriginalTileImages/S1.png",
-    "T": "./OriginalTileImages/T1.png",
-    "U": "./OriginalTileImages/U1.png",
-    "V": "./OriginalTileImages/V1.png",
-    "W": "./OriginalTileImages/W1.png",
-    "X": "./OriginalTileImages/X1.png",
-    "Y": "./OriginalTileImages/Y1.png",
-    "Z": "./OriginalTileImages/Z1.png"
-  },
-  "2": {
-    "A": "./OriginalTileImages/A2.png",
-    "B": "./OriginalTileImages/B2.png",
-    "C": "./OriginalTileImages/C2.png",
-    "D": "./OriginalTileImages/D2.png",
-    "E": "./OriginalTileImages/E2.png",
-    "F": "./OriginalTileImages/F2.png",
-    "G": "./OriginalTileImages/G2.png",
-    "H": "./OriginalTileImages/H2.png",
-    "I": "./OriginalTileImages/I2.png",
-    "J": "./OriginalTileImages/J2.png",
-    "K": "./OriginalTileImages/K2.png",
-    "L": "./OriginalTileImages/L2.png",
-    "M": "./OriginalTileImages/M2.png",
-    "N": "./OriginalTileImages/N2.png",
-    "O": "./OriginalTileImages/O2.png",
-    "P": "./OriginalTileImages/P2.png",
-    "Q": "./OriginalTileImages/Q2.png",
-    "R": "./OriginalTileImages/R2.png",
-    "S": "./OriginalTileImages/S2.png",
-    "T": "./OriginalTileImages/T2.png",
-    "U": "./OriginalTileImages/U2.png",
-    "V": "./OriginalTileImages/V2.png",
-    "W": "./OriginalTileImages/W2.png",
-    "X": "./OriginalTileImages/X2.png",
-    "Y": "./OriginalTileImages/Y2.png",
-    "Z": "./OriginalTileImages/Z2.png"
-  },
-  "3": {
-    "A": "./OriginalTileImages/A3.png",
-    "B": "./OriginalTileImages/B3.png",
-    "C": "./OriginalTileImages/C3.png",
-    "D": "./OriginalTileImages/D3.png",
-    "E": "./OriginalTileImages/E3.png",
-    "F": "./OriginalTileImages/F3.png",
-    "G": "./OriginalTileImages/G3.png",
-    "H": "./OriginalTileImages/H3.png",
-    "I": "./OriginalTileImages/I3.png",
-    "J": "./OriginalTileImages/J3.png",
-    "K": "./OriginalTileImages/K3.png",
-    "L": "./OriginalTileImages/L3.png",
-    "M": "./OriginalTileImages/M3.png",
-    "N": "./OriginalTileImages/N3.png",
-    "O": "./OriginalTileImages/O3.png",
-    "P": "./OriginalTileImages/P3.png",
-    "Q": "./OriginalTileImages/Q3.png",
-    "R": "./OriginalTileImages/R3.png",
-    "S": "./OriginalTileImages/S3.png",
-    "T": "./OriginalTileImages/T3.png",
-    "U": "./OriginalTileImages/U3.png",
-    "V": "./OriginalTileImages/V3.png",
-    "W": "./OriginalTileImages/W3.png",
-    "X": "./OriginalTileImages/X3.png",
-    "Y": "./OriginalTileImages/Y3.png",
-    "Z": "./OriginalTileImages/Z3.png"
-  },
-  "4": {
-    "A": "./OriginalTileImages/A4.png",
-    "B": "./OriginalTileImages/B4.png",
-    "C": "./OriginalTileImages/C4.png",
-    "D": "./OriginalTileImages/D4.png",
-    "E": "./OriginalTileImages/E4.png",
-    "F": "./OriginalTileImages/F4.png",
-    "G": "./OriginalTileImages/G4.png",
-    "H": "./OriginalTileImages/H4.png",
-    "I": "./OriginalTileImages/I4.png",
-    "J": "./OriginalTileImages/J4.png",
-    "K": "./OriginalTileImages/K4.png",
-    "L": "./OriginalTileImages/L4.png",
-    "M": "./OriginalTileImages/M4.png",
-    "N": "./OriginalTileImages/N4.png",
-    "O": "./OriginalTileImages/O4.png",
-    "P": "./OriginalTileImages/P4.png",
-    "Q": "./OriginalTileImages/Q4.png",
-    "R": "./OriginalTileImages/R4.png",
-    "S": "./OriginalTileImages/S4.png",
-    "T": "./OriginalTileImages/T4.png",
-    "U": "./OriginalTileImages/U4.png",
-    "V": "./OriginalTileImages/V4.png",
-    "W": "./OriginalTileImages/W4.png",
-    "X": "./OriginalTileImages/X4.png",
-    "Y": "./OriginalTileImages/Y4.png",
-    "Z": "./OriginalTileImages/Z4.png"
-  },
-  "5": {
-    "A": "./OriginalTileImages/A5.png",
-    "B": "./OriginalTileImages/B5.png",
-    "C": "./OriginalTileImages/C5.png",
-    "D": "./OriginalTileImages/D5.png",
-    "E": "./OriginalTileImages/E5.png",
-    "F": "./OriginalTileImages/F5.png",
-    "G": "./OriginalTileImages/G5.png",
-    "H": "./OriginalTileImages/H5.png",
-    "I": "./OriginalTileImages/I5.png",
-    "J": "./OriginalTileImages/J5.png",
-    "K": "./OriginalTileImages/K5.png",
-    "L": "./OriginalTileImages/L5.png",
-    "M": "./OriginalTileImages/M5.png",
-    "N": "./OriginalTileImages/N5.png",
-    "O": "./OriginalTileImages/O5.png",
-    "P": "./OriginalTileImages/P5.png",
-    "Q": "./OriginalTileImages/Q5.png",
-    "R": "./OriginalTileImages/R5.png",
-    "S": "./OriginalTileImages/S5.png",
-    "T": "./OriginalTileImages/T5.png",
-    "U": "./OriginalTileImages/U5.png",
-    "V": "./OriginalTileImages/V5.png",
-    "W": "./OriginalTileImages/W5.png",
-    "X": "./OriginalTileImages/X5.png",
-    "Y": "./OriginalTileImages/Y5.png",
-    "Z": "./OriginalTileImages/Z5.png"
-  },
-  "6": {
-    "A": "./OriginalTileImages/A6.png",
-    "B": "./OriginalTileImages/B6.png",
-    "C": "./OriginalTileImages/C6.png",
-    "D": "./OriginalTileImages/D6.png",
-    "E": "./OriginalTileImages/E6.png",
-    "F": "./OriginalTileImages/F6.png",
-    "G": "./OriginalTileImages/G6.png",
-    "H": "./OriginalTileImages/H6.png",
-    "I": "./OriginalTileImages/I6.png",
-    "J": "./OriginalTileImages/J6.png",
-    "K": "./OriginalTileImages/K6.png",
-    "L": "./OriginalTileImages/L6.png",
-    "M": "./OriginalTileImages/M6.png",
-    "N": "./OriginalTileImages/N6.png",
-    "O": "./OriginalTileImages/O6.png",
-    "P": "./OriginalTileImages/P6.png",
-    "Q": "./OriginalTileImages/Q6.png",
-    "R": "./OriginalTileImages/R6.png",
-    "S": "./OriginalTileImages/S6.png",
-    "T": "./OriginalTileImages/T6.png",
-    "U": "./OriginalTileImages/U6.png",
-    "V": "./OriginalTileImages/V6.png",
-    "W": "./OriginalTileImages/W6.png",
-    "X": "./OriginalTileImages/X6.png",
-    "Y": "./OriginalTileImages/Y6.png",
-    "Z": "./OriginalTileImages/Z6.png"
-  },
-  "7": {
-    "A": "./OriginalTileImages/A7.png",
-    "B": "./OriginalTileImages/B7.png",
-    "C": "./OriginalTileImages/C7.png",
-    "D": "./OriginalTileImages/D7.png",
-    "E": "./OriginalTileImages/E7.png",
-    "F": "./OriginalTileImages/F7.png",
-    "G": "./OriginalTileImages/G7.png",
-    "H": "./OriginalTileImages/H7.png",
-    "I": "./OriginalTileImages/I7.png",
-    "J": "./OriginalTileImages/J7.png",
-    "K": "./OriginalTileImages/K7.png",
-    "L": "./OriginalTileImages/L7.png",
-    "M": "./OriginalTileImages/M7.png",
-    "N": "./OriginalTileImages/N7.png",
-    "O": "./OriginalTileImages/O7.png",
-    "P": "./OriginalTileImages/P7.png",
-    "Q": "./OriginalTileImages/Q7.png",
-    "R": "./OriginalTileImages/R7.png",
-    "S": "./OriginalTileImages/S7.png",
-    "T": "./OriginalTileImages/T7.png",
-    "U": "./OriginalTileImages/U7.png",
-    "V": "./OriginalTileImages/V7.png",
-    "W": "./OriginalTileImages/W7.png",
-    "X": "./OriginalTileImages/X7.png",
-    "Y": "./OriginalTileImages/Y7.png",
-    "Z": "./OriginalTileImages/Z7.png"
-  },
-  "8": {
-    "A": "./OriginalTileImages/A8.png",
-    "B": "./OriginalTileImages/B8.png",
-    "C": "./OriginalTileImages/C8.png",
-    "D": "./OriginalTileImages/D8.png",
-    "E": "./OriginalTileImages/E8.png",
-    "F": "./OriginalTileImages/F8.png",
-    "G": "./OriginalTileImages/G8.png",
-    "H": "./OriginalTileImages/H8.png",
-    "I": "./OriginalTileImages/I8.png",
-    "J": "./OriginalTileImages/J8.png",
-    "K": "./OriginalTileImages/K8.png",
-    "L": "./OriginalTileImages/L8.png",
-    "M": "./OriginalTileImages/M8.png",
-    "N": "./OriginalTileImages/N8.png",
-    "O": "./OriginalTileImages/O8.png",
-    "P": "./OriginalTileImages/P8.png",
-    "Q": "./OriginalTileImages/Q8.png",
-    "R": "./OriginalTileImages/R8.png",
-    "S": "./OriginalTileImages/S8.png",
-    "T": "./OriginalTileImages/T8.png",
-    "U": "./OriginalTileImages/U8.png",
-    "V": "./OriginalTileImages/V8.png",
-    "W": "./OriginalTileImages/W8.png",
-    "X": "./OriginalTileImages/X8.png",
-    "Y": "./OriginalTileImages/Y8.png",
-    "Z": "./OriginalTileImages/Z8.png"
-  },
-  "9": {
-    "A": "./OriginalTileImages/A9.png",
-    "B": "./OriginalTileImages/B9.png",
-    "C": "./OriginalTileImages/C9.png",
-    "D": "./OriginalTileImages/D9.png",
-    "E": "./OriginalTileImages/E9.png",
-    "F": "./OriginalTileImages/F9.png",
-    "G": "./OriginalTileImages/G9.png",
-    "H": "./OriginalTileImages/H9.png",
-    "I": "./OriginalTileImages/I9.png",
-    "J": "./OriginalTileImages/J9.png",
-    "K": "./OriginalTileImages/K9.png",
-    "L": "./OriginalTileImages/L9.png",
-    "M": "./OriginalTileImages/M9.png",
-    "N": "./OriginalTileImages/N9.png",
-    "O": "./OriginalTileImages/O9.png",
-    "P": "./OriginalTileImages/P9.png",
-    "Q": "./OriginalTileImages/Q9.png",
-    "R": "./OriginalTileImages/R9.png",
-    "S": "./OriginalTileImages/S9.png",
-    "T": "./OriginalTileImages/T9.png",
-    "U": "./OriginalTileImages/U9.png",
-    "V": "./OriginalTileImages/V9.png",
-    "W": "./OriginalTileImages/W9.png",
-    "X": "./OriginalTileImages/X9.png",
-    "Y": "./OriginalTileImages/Y9.png",
-    "Z": "./OriginalTileImages/Z9.png"
-  },
-  "10": {
-    "A": "./OriginalTileImages/A10.png",
-    "B": "./OriginalTileImages/B10.png",
-    "C": "./OriginalTileImages/C10.png",
-    "D": "./OriginalTileImages/D10.png",
-    "E": "./OriginalTileImages/E10.png",
-    "F": "./OriginalTileImages/F10.png",
-    "G": "./OriginalTileImages/G10.png",
-    "H": "./OriginalTileImages/H10.png",
-    "I": "./OriginalTileImages/I10.png",
-    "J": "./OriginalTileImages/J10.png",
-    "K": "./OriginalTileImages/K10.png",
-    "L": "./OriginalTileImages/L10.png",
-    "M": "./OriginalTileImages/M10.png",
-    "N": "./OriginalTileImages/N10.png",
-    "O": "./OriginalTileImages/O10.png",
-    "P": "./OriginalTileImages/P10.png",
-    "Q": "./OriginalTileImages/Q10.png",
-    "R": "./OriginalTileImages/R10.png",
-    "S": "./OriginalTileImages/S10.png",
-    "T": "./OriginalTileImages/T10.png",
-    "U": "./OriginalTileImages/U10.png",
-    "V": "./OriginalTileImages/V10.png",
-    "W": "./OriginalTileImages/W10.png",
-    "X": "./OriginalTileImages/X10.png",
-    "Y": "./OriginalTileImages/Y10.png",
-    "Z": "./OriginalTileImages/Z10.png"
-  },
-  "11": {
-    "A": "./OriginalTileImages/A11.png",
-    "B": "./OriginalTileImages/B11.png",
-    "C": "./OriginalTileImages/C11.png",
-    "D": "./OriginalTileImages/D11.png",
-    "E": "./OriginalTileImages/E11.png",
-    "F": "./OriginalTileImages/F11.png",
-    "G": "./OriginalTileImages/G11.png",
-    "H": "./OriginalTileImages/H11.png",
-    "I": "./OriginalTileImages/I11.png",
-    "J": "./OriginalTileImages/J11.png",
-    "K": "./OriginalTileImages/K11.png",
-    "L": "./OriginalTileImages/L11.png",
-    "M": "./OriginalTileImages/M11.png",
-    "N": "./OriginalTileImages/N11.png",
-    "O": "./OriginalTileImages/O11.png",
-    "P": "./OriginalTileImages/P11.png",
-    "Q": "./OriginalTileImages/Q11.png",
-    "R": "./OriginalTileImages/R11.png",
-    "S": "./OriginalTileImages/S11.png",
-    "T": "./OriginalTileImages/T11.png",
-    "U": "./OriginalTileImages/U11.png",
-    "V": "./OriginalTileImages/V11.png",
-    "W": "./OriginalTileImages/W11.png",
-    "X": "./OriginalTileImages/X11.png",
-    "Y": "./OriginalTileImages/Y11.png",
-    "Z": "./OriginalTileImages/Z11.png"
-  },
-  "12": {
-    "A": "./OriginalTileImages/A12.png",
-    "B": "./OriginalTileImages/B12.png",
-    "C": "./OriginalTileImages/C12.png",
-    "D": "./OriginalTileImages/D12.png",
-    "E": "./OriginalTileImages/E12.png",
-    "F": "./OriginalTileImages/F12.png",
-    "G": "./OriginalTileImages/G12.png",
-    "H": "./OriginalTileImages/H12.png",
-    "I": "./OriginalTileImages/I12.png",
-    "J": "./OriginalTileImages/J12.png",
-    "K": "./OriginalTileImages/K12.png",
-    "L": "./OriginalTileImages/L12.png",
-    "M": "./OriginalTileImages/M12.png",
-    "N": "./OriginalTileImages/N12.png",
-    "O": "./OriginalTileImages/O12.png",
-    "P": "./OriginalTileImages/P12.png",
-    "Q": "./OriginalTileImages/Q12.png",
-    "R": "./OriginalTileImages/R12.png",
-    "S": "./OriginalTileImages/S12.png",
-    "T": "./OriginalTileImages/T12.png",
-    "U": "./OriginalTileImages/U12.png",
-    "V": "./OriginalTileImages/V12.png",
-    "W": "./OriginalTileImages/W12.png",
-    "X": "./OriginalTileImages/X12.png",
-    "Y": "./OriginalTileImages/Y12.png",
-    "Z": "./OriginalTileImages/Z12.png"
-  }
-};
-  window.ACTIVE_GS_SKIN_ID = localStorage.getItem('GS_ACTIVE_TILE_SKIN') || "0";
-  if (!window.ORIGINAL_TILE_SKINS[window.ACTIVE_GS_SKIN_ID]) {
-    window.ACTIVE_GS_SKIN_ID = "0";
-  }
-  window.ORIGINAL_TILE_IMAGES_MAP = window.ORIGINAL_TILE_SKINS[window.ACTIVE_GS_SKIN_ID];
-
-  // Resolve exact ./OriginalTileImages/<LETTER><SKIN_ID>.png path for any letter A-Z
-  window.getOriginalTileImageUrl = function(letterOrInput, optionalSkinId) {
-    var skinId = (optionalSkinId !== undefined && optionalSkinId !== null)
-      ? String(optionalSkinId)
-      : String(window.ACTIVE_GS_SKIN_ID);
-    var skinMap = window.ORIGINAL_TILE_SKINS[skinId] || window.ORIGINAL_TILE_IMAGES_MAP;
-
-    if (!letterOrInput && letterOrInput !== 0) return skinMap['A'];
-    var str = String(letterOrInput).trim().toUpperCase();
-
-    // Direct single letter A-Z
-    if (str.length === 1 && str >= 'A' && str <= 'Z') {
-      return skinMap[str] || ("./OriginalTileImages/" + str + skinId + ".png");
-    }
-    // If <LETTER><SKIN> passed directly (e.g. "V9" or "P12")
-    var exactCode = str.match(/^([A-Z])(\d{1,2})$/);
-    if (exactCode) {
-      var l = exactCode[1];
-      var s = exactCode[2];
-      if (window.ORIGINAL_TILE_SKINS[s] && window.ORIGINAL_TILE_SKINS[s][l]) {
-        return window.ORIGINAL_TILE_SKINS[s][l];
-      }
-      return "./OriginalTileImages/" + l + s + ".png";
-    }
-    // Extract first A-Z letter
-    var match = str.match(/[A-Z]/);
-    if (match) {
-      return skinMap[match[0]] || ("./OriginalTileImages/" + match[0] + skinId + ".png");
-    }
-    return skinMap['A'];
-  };
-  window.getGameSaladRootTileUrl = window.getOriginalTileImageUrl;
-
-  // 2. Preload images for the active skin (and lazy-preload other skins on switch)
-  window._gsPreloadedImages = {};
-  window._originalTileTextureCache = {};
-  window._gsTrackedTileCanvases = [];
-
-  window.preloadGameSaladSkin = function(skinId) {
-    var sId = String(skinId);
-    var skinMap = window.ORIGINAL_TILE_SKINS[sId];
-    if (!skinMap) return;
-    if (!window._gsPreloadedImages[sId]) window._gsPreloadedImages[sId] = {};
-
-    Object.keys(skinMap).forEach(function(letter) {
-      if (window._gsPreloadedImages[sId][letter]) return;
-      var url = skinMap[letter];
-      var img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = url;
-      window._gsPreloadedImages[sId][letter] = img;
-    });
-  };
-
-  window.preloadGameSaladSkin(window.ACTIVE_GS_SKIN_ID);
-
-  // Helper to paint a hand-drawn 2D tile image onto any 3D tile's offscreen <canvas>
-  function paintHandDrawnTileToCanvas(canvas, letter) {
-    if (!canvas || !letter) return;
-    var sId = String(window.ACTIVE_GS_SKIN_ID);
-    window.preloadGameSaladSkin(sId);
-    var skinImgs = window._gsPreloadedImages[sId] || {};
-    var gsImg = skinImgs[letter];
-    var ctx = canvas.getContext && canvas.getContext('2d');
-    if (!ctx || !gsImg) return;
-
-    var drawNow = function() {
-      try {
-        ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(gsImg, 0, 0, canvas.width, canvas.height);
-        ctx.restore();
-        if (canvas.__gsThreeTexture) {
-          canvas.__gsThreeTexture.needsUpdate = true;
-        }
-      } catch (e) {}
-    };
-
-    if (gsImg.complete && gsImg.naturalWidth > 0) {
-      drawNow();
-    } else {
-      gsImg.addEventListener('load', drawNow, { once: true });
-    }
-  }
-
-  // Switch active hand-drawn skin (0..12) at runtime and repaint all live 3D board & rack tiles!
-  window.setGameSaladTileSkin = function(newSkinId) {
-    var numMatch = String(newSkinId).match(/\d+/);
-    var resolvedId = numMatch ? String(numMatch[0]) : String(newSkinId);
-    if (!window.ORIGINAL_TILE_SKINS[resolvedId]) {
-      // Map index 0..12 if a skin name was passed
-      resolvedId = "0";
-    }
-    window.ACTIVE_GS_SKIN_ID = resolvedId;
-    window.ORIGINAL_TILE_IMAGES_MAP = window.ORIGINAL_TILE_SKINS[resolvedId];
-    try { localStorage.setItem('GS_ACTIVE_TILE_SKIN', resolvedId); } catch (e) {}
-    window.preloadGameSaladSkin(resolvedId);
-
-    // Repaint all tracked 3D tile canvases immediately
-    window._gsTrackedTileCanvases.forEach(function(c) {
-      if (c && c.__gsTileLetter) {
-        paintHandDrawnTileToCanvas(c, c.__gsTileLetter);
-      }
-    });
-  };
-
-  // 3. Load Three.js Texture directly from ./OriginalTileImages/<LETTER><SKIN_ID>.png
-  window.loadOriginalTileTexture = function(letterOrNumber) {
-    var url = window.getOriginalTileImageUrl(letterOrNumber);
-    if (window._originalTileTextureCache[url]) {
-      return window._originalTileTextureCache[url];
-    }
-    if (typeof THREE !== 'undefined' && THREE.TextureLoader) {
-      var loader = new THREE.TextureLoader();
-      loader.setCrossOrigin('anonymous');
-      var tex = loader.load(url);
-      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-      else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
-      tex.needsUpdate = true;
-      window._originalTileTextureCache[url] = tex;
-      return tex;
-    }
-    return null;
-  };
-  window.loadGameSaladTileTexture = window.loadOriginalTileTexture;
-
-  // 4. INTERCEPT 2D CANVAS LETTER DRAWING ON 3D TILES
-  // When 3d.html draws a single letter ('T','E','N','N','I','S') onto a tile's offscreen <canvas>,
-  // we tag the canvas with that exact letter (A-Z) and paint './OriginalTileImages/<LETTER><SKIN_ID>.png'!
-  var origFillText = CanvasRenderingContext2D.prototype.fillText;
-  CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
-    var str = String(text || '').trim();
-    if (/^[A-Za-z]$/.test(str) && this.canvas && this.canvas.width >= 32 && this.canvas.width <= 1024) {
-      var letter = str.toUpperCase();
-      this.canvas.__gsTileLetter = letter;
-      if (window._gsTrackedTileCanvases.indexOf(this.canvas) === -1) {
-        window._gsTrackedTileCanvases.push(this.canvas);
-      }
-      paintHandDrawnTileToCanvas(this.canvas, letter);
-      return; // Do NOT draw the ugly procedural letter!
-    }
-    // Suppress subscript point numbers (1, 2, 3, 4, 8, 10) on canvases already tagged with a hand-drawn letter
-    if (/^\d{1,2}$/.test(str) && this.canvas && this.canvas.__gsTileLetter) {
-      paintHandDrawnTileToCanvas(this.canvas, this.canvas.__gsTileLetter);
-      return;
-    }
-    return origFillText.apply(this, arguments);
-  };
-
-  // Also intercept strokeText on tile canvases so no outlines appear over hand-drawn tiles
-  var origStrokeText = CanvasRenderingContext2D.prototype.strokeText;
-  CanvasRenderingContext2D.prototype.strokeText = function(text, x, y, maxWidth) {
-    var str = String(text || '').trim();
-    if ((/^[A-Za-z]$/.test(str) || /^\d{1,2}$/.test(str)) && this.canvas && this.canvas.__gsTileLetter) {
-      return;
-    }
-    return origStrokeText.apply(this, arguments);
-  };
-
-  // 5. HOOK THREE.CanvasTexture SO EVERY 3D TILE TEXTURE USES sRGB AND AUTO-UPDATES WHEN THE PNG LOADS
-  function installThreeCanvasTextureHook() {
-    if (typeof THREE === 'undefined' || !THREE.CanvasTexture || THREE.CanvasTexture.__gsHooked) return;
-    var OrigCanvasTexture = THREE.CanvasTexture;
-    function PatchedCanvasTexture(canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy) {
-      var tex = new OrigCanvasTexture(canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy);
-      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-      else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
-
-      if (canvas) {
-        canvas.__gsThreeTexture = tex;
-        if (canvas.__gsTileLetter) {
-          paintHandDrawnTileToCanvas(canvas, canvas.__gsTileLetter);
-        }
-      }
-      return tex;
-    }
-    PatchedCanvasTexture.prototype = OrigCanvasTexture.prototype;
-    Object.setPrototypeOf(PatchedCanvasTexture, OrigCanvasTexture);
-    PatchedCanvasTexture.__gsHooked = true;
-    THREE.CanvasTexture = PatchedCanvasTexture;
-  }
-
-  // 6. HOOK IN-GAME SETTINGS "LETTER TILE SKIN" SELECTOR OR ADD SKIN SWITCHER (0..12)
-  function syncInGameSkinSelector() {
-    var selects = document.querySelectorAll('select');
-    selects.forEach(function(sel) {
-      if (sel.__gsSkinBound) return;
-      var idOrName = ((sel.id || '') + ' ' + (sel.className || '') + ' ' + (sel.previousElementSibling ? sel.previousElementSibling.textContent : '')).toLowerCase();
-      if (idOrName.indexOf('skin') !== -1 || idOrName.indexOf('tile') !== -1 || idOrName.indexOf('theme') !== -1) {
-        sel.__gsSkinBound = true;
-        // Populate with Hand-Drawn Skins 0..12
-        sel.innerHTML = '';
-        var skinLabels = {"0":"Skin 0 — Classic Yellow (A0..Z0)","1":"Skin 1 — GameSalad Set 1 (A1..Z1)","2":"Skin 2 — GameSalad Set 2 (A2..Z2)","3":"Skin 3 — Royal Blue / Purple (A3..Z3)","4":"Skin 4 — GameSalad Set 4 (A4..Z4)","5":"Skin 5 — Mint Green (A5..Z5)","6":"Skin 6 — GameSalad Set 6 (A6..Z6)","7":"Skin 7 — Carved Stone (A7..Z7)","8":"Skin 8 — Charcoal Gold (A8..Z8)","9":"Skin 9 — Framed Teal (A9..Z9)","10":"Skin 10 — Light Wood Grain (A10..Z10)","11":"Skin 11 — Dark Espresso Wood (A11..Z11)","12":"Skin 12 — Illustrated Character Tiles (A12..Z12)"};
-        Object.keys(window.ORIGINAL_TILE_SKINS).forEach(function(sId) {
-          var opt = document.createElement('option');
-          opt.value = sId;
-          opt.textContent = skinLabels[sId] || ('Hand-Drawn Skin ' + sId + ' (A' + sId + '..Z' + sId + ')');
-          if (String(sId) === String(window.ACTIVE_GS_SKIN_ID)) opt.selected = true;
-          sel.appendChild(opt);
-        });
-        sel.addEventListener('change', function(e) {
-          window.setGameSaladTileSkin(e.target.value);
-        });
-      }
-    });
-  }
-
-  installThreeCanvasTextureHook();
-  window.addEventListener('DOMContentLoaded', function() {
-    installThreeCanvasTextureHook();
-    syncInGameSkinSelector();
-  });
-  setInterval(function() {
-    installThreeCanvasTextureHook();
-    syncInGameSkinSelector();
-  }, 300);
-})();
-</script>
-
-
-<meta charset="utf-8">
+	<meta charset="utf-8">
 	<meta name="viewport"
 		content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 	<title>Scruffle 3D Chain</title>
-	<link rel="stylesheet" href="css/word-chain-3d.css">
+	<link rel="icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
+	<link rel="shortcut icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
+	<link rel="stylesheet" href="css/word-chain-3d.css?v=3.8">
 	<style>
-		/* 1. Minimized Homepage Speedometer Badge */
-		.title-speed-rank-card.compact-speed-card {
-			padding: 8px 14px;
-			margin: 8px auto 10px;
-			max-width: 340px;
-			border-radius: 999px;
+		/* Title Screen: Semi-transparent background with sleek blur */
+		#title-screen {
+			background: radial-gradient(circle at 50% 38%, rgba(16, 12, 26, 0.45) 0%, rgba(8, 6, 14, 0.88) 100%) !important;
+			backdrop-filter: blur(8px) !important;
+			-webkit-backdrop-filter: blur(8px) !important;
+		}
+
+		/* Top Branding Section & Pure White SCRUFFLE Mark */
+		.title-brand-group {
 			display: flex;
+			flex-direction: column;
 			align-items: center;
-			justify-content: space-between;
-			gap: 10px;
-			background: rgba(18, 14, 28, 0.78);
-			border: 1px solid rgba(255, 215, 0, 0.3);
-			box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-		}
-
-		.compact-speed-left {
-			display: flex;
-			align-items: center;
-			gap: 6px;
-			font-weight: 800;
-			font-size: 0.78rem;
-			color: #ffd700;
-			white-space: nowrap;
-		}
-
-		.compact-speed-stats {
-			display: flex;
-			align-items: center;
-			gap: 10px;
-			font-size: 0.74rem;
-			color: #e5e0f0;
-		}
-
-		.compact-speed-stats strong {
-			color: #00e5ff;
-			font-weight: 800;
-		}
-
-		/* 2. Homepage Level Select Widget */
-		.title-level-select {
-			margin: 8px auto 14px;
-			padding: 10px 14px;
-			max-width: 340px;
-			background: rgba(18, 14, 28, 0.75);
-			border: 1px solid rgba(255, 255, 255, 0.16);
-			border-radius: 16px;
-			backdrop-filter: blur(8px);
-		}
-
-		.title-level-header {
-			font-size: 0.7rem;
-			letter-spacing: 0.08em;
-			text-transform: uppercase;
-			color: rgba(255, 255, 255, 0.7);
-			margin-bottom: 6px;
-			font-weight: 700;
-		}
-
-		.title-level-controls {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
+			width: 100%;
 			gap: 8px;
 		}
 
-		.title-lvl-btn {
-			background: rgba(255, 255, 255, 0.12);
-			border: 1px solid rgba(255, 255, 255, 0.2);
-			color: #fff;
-			width: 36px;
-			height: 36px;
-			border-radius: 10px;
-			font-weight: 800;
+		.title-top-mark {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			margin: 0;
+			padding: 0;
+		}
+
+		.scruffle-mark-img {
+			width: 112px;
+			height: auto;
+			object-fit: contain;
+			display: block;
+			filter: brightness(0) invert(1) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8));
+			opacity: 0.96;
+		}
+
+		/* Word Chain Title Board with 2 Distinct Letter Trays (Front & Center!) */
+		.title-game-board {
+			background: transparent !important;
+			border: none !important;
+			box-shadow: none !important;
+			padding: 0 !important;
+			margin: 0 !important;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 8px;
 			cursor: pointer;
-			transition: transform 0.12s ease, background 0.15s ease;
+			user-select: none;
+			width: 100%;
 		}
 
-		.title-lvl-btn:active {
-			transform: scale(0.92);
+		.title-letter-tray {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.75));
+			transition: transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 		}
 
-		.title-lvl-Readout {
+		.title-letter-tray:hover {
+			transform: translateY(-2px);
+		}
+
+		.title-tray-rack {
+			position: relative;
+			background: linear-gradient(180deg, #3d2516 0%, #29170c 60%, #1a0e06 100%);
+			border: 1.5px solid rgba(190, 120, 60, 0.5);
+			border-bottom: none;
+			border-radius: 12px 12px 0 0;
+			padding: 8px 12px 0 12px;
+			box-shadow:
+				inset 0 1px 1px rgba(255, 220, 140, 0.4),
+				inset 0 -2px 4px rgba(0, 0, 0, 0.5);
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 		}
 
-		.title-lvl-num-text {
-			font-size: 1.05rem;
-			font-weight: 800;
-			color: #fff;
+		.title-tray-lip {
+			width: calc(100% + 8px);
+			height: 8px;
+			margin-left: -4px;
+			margin-right: -4px;
+			background: linear-gradient(180deg, #5c3820 0%, #3e2414 50%, #211208 100%);
+			border-radius: 0 0 6px 6px;
+			border-top: 1px solid rgba(255, 230, 160, 0.4);
+			box-shadow:
+				0 4px 10px rgba(0, 0, 0, 0.65),
+				inset 0 1px 0 rgba(255, 255, 255, 0.15);
+			z-index: 2;
 		}
 
-		.title-lvl-best {
-			font-size: 0.72rem;
-			color: #ffd700;
+		.title-tile-row {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 5px;
+			z-index: 1;
 		}
 
-		/* 3. Fix Floating SVG Speedometer Needle */
-		.speedo-svg {
+		.title-tile-box {
+			width: 52px;
+			height: 52px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 8px;
 			overflow: visible;
-			display: block;
+			background: transparent !important;
+			box-shadow: none !important;
+			transition: transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+			will-change: transform;
 		}
 
-		#speedo-needle {
-			transform-box: view-box !important;
-			transform-origin: 50px 50px !important;
-			transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+		.title-tile-img {
+			width: 100%;
+			height: 100%;
+			object-fit: contain !important;
+			display: block;
+			pointer-events: none;
+			filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.55));
+		}
+
+		/* Pure vertical word jump animation ("WORD ... short pause ... CHAIN!") */
+		/* ZERO cartoon squeeze or scaling */
+		.title-row-top .title-tile-box:nth-child(1) { animation: tray1JumpW 2.8s infinite; }
+		.title-row-top .title-tile-box:nth-child(2) { animation: tray1JumpO 2.8s infinite; }
+		.title-row-top .title-tile-box:nth-child(3) { animation: tray1JumpR 2.8s infinite; }
+		.title-row-top .title-tile-box:nth-child(4) { animation: tray1JumpD 2.8s infinite; }
+
+		.title-row-bottom .title-tile-box:nth-child(1) { animation: tray2JumpC 2.8s infinite; }
+		.title-row-bottom .title-tile-box:nth-child(2) { animation: tray2JumpH 2.8s infinite; }
+		.title-row-bottom .title-tile-box:nth-child(3) { animation: tray2JumpA 2.8s infinite; }
+		.title-row-bottom .title-tile-box:nth-child(4) { animation: tray2JumpI 2.8s infinite; }
+		.title-row-bottom .title-tile-box:nth-child(5) { animation: tray2JumpN 2.8s infinite; }
+
+		@keyframes tray1JumpW {
+			0% { transform: translateY(0); }
+			6.5% { transform: translateY(-14px); }
+			13%, 100% { transform: translateY(0); }
+		}
+		@keyframes tray1JumpO {
+			0% { transform: translateY(0); }
+			6.5% { transform: translateY(-20px); }
+			13%, 100% { transform: translateY(0); }
+		}
+		@keyframes tray1JumpR {
+			0% { transform: translateY(0); }
+			6.5% { transform: translateY(-12px); }
+			13%, 100% { transform: translateY(0); }
+		}
+		@keyframes tray1JumpD {
+			0% { transform: translateY(0); }
+			6.5% { transform: translateY(-18px); }
+			13%, 100% { transform: translateY(0); }
+		}
+
+		@keyframes tray2JumpC {
+			0%, 28% { transform: translateY(0); }
+			34.5% { transform: translateY(-12px); }
+			41%, 100% { transform: translateY(0); }
+		}
+		@keyframes tray2JumpH {
+			0%, 28% { transform: translateY(0); }
+			34.5% { transform: translateY(-20px); }
+			41%, 100% { transform: translateY(0); }
+		}
+		@keyframes tray2JumpA {
+			0%, 28% { transform: translateY(0); }
+			34.5% { transform: translateY(-16px); }
+			41%, 100% { transform: translateY(0); }
+		}
+		@keyframes tray2JumpI {
+			0%, 28% { transform: translateY(0); }
+			34.5% { transform: translateY(-22px); }
+			41%, 100% { transform: translateY(0); }
+		}
+		@keyframes tray2JumpN {
+			0%, 28% { transform: translateY(0); }
+			34.5% { transform: translateY(-14px); }
+			41%, 100% { transform: translateY(0); }
+		}
+
+		.title-tile-box.hop {
+			animation: titleTileHop 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) !important;
+		}
+
+		@keyframes titleTileHop {
+			0% { transform: translateY(0); }
+			45% { transform: translateY(-16px); }
+			100% { transform: translateY(0); }
+		}
+
+		.title-style-tag {
+			display: inline-flex;
+			align-items: center;
+			gap: 5px;
+			background: rgba(22, 16, 28, 0.75);
+			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
+			border: 1px solid rgba(245, 158, 11, 0.35);
+			padding: 3px 10px;
+			border-radius: 999px;
+			font-size: 10px;
+			font-weight: 800;
+			letter-spacing: 1px;
+			color: #fbbf24;
+			text-transform: uppercase;
+			margin-top: 2px;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+			user-select: none;
+			pointer-events: none;
 		}
 
 		/* 4. Top Speedometer End-of-Round Highlight (Replaces Floating Win Card) */
@@ -724,12 +232,228 @@
 		#hud-speedometer {
 			position: relative;
 			transition: transform 0.3s ease, box-shadow 0.3s ease;
+			background: #252429;
+			border: 1.5px solid rgba(0, 229, 255, 0.45);
+			border-radius: 16px;
+			padding: 4px 10px 5px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			overflow: hidden;
+			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12);
 		}
 
 		#hud-speedometer.win-highlight {
 			transform: scale(1.08);
 			box-shadow: 0 0 22px rgba(255, 215, 0, 0.75), 0 0 40px rgba(0, 229, 255, 0.45);
 			border-radius: 16px;
+		}
+
+		.speedo-dial {
+			position: relative;
+			width: 84px;
+			height: 46px;
+			display: flex;
+			justify-content: center;
+			overflow: hidden;
+		}
+
+		.speedo-svg {
+			width: 100%;
+			height: 100%;
+			overflow: hidden;
+			display: block;
+		}
+
+		.speedo-fill {
+			transition: stroke-dashoffset 0.08s linear;
+		}
+
+		#speedo-needle-group {
+			transform-origin: 50px 50px;
+			transition: transform 0.08s ease-out;
+		}
+
+		.speedo-center-readout {
+			position: absolute;
+			bottom: 3px;
+			left: 50%;
+			transform: translateX(-50%);
+			display: flex;
+			align-items: baseline;
+			gap: 2px;
+			pointer-events: none;
+			z-index: 8;
+			white-space: nowrap;
+		}
+
+		.speedo-number {
+			font-size: 15px;
+			font-weight: 900;
+			color: #ffffff;
+			line-height: 1;
+			font-variant-numeric: tabular-nums;
+			text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
+		}
+
+		.speedo-unit {
+			font-size: 8px;
+			font-weight: 800;
+			color: #ffd700;
+			letter-spacing: 0.5px;
+		}
+
+		.speedo-sub-badge {
+			font-size: 8px;
+			font-weight: 900;
+			letter-spacing: 1px;
+			color: #00e5ff;
+			text-transform: uppercase;
+			margin-top: 2px;
+			text-shadow: 0 0 6px currentColor;
+			z-index: 8;
+			height: 12px;
+			line-height: 12px;
+		}
+
+		/* Bottom HUD Action Controls (Simplistic Title-Screen Style) */
+		#hud-bottom {
+			position: absolute;
+			bottom: 16px;
+			bottom: max(16px, env(safe-area-inset-bottom));
+			left: 50%;
+			transform: translateX(-50%);
+			width: 100%;
+			max-width: 400px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			gap: 10px;
+			padding: 0 14px;
+			padding-left: max(14px, env(safe-area-inset-left));
+			padding-right: max(14px, env(safe-area-inset-right));
+			z-index: 10;
+			pointer-events: none;
+			user-select: none;
+			box-sizing: border-box;
+		}
+
+		.hud-action-btn {
+			pointer-events: auto;
+			height: 48px;
+			flex: 1;
+			max-width: 120px;
+			background: #252429;
+			border: 1.5px solid rgba(255, 255, 255, 0.14);
+			border-bottom: 3.5px solid #141318;
+			border-radius: 16px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 6px;
+			padding: 0 10px;
+			cursor: pointer;
+			outline: none;
+			-webkit-tap-highlight-color: transparent;
+			color: #ffffff;
+			font-family: inherit;
+			box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+			transition: all 0.15s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+			box-sizing: border-box;
+		}
+
+		.hud-action-btn:hover {
+			transform: translateY(-2px);
+			border-color: rgba(255, 255, 255, 0.32);
+			background: #2e2c34;
+			box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+		}
+
+		.hud-action-btn:active {
+			transform: translateY(2px);
+			border-bottom-width: 1.5px;
+		}
+
+		.hud-btn-svg {
+			width: 17px;
+			height: 17px;
+			flex-shrink: 0;
+			stroke: #ffffff;
+			transition: transform 0.15s ease;
+		}
+
+		.hud-action-btn:hover .hud-btn-svg {
+			transform: scale(1.1);
+		}
+
+		.hud-btn-label {
+			font-size: 11px;
+			font-weight: 800;
+			letter-spacing: 0.8px;
+			text-transform: uppercase;
+			color: #ffffff;
+			white-space: nowrap;
+		}
+
+		.hud-action-btn.btn-hint {
+			border-color: rgba(245, 158, 11, 0.45);
+			background: #28242a;
+		}
+
+		.hud-action-btn.btn-hint .hud-btn-svg {
+			stroke: #fbbf24;
+		}
+
+		.hud-action-btn.btn-hint .hud-btn-label {
+			color: #fbbf24;
+		}
+
+		.hud-key-badge {
+			background: rgba(245, 158, 11, 0.22);
+			border: 1px solid #f59e0b;
+			color: #ffd700;
+			font-size: 10px;
+			font-weight: 900;
+			padding: 1px 6px;
+			border-radius: 999px;
+			min-width: 18px;
+			text-align: center;
+			line-height: 1.2;
+		}
+
+		.hud-key-badge.empty {
+			background: rgba(239, 68, 68, 0.22);
+			border-color: #ef4444;
+			color: #f87171;
+		}
+
+		.btn-recharge-keys {
+			display: none;
+			pointer-events: auto;
+			height: 48px;
+			flex: 1;
+			max-width: 120px;
+			align-items: center;
+			justify-content: center;
+			gap: 5px;
+			background: #1b2e23;
+			border: 1.5px solid #10b981;
+			border-bottom: 3.5px solid #064e3b;
+			border-radius: 16px;
+			color: #34d399;
+			font-family: inherit;
+			font-size: 11px;
+			font-weight: 800;
+			letter-spacing: 0.8px;
+			cursor: pointer;
+			box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+			transition: all 0.15s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+			box-sizing: border-box;
+		}
+
+		.btn-recharge-keys.visible {
+			display: inline-flex;
 		}
 
 		.hud-win-speed-banner {
@@ -774,68 +498,6 @@
 			font-weight: 700;
 			cursor: pointer;
 		}
-
-		/* 5. Key Counter Badge & Ad Recharge Button */
-		#btn-hint {
-			position: relative;
-		}
-
-		.key-count-badge {
-			position: absolute;
-			top: -6px;
-			right: -6px;
-			background: linear-gradient(135deg, #ffd700, #ff9900);
-			color: #1a1025;
-			font-weight: 900;
-			font-size: 0.74rem;
-			min-width: 24px;
-			height: 22px;
-			padding: 0 6px;
-			border-radius: 999px;
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			border: 2px solid #120e1c;
-			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-			z-index: 5;
-		}
-
-		.key-count-badge.empty {
-			background: linear-gradient(135deg, #ff3b30, #c81e1e);
-			color: #fff;
-		}
-
-		.btn-recharge-keys {
-			display: none;
-			align-items: center;
-			gap: 5px;
-			background: linear-gradient(135deg, #00c853, #009624);
-			color: #fff;
-			border: 2px solid rgba(255, 255, 255, 0.85);
-			border-radius: 999px;
-			padding: 6px 12px;
-			font-size: 0.74rem;
-			font-weight: 800;
-			cursor: pointer;
-			box-shadow: 0 4px 12px rgba(0, 200, 83, 0.4);
-			animation: pulseRecharge 1.5s infinite;
-		}
-
-		.btn-recharge-keys.visible {
-			display: inline-flex;
-		}
-
-		@keyframes pulseRecharge {
-
-			0%,
-			100% {
-				transform: scale(1);
-			}
-
-			50% {
-				transform: scale(1.06);
-			}
-		}
 	</style>
 
 
@@ -845,55 +507,93 @@
 	<!-- 3D WebGL Canvas Container -->
 	<div id="canvas-container"></div>
 
-	<!-- Title Screen: SCRUFFLE 3D CHAIN -->
+	<!-- Title Screen: Minimalist Premium Design (Mockup Layout) -->
 	<script>
 		if (window.location.search && (window.location.search.includes('play=1') || window.location.search.includes('gift=1') || window.location.search.includes('ad=1') || window.location.search.includes('settings=1') || window.location.search.includes('trialend=1') || window.location.search.includes('speed=1'))) {
 			document.write('<style>#title-screen { display: none !important; }</style>');
 		}
 	</script>
 	<div id="title-screen">
-		<div class="title-backdrop"></div>
-		<div class="title-content">
-			<div class="title-ribbon">3D WORD LINKING</div>
-			<h1 class="title-heading">SCRUFFLE<br><span class="title-sub">3D CHAIN</span></h1>
-			<p class="title-tagline">Link the chains, reveal the words</p>
-
-			<!-- Minimized Overall Speed Ranking Pill -->
-			<div class="title-speed-rank-card compact-speed-card" id="title-speed-rank-card">
-				<div class="compact-speed-left" id="title-rank-badge">
-					<span>⚡</span>
-					<span id="title-rank-tier">RANK B</span>
-					<span id="title-rank-name" style="display:none;">SWIFT CHAINER</span>
+		<div class="title-screen-container">
+			<!-- Top Branding Section: SCRUFFLE Logo & 2 Separate Word Trays -->
+			<div class="title-brand-group">
+				<div class="title-top-mark">
+					<img src="OriginalTileImages/SCRUFFLEMark.png" alt="SCRUFFLE" class="scruffle-mark-img">
 				</div>
-				<div class="compact-speed-stats">
-					<span>AVG <strong id="title-rank-avg-wpm">--</strong></span>
-					<span>PEAK <strong id="title-rank-peak-wpm">--</strong></span>
-					<span>SOLVED <strong id="title-rank-levels">0/30</strong></span>
-				</div>
-			</div>
 
-			<!-- Homepage Level Select -->
-			<div class="title-level-select" id="title-level-select">
-				<div class="title-level-header">SELECT STARTING LEVEL</div>
-				<div class="title-level-controls">
-					<button type="button" class="title-lvl-btn" id="btn-home-prev-lvl"
-						aria-label="Previous Level">◀</button>
-					<div class="title-lvl-Readout">
-						<span class="title-lvl-num-text">LEVEL <span id="home-level-num">1</span></span>
-						<span class="title-lvl-best" id="home-level-record">⚡ Best: -- WPM</span>
+				<!-- Word Chain Title Board with 2 Distinct Letter Trays (Front & Center) -->
+				<div class="title-game-board" id="title-game-board" title="Word Chain: Tap to preview different tile styles!">
+					<!-- Letter Tray 1: WORD -->
+					<div class="title-letter-tray title-tray-top">
+						<div class="title-tray-rack">
+							<div class="title-tile-row title-row-top">
+								<div class="title-tile-box"><img src="OriginalTileImages/W4.png" alt="W" class="title-tile-img" data-letter="W"></div>
+								<div class="title-tile-box"><img src="OriginalTileImages/O4.png" alt="O" class="title-tile-img" data-letter="O"></div>
+								<div class="title-tile-box"><img src="OriginalTileImages/R4.png" alt="R" class="title-tile-img" data-letter="R"></div>
+								<div class="title-tile-box"><img src="OriginalTileImages/D4.png" alt="D" class="title-tile-img" data-letter="D"></div>
+							</div>
+							<div class="title-tray-lip"></div>
+						</div>
 					</div>
-					<button type="button" class="title-lvl-btn" id="btn-home-next-lvl"
-						aria-label="Next Level">▶</button>
+
+					<!-- Letter Tray 2: CHAIN -->
+					<div class="title-letter-tray title-tray-bottom">
+						<div class="title-tray-rack">
+							<div class="title-tile-row title-row-bottom">
+								<div class="title-tile-box"><img src="OriginalTileImages/C4.png" alt="C" class="title-tile-img" data-letter="C"></div>
+								<div class="title-tile-box"><img src="OriginalTileImages/H4.png" alt="H" class="title-tile-img" data-letter="H"></div>
+								<div class="title-tile-box"><img src="OriginalTileImages/A4.png" alt="A" class="title-tile-img" data-letter="A"></div>
+								<div class="title-tile-box"><img src="OriginalTileImages/I4.png" alt="I" class="title-tile-img" data-letter="I"></div>
+								<div class="title-tile-box"><img src="OriginalTileImages/N4.png" alt="N" class="title-tile-img" data-letter="N"></div>
+							</div>
+							<div class="title-tray-lip"></div>
+						</div>
+					</div>
+
+					<!-- Fancy Felt-Floored Tile Storage & Store Entrance -->
+					<div class="title-storage-btn" id="btn-title-storage-bar" title="Open Tile Storage & Store (12 Felt Cubbies)">
+						<div class="storage-btn-felt-window">
+							<img src="OriginalTileImages/A4.png" class="storage-mini-tile tile-a" id="title-preview-tile-a" alt="A">
+							<img src="OriginalTileImages/B4.png" class="storage-mini-tile tile-b" id="title-preview-tile-b" alt="B">
+							<img src="OriginalTileImages/C4.png" class="storage-mini-tile tile-c" id="title-preview-tile-c" alt="C">
+						</div>
+						<div class="storage-btn-meta">
+							<span class="storage-btn-title">🗄️ TILE STORAGE & STORE</span>
+							<span class="storage-btn-style-name" id="title-style-name">CLASSIC</span>
+						</div>
+						<span class="storage-btn-badge">SELECT ▶</span>
+					</div>
 				</div>
 			</div>
 
-			<div class="title-buttons">
-				<button class="title-btn-play" id="btn-title-play" title="Start Game">
-					<img src="game/default/images/Pink%20Button-01.png" alt="Play" class="play-icon-img">
-					<span class="play-text">PLAY</span>
+			<!-- Main Action Buttons -->
+			<div class="title-menu-buttons">
+				<button type="button" class="title-menu-btn btn-solo" id="btn-title-play" title="Play Solo Mode">
+					<span class="btn-play-triangle">▶</span>
+					<span>SOLO PLAY</span>
 				</button>
-				<button class="title-btn-gear" id="btn-title-settings" title="Settings">
-					<span>⚙️</span>
+
+				<button type="button" class="title-menu-btn btn-vs" id="btn-title-vs" title="VS Mode Challenge">
+					<div class="vs-avatar-badge">
+						<img src="OriginalTileImages/Character_1.png" alt="Player 1" class="vs-avatar-img">
+					</div>
+					<span class="vs-title-text">VS MODE</span>
+					<div class="vs-avatar-badge">
+						<img src="OriginalTileImages/Character_8.png" alt="Player 2" class="vs-avatar-img">
+					</div>
+				</button>
+			</div>
+
+			<!-- Bottom Footer Navigation: Settings, Tile Storage & Store, Trophy -->
+			<div class="title-footer-nav">
+				<button type="button" class="title-nav-btn btn-settings" id="btn-title-settings" aria-label="Settings & Audio" title="Settings">
+					<img src="OriginalTileImages/settings.png" alt="Settings" class="title-nav-icon">
+				</button>
+				<button type="button" class="title-nav-btn btn-storage" id="btn-title-storage-icon" aria-label="Tile Storage & Store" title="Tile Storage & Store">
+					<span class="title-nav-cubby-icon">🗄️</span>
+				</button>
+				<button type="button" class="title-nav-btn btn-trophy" id="btn-title-trophy" aria-label="Level Select & Records" title="Levels & Records">
+					<img src="OriginalTileImages/trophy.png" alt="Levels & Records" class="title-nav-icon">
 				</button>
 			</div>
 		</div>
@@ -902,35 +602,57 @@
 	<!-- In-Game Minimal Clean HUD Header with Live Speedometer -->
 	<header id="hud-header">
 		<div class="hud-top-bar">
-			<div class="hud-left-pill">
-				<span class="hud-level-badge">LVL <span id="hud-level-num">1</span></span>
+			<div class="hud-left-pill" title="Tap to open Level Select & Stars">
+				<span class="hud-level-badge">
+					<span class="hud-lvl-prefix">LVL <span id="hud-level-num">1</span></span>
+					<span class="hud-lvl-sep">•</span>
+					<span class="hud-level-name" id="hud-level-name">TENNIS</span>
+				</span>
 				<div class="chain-progress" id="chain-progress-dots"></div>
 			</div>
 
-			<!-- Live Solving Speedometer Gauge -->
-			<div class="hud-speedometer" id="hud-speedometer" title="Solving Speed (Words Per Minute)">
+			<!-- 3D Tactile Magical Solving Speedometer Gauge -->
+			<!-- Clean Minimalist Solving Speedometer Gauge (No Stray Lines, No Overlap) -->
+			<div class="hud-speedometer tier-cruise" id="hud-speedometer" title="Solving Speed (Words Per Minute)">
+				<div class="speedo-magical-aura" id="speedo-magical-aura"></div>
 				<div class="speedo-dial">
 					<svg class="speedo-svg" viewBox="0 0 100 56">
 						<defs>
 							<linearGradient id="speedoGrad" x1="0%" y1="0%" x2="100%" y2="0%">
 								<stop offset="0%" stop-color="#00e5ff" />
-								<stop offset="45%" stop-color="#ffd700" />
-								<stop offset="85%" stop-color="#ff3b30" />
-								<stop offset="100%" stop-color="#ff007f" />
+								<stop offset="30%" stop-color="#10b981" />
+								<stop offset="60%" stop-color="#fbbf24" />
+								<stop offset="85%" stop-color="#f97316" />
+								<stop offset="100%" stop-color="#ec4899" />
 							</linearGradient>
+							<filter id="gaugeGlow" x="-20%" y="-20%" width="140%" height="140%">
+								<feGaussianBlur stdDeviation="2" result="blur" />
+								<feMerge>
+									<feMergeNode in="blur" />
+									<feMergeNode in="SourceGraphic" />
+								</feMerge>
+							</filter>
 						</defs>
 						<!-- Gauge background track -->
-						<path class="speedo-track" d="M 14 50 A 38 38 0 0 1 86 50" fill="none"
-							stroke="rgba(255,255,255,0.14)" stroke-width="6.5" stroke-linecap="round" />
+						<path class="speedo-track" d="M 13.4 50 A 36.6 36.6 0 0 1 86.6 50" fill="none"
+							stroke="rgba(255,255,255,0.12)" stroke-width="6" stroke-linecap="round" />
 						<!-- Gauge active colored fill -->
-						<path class="speedo-fill" id="speedo-fill" d="M 14 50 A 38 38 0 0 1 86 50" fill="none"
-							stroke="url(#speedoGrad)" stroke-width="6.5" stroke-linecap="round" stroke-dasharray="115"
-							stroke-dashoffset="115" />
-						<!-- Speedometer Needle (Anchored at 50,50 pivot) -->
-						<line id="speedo-needle" x1="50" y1="50" x2="50" y2="18" stroke="#ff3b30" stroke-width="2.5"
-							stroke-linecap="round" transform="rotate(-90, 50, 50)" />
-						<!-- Pivot center dot -->
-						<circle cx="50" cy="50" r="3.5" fill="#ffd700" stroke="#120e1c" stroke-width="1.5" />
+						<path class="speedo-fill" id="speedo-fill" d="M 13.4 50 A 36.6 36.6 0 0 1 86.6 50" fill="none"
+							stroke="url(#speedoGrad)" stroke-width="6" stroke-linecap="round" stroke-dasharray="115"
+							stroke-dashoffset="115" filter="url(#gaugeGlow)" />
+						<!-- Tachometer Tick Divisions (subtle, clean) -->
+						<g class="speedo-ticks" stroke="rgba(255,255,255,0.25)" stroke-width="1.2" stroke-linecap="round">
+							<line x1="16" y1="46" x2="20" y2="44" />
+							<line x1="28" y1="28" x2="32" y2="30" />
+							<line x1="50" y1="18" x2="50" y2="22" />
+							<line x1="72" y1="28" x2="68" y2="30" />
+							<line x1="84" y1="46" x2="80" y2="44" />
+						</g>
+						<!-- Glowing needle jewel bead (calibrated to glide cleanly along track) -->
+						<g id="speedo-needle-group" transform="rotate(-90 50 50)">
+							<circle cx="50" cy="13.4" r="3.5" fill="#ffffff" filter="url(#gaugeGlow)" />
+							<circle cx="50" cy="13.4" r="1.8" fill="#ffd700" />
+						</g>
 					</svg>
 					<div class="speedo-center-readout">
 						<span class="speedo-number" id="speedo-number">0</span>
@@ -939,8 +661,8 @@
 				</div>
 				<div class="speedo-sub-badge" id="speedo-sub-badge">CRUISE</div>
 
-				<!-- Top-Anchored End-of-Round Speed Highlight -->
-				<div class="hud-win-speed-banner" id="hud-win-speed-banner">
+				<!-- Top-Anchored End-of-Round Speed Highlight (Kept hidden to prevent clutter) -->
+				<div class="hud-win-speed-banner" id="hud-win-speed-banner" style="display: none !important;">
 					<span>⚡ <strong id="win-speed-val">0 WPM</strong></span>
 					<span class="hud-win-record-pill" id="win-record-badge" style="display: none;">🏆 NEW RECORD!</span>
 					<button type="button" class="hud-win-replay-mini" id="btn-win-replay"
@@ -948,34 +670,52 @@
 				</div>
 			</div>
 
-			<button class="hud-gear-btn" id="btn-settings" title="Settings" aria-label="Settings">
-				<span class="hud-gear-emoji">⚙️</span>
-			</button>
+			<div class="hud-right-actions">
+				<button class="hud-action-pill-btn" id="btn-toggle-cam" type="button" title="Toggle 3D Highway Incline / Classic View" aria-label="Camera Perspective View">
+					<span id="cam-toggle-icon">🎸</span>
+				</button>
+				<button class="hud-gear-btn" id="btn-settings" title="Settings" aria-label="Settings">
+					<span class="hud-gear-emoji">⚙️</span>
+				</button>
+			</div>
 		</div>
 	</header>
 
 	<!-- Drag & Snap Instruction Hint (hidden by default) -->
 	<div class="hud-hint">Tap letters to auto-place, or drag tiles into the glowing [ACTIVE ROW]</div>
 
-	<!-- Bottom Action Controls -->
+	<!-- Bottom Action Controls (Simplistic Title-Screen Style) -->
 	<footer id="hud-bottom">
-		<button class="gs-action-btn" id="btn-shuffle" title="Shuffle Letters" aria-label="Shuffle">
-			<img src="game/default/images/Pink%20Button-11.png" alt="Shuffle" class="gs-btn-icon-img">
-			<span class="gs-btn-text">SHUFFLE</span>
+		<button class="hud-action-btn btn-shuffle" id="btn-shuffle" title="Shuffle Letters" aria-label="Shuffle">
+			<svg class="hud-btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+				<polyline points="16 3 21 3 21 8"></polyline>
+				<line x1="4" y1="20" x2="21" y2="3"></line>
+				<polyline points="21 16 21 21 16 21"></polyline>
+				<line x1="15" y1="15" x2="21" y2="21"></line>
+				<line x1="4" y1="4" x2="9" y2="9"></line>
+			</svg>
+			<span class="hud-btn-label">SHUFFLE</span>
 		</button>
-		<button class="gs-action-btn primary" id="btn-hint" title="Hint (Costs 1 Key)" aria-label="Hint">
-			<div class="gs-key-circle">
-				<img src="game/default/images/key.png" alt="Hint" class="gs-key-icon-img">
-			</div>
-			<span class="gs-btn-text">HINT</span>
-			<span class="key-count-badge" id="key-count-badge">20</span>
+		<button class="hud-action-btn btn-hint" id="btn-hint" title="Hint (Costs 1 Key)" aria-label="Hint">
+			<svg class="hud-btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="7.5" cy="15.5" r="4.5"></circle>
+				<path d="M10.7 12.3L20 3"></path>
+				<path d="M16 7l2 2"></path>
+				<path d="M19 4l2 2"></path>
+			</svg>
+			<span class="hud-btn-label">HINT</span>
+			<span class="key-count-badge hud-key-badge" id="key-count-badge">20</span>
 		</button>
 		<button type="button" class="btn-recharge-keys" id="btn-recharge-keys" title="Watch Ad to get 10 Keys">
-			<span>📺 +10 KEYS</span>
+			<span class="recharge-ad-icon">📺</span>
+			<span>+10 KEYS</span>
 		</button>
-		<button class="gs-action-btn" id="btn-recall" title="Recall Letters to Tray" aria-label="Recall">
-			<img src="game/default/images/delete.png" alt="Recall" class="gs-btn-icon-img">
-			<span class="gs-btn-text">RECALL</span>
+		<button class="hud-action-btn btn-recall" id="btn-recall" title="Recall Letters to Tray" aria-label="Recall">
+			<svg class="hud-btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+				<polyline points="1 4 1 10 7 10"></polyline>
+				<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+			</svg>
+			<span class="hud-btn-label">RECALL</span>
 		</button>
 	</footer>
 
@@ -1013,63 +753,80 @@
 				<div class="settings-row level-select-row">
 					<button class="nav-arrow-btn" id="btn-prev-lvl">◀ Prev</button>
 					<div class="level-display-group">
-						<span class="level-display-label">Level <span id="settings-level-num">1</span></span>
+						<span class="level-display-label">
+							<span class="settings-lvl-tag">LVL <span id="settings-level-num">1</span>:</span>
+							<span class="settings-lvl-name" id="settings-level-name">TENNIS</span>
+						</span>
 						<span class="level-speed-record" id="settings-level-record">⚡ Best: -- WPM</span>
 					</div>
 					<button class="nav-arrow-btn" id="btn-next-lvl">Next ▶</button>
 				</div>
+				<button class="btn-settings-all-levels" id="btn-settings-all-levels" type="button">
+					🧭 View All 30 Levels & Star Progress
+				</button>
 			</div>
 
-			<!-- Tile Skins -->
+			<!-- Letter Tile Storage & Store (Fancy Felt-Floored Cubby Hole System) -->
 			<div class="theme-section">
-				<div class="theme-label">LETTER TILE SKIN</div>
-				<div class="skin-selector" id="tile-skin-selector">
-					<button class="skin-opt active" data-skin="classic">
-						<div class="skin-preview skin-classic">A</div>
-						<span>Classic Wood</span>
+				<div class="theme-label">LETTER TILE STORAGE & STORE</div>
+				<button class="settings-storage-launch-btn" id="btn-settings-open-storage" type="button">
+					<div class="settings-storage-felt-preview">
+						<img src="OriginalTileImages/A4.png" class="settings-mini-tile tile-a" id="settings-preview-tile-a" alt="A">
+						<img src="OriginalTileImages/B4.png" class="settings-mini-tile tile-b" id="settings-preview-tile-b" alt="B">
+						<img src="OriginalTileImages/C4.png" class="settings-mini-tile tile-c" id="settings-preview-tile-c" alt="C">
+					</div>
+					<div class="settings-storage-meta">
+						<span class="settings-storage-title">🗄️ Open Tile Storage & Store</span>
+						<span class="settings-storage-sub" id="settings-storage-sub">Current: Classic Wood (12+ Styles)</span>
+					</div>
+					<span class="settings-storage-badge">OPEN ▶</span>
+				</button>
+			</div>
+
+			<!-- Living Sceneries (Authentic High-Immersion Environments) -->
+			<div class="theme-section">
+				<div class="theme-label">LIVING SCENERY</div>
+				<div class="scenery-selector" id="scenery-selector">
+					<button class="scenery-opt active" data-scenery="sakura">
+						<span class="scenery-icon">🌸</span>
+						<span>Blossom Park</span>
 					</button>
-					<button class="skin-opt" data-skin="obsidian">
-						<div class="skin-preview skin-obsidian">A</div>
-						<span>Midnight Onyx</span>
+					<button class="scenery-opt" data-scenery="volcano">
+						<span class="scenery-icon">🌋</span>
+						<span>Volcano Night</span>
 					</button>
-					<button class="skin-opt" data-skin="marble">
-						<div class="skin-preview skin-marble">A</div>
-						<span>Pearl Marble</span>
+					<button class="scenery-opt" data-scenery="snowtown">
+						<span class="scenery-icon">🏔️</span>
+						<span>Winter Village</span>
 					</button>
-					<button class="skin-opt" data-skin="jade">
-						<div class="skin-preview skin-jade">A</div>
-						<span>Imperial Jade</span>
+					<button class="scenery-opt" data-scenery="peaks">
+						<span class="scenery-icon">❄️</span>
+						<span>Alpine Peaks</span>
 					</button>
-					<button class="skin-opt" data-skin="sunset">
-						<div class="skin-preview skin-sunset">A</div>
-						<span>Sunset Coral</span>
+					<button class="scenery-opt" data-scenery="ocean">
+						<span class="scenery-icon">🏝️</span>
+						<span>Tropical Pier</span>
 					</button>
 				</div>
 			</div>
 
-			<!-- Living Sceneries -->
+			<!-- Camera Perspective Mode -->
 			<div class="theme-section">
-				<div class="theme-label">LIVING SCENERY</div>
-				<div class="scenery-selector" id="scenery-selector">
-					<button class="scenery-opt active" data-scenery="rain">
-						<span class="scenery-icon">🌧️</span>
-						<span>Rainy Forest</span>
+				<div class="theme-label">CAMERA PERSPECTIVE</div>
+				<div class="cam-mode-selector">
+					<button class="cam-mode-opt active" id="opt-cam-incline" data-cam="incline" type="button">
+						<span class="cam-mode-icon">🎸</span>
+						<div class="cam-mode-text">
+							<strong>3D Highway Incline</strong>
+							<small>Guitar Hero & Star Wars Crawl</small>
+						</div>
 					</button>
-					<button class="scenery-opt" data-scenery="sunlit">
-						<span class="scenery-icon">☀️</span>
-						<span>Alpine Lake</span>
-					</button>
-					<button class="scenery-opt" data-scenery="sakura">
-						<span class="scenery-icon">🌸</span>
-						<span>Cherry Blossom</span>
-					</button>
-					<button class="scenery-opt" data-scenery="aurora">
-						<span class="scenery-icon">🌌</span>
-						<span>Northern Lights</span>
-					</button>
-					<button class="scenery-opt" data-scenery="autumn">
-						<span class="scenery-icon">🍂</span>
-						<span>Autumn Woods</span>
+					<button class="cam-mode-opt" id="opt-cam-classic" data-cam="classic" type="button">
+						<span class="cam-mode-icon">📐</span>
+						<div class="cam-mode-text">
+							<strong>Classic View</strong>
+							<small>Original Flat Board View</small>
+						</div>
 					</button>
 				</div>
 			</div>
@@ -1083,11 +840,83 @@
 		</div>
 	</div>
 
+	<!-- Fancy Felt-Floored Cubby Hole Tile Storage System & Store -->
+	<div id="tile-storage-modal" class="game-modal">
+		<div class="storage-cabinet">
+			<!-- Cabinet Brass Header -->
+			<div class="cabinet-header">
+				<div class="cabinet-title-group">
+					<span class="cabinet-brass-emblem">🗄️</span>
+					<div class="cabinet-titles">
+						<h3 class="cabinet-main-title">TILE STORAGE & STORE</h3>
+						<p class="cabinet-sub-title">Fancy Felt-Lined Letter Cubbies • Select or Unlock Your Set</p>
+					</div>
+				</div>
+				<button class="cabinet-close-btn" id="btn-storage-close" type="button" aria-label="Close Storage">&times;</button>
+			</div>
+
+			<!-- Cabinet Interior: Felt-Floored Cubby Grid -->
+			<div class="cabinet-interior-frame">
+				<div class="cubby-grid" id="cubby-grid">
+					<!-- Handcrafted Felt Cubbies populated by JS with 3 tiles ABC in each style -->
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Level Selection & Star Progress Modal -->
+	<div id="level-select-modal" class="game-modal">
+		<div class="level-select-card">
+			<div class="level-select-header">
+				<div class="level-select-title-group">
+					<span class="level-select-icon">🧭</span>
+					<h3>LEVEL PROGRESS</h3>
+				</div>
+				<div class="level-select-stars-pill" id="level-select-stars-pill">
+					<span class="stars-icon">⭐</span>
+					<span id="level-select-total-stars">0</span><span class="stars-total-max">/90</span>
+				</div>
+				<button class="theme-close" id="btn-level-select-close">&times;</button>
+			</div>
+
+			<div class="level-select-legend">
+				<span class="legend-item"><span class="legend-star">⭐</span> Steady (&lt;15 WPM)</span>
+				<span class="legend-item"><span class="legend-star">⭐⭐</span> Swift (15–27 WPM)</span>
+				<span class="legend-item"><span class="legend-star">⭐⭐⭐</span> Lightning (28+ WPM)</span>
+			</div>
+
+			<div class="level-select-grid-container">
+				<div class="level-select-grid" id="level-select-grid">
+					<!-- 30 Level cards populated by word-chain-3d.js -->
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- 3D Celebratory Win Star Card -->
+	<div id="win-celebration-card" class="win-celebration-card">
+		<div class="win-celeb-banner">CHAIN COMPLETED!</div>
+		<div class="win-celeb-level-title" id="win-celeb-level-title">LEVEL 1 • TENNIS</div>
+		<div class="win-celeb-record-badge" id="win-celeb-record-badge" style="display: none;">🏆 NEW RECORD!</div>
+		<div class="win-celeb-stars" id="win-celeb-stars">
+			<span class="win-celeb-star earned">⭐</span>
+			<span class="win-celeb-star earned">⭐</span>
+			<span class="win-celeb-star earned">⭐</span>
+		</div>
+		<div class="win-celeb-speed" id="win-celeb-wpm">⚡ 32.4 WPM</div>
+		<div class="win-celeb-tier" id="win-celeb-tier">⭐⭐⭐ LIGHTNING FAST!</div>
+		<div class="win-celeb-actions">
+			<button class="win-celeb-btn-replay" id="btn-win-replay-card" type="button" title="Replay level">🔄 Replay</button>
+			<button class="win-celeb-btn-levels" id="btn-win-levels" type="button" title="View all levels">🧭 Levels</button>
+			<button class="win-celeb-btn-next" id="btn-win-next" type="button" title="Next level">Next ▶</button>
+		</div>
+	</div>
+
 	<!-- Legacy floating win-speed-card kept hidden for DOM ID compatibility -->
 	<div id="win-speed-card" class="win-speed-card" style="display: none !important;"></div>
 
-	<!-- 3D Tactile Floating NEXT Arrow Button (Win Celebration) -->
-	<button id="btn-floating-next" class="tactile-next-btn" title="Next Level">
+	<!-- Legacy floating NEXT button kept hidden to prevent duplicated buttons -->
+	<button id="btn-floating-next" class="tactile-next-btn" title="Next Level" style="display: none !important;">
 		<div class="next-btn-inner">
 			<span class="next-arrow-icon">▶</span>
 			<span class="next-label">NEXT</span>
@@ -1200,8 +1029,8 @@
 	<!-- Scripts -->
 	<script src="js/three.min.js"></script>
 	<script src="js/levels.js"></script>
-	<script src="js/wordscapes-scenery.js"></script>
-	<script src="js/word-chain-3d.js"></script>
+	<script src="js/wordscapes-scenery.js?v=3.8"></script>
+	<script src="js/word-chain-3d.js?v=3.8"></script>
 
 	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
 	<script>
@@ -1296,112 +1125,8 @@
 				}, true); // capture phase so 0 keys blocks hint & triggers ad recharge
 			}
 
-			// --- 2. SPEEDOMETER NEEDLE PIVOT LOCK ---
-			const needle = document.getElementById('speedo-needle');
-			const speedoNum = document.getElementById('speedo-number');
-			function updateNeedlePivot() {
-				if (!needle || !speedoNum) return;
-				const wpm = parseFloat(speedoNum.textContent) || 0;
-				const clampedRatio = Math.min(1, Math.max(0, wpm / 60));
-				const deg = -90 + (clampedRatio * 180);
-				needle.style.transform = 'none';
-				needle.setAttribute('transform', 'rotate(' + deg.toFixed(1) + ', 50, 50)');
-			}
-			if (speedoNum) {
-				const obs = new MutationObserver(updateNeedlePivot);
-				obs.observe(speedoNum, { childList: true, characterData: true, subtree: true });
-				updateNeedlePivot();
-			}
-
-			// --- 3. TOP SPEEDOMETER HIGHLIGHT AT ROUND END ---
-			const hudSpeedo = document.getElementById('hud-speedometer');
-			const floatingNext = document.getElementById('btn-floating-next');
-			if (floatingNext && hudSpeedo) {
-				const winObs = new MutationObserver(() => {
-					const isWinVisible = floatingNext.classList.contains('visible') ||
-						floatingNext.classList.contains('show') ||
-						window.getComputedStyle(floatingNext).opacity === '1' && window.getComputedStyle(floatingNext).pointerEvents !== 'none';
-					hudSpeedo.classList.toggle('win-highlight', isWinVisible);
-				});
-				winObs.observe(floatingNext, { attributes: true, attributeFilter: ['class', 'style'] });
-			}
-
-			// --- 4. HOMEPAGE LEVEL SELECT SYNC ---
-			const homePrev = document.getElementById('btn-home-prev-lvl');
-			const homeNext = document.getElementById('btn-home-next-lvl');
-			const homeLvlNum = document.getElementById('home-level-num');
-			const homeLvlRec = document.getElementById('home-level-record');
-			const settingsPrev = document.getElementById('btn-prev-lvl');
-			const settingsNext = document.getElementById('btn-next-lvl');
-			const settingsLvlNum = document.getElementById('settings-level-num');
-			const settingsLvlRec = document.getElementById('settings-level-record');
-
-			function syncHomeLevelDisplay() {
-				if (settingsLvlNum && homeLvlNum) homeLvlNum.textContent = settingsLvlNum.textContent;
-				if (settingsLvlRec && homeLvlRec) homeLvlRec.textContent = settingsLvlRec.textContent;
-			}
-			if (homePrev && settingsPrev) {
-				homePrev.addEventListener('click', () => {
-					settingsPrev.click();
-					syncHomeLevelDisplay();
-				});
-			}
-			if (homeNext && settingsNext) {
-				homeNext.addEventListener('click', () => {
-					settingsNext.click();
-					syncHomeLevelDisplay();
-				});
-			}
-			if (settingsLvlNum) {
-				new MutationObserver(syncHomeLevelDisplay).observe(settingsLvlNum, { childList: true, subtree: true });
-				syncHomeLevelDisplay();
-			}
-
-			// --- 5. TRAY SHUFFLE POSITION PRESERVATION FIX ---
-			const shuffleBtn = document.getElementById('btn-shuffle');
-			if (shuffleBtn) {
-				shuffleBtn.addEventListener('click', function (e) {
-					// If global tray tiles array exists, permute their canonical slot positions cleanly
-					const tiles = window.trayTiles || (window.game && window.game.trayTiles) || (window.state && window.state.trayTiles);
-					if (Array.isArray(tiles) && tiles.length > 1) {
-						e.stopImmediatePropagation();
-						const unplaced = tiles.filter(t => !t.isPlaced && !t.placed && !t.locked);
-						if (unplaced.length <= 1) return;
-
-						// Snapshot canonical tray slot positions before shuffling
-						const slots = unplaced.map(t => {
-							const src = t.trayPosition || t.homePosition || t.basePosition || t.targetPosition || (t.mesh ? t.mesh.position : t.position);
-							return {
-								x: src.x,
-								y: src.y,
-								z: src.z,
-								slotIndex: t.trayIndex !== undefined ? t.trayIndex : t.slotIndex
-							};
-						});
-
-						// Fisher-Yates shuffle on the snapshot slots
-						for (let i = slots.length - 1; i > 0; i--) {
-							const j = Math.floor(Math.random() * (i + 1));
-							const tmp = slots[i];
-							slots[i] = slots[j];
-							slots[j] = tmp;
-						}
-
-						// Assign each tile its new canonical slot without drifting
-						unplaced.forEach((t, idx) => {
-							const s = slots[idx];
-							if (t.trayPosition) { t.trayPosition.x = s.x; t.trayPosition.y = s.y; t.trayPosition.z = s.z; }
-							if (t.homePosition) { t.homePosition.x = s.x; t.homePosition.y = s.y; t.homePosition.z = s.z; }
-							if (t.basePosition) { t.basePosition.x = s.x; t.basePosition.y = s.y; t.basePosition.z = s.z; }
-							if (t.targetPosition) { t.targetPosition.x = s.x; t.targetPosition.y = s.y; t.targetPosition.z = s.z; }
-							if (t.trayIndex !== undefined) t.trayIndex = s.slotIndex;
-							if (t.slotIndex !== undefined) t.slotIndex = s.slotIndex;
-							const pos = t.mesh ? t.mesh.position : t.position;
-							if (pos) { pos.set(s.x, s.y, s.z); }
-						});
-					}
-				}, true);
-			}
+			// --- 2. SPEEDOMETER INTEGRATION ---
+			// Needle rotation, physics and magical FX are smoothly driven in the main animation loop by SpeedometerManager.
 		})();
 	</script>
 </body>
