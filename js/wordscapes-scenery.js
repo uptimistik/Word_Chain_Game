@@ -100,10 +100,10 @@
 			id: 'peaks',
 			name: 'Alpine Peaks',
 			icon: '❄️',
-			photo: 'images/scenery/3d/peaks.jpg?v=3',
+			photo: 'images/scenery/3d/peaks.jpg',
 			vignetteClass: 'scenery-vignette-peaks',
 			glowClass: 'scenery-glow-peaks',
-			particleType: 'none',
+			particleType: 'crystal',
 			lighting: {
 				ambient: { color: 0xdfefff, intensity: 0.96 },
 				sun: { color: 0xffffff, intensity: 1.05, pos: [5, 22, 8] },
@@ -115,7 +115,7 @@
 			id: 'ocean',
 			name: 'Tropical Pier',
 			icon: '🏝️',
-			photo: 'images/scenery/3d/ocean.jpg?v=3',
+			photo: 'images/scenery/3d/ocean.jpg',
 			vignetteClass: 'scenery-vignette-ocean',
 			glowClass: 'scenery-glow-ocean',
 			particleType: 'none',
@@ -447,33 +447,6 @@
 		'uniform vec4 uSkierProps[3];',
 		'varying vec2 vUv;',
 		'',
-		'float hash21(vec2 p) {',
-		'  vec3 p3 = fract(vec3(p.xyx) * 0.1031);',
-		'  p3 += dot(p3, p3.yzx + 33.33);',
-		'  return fract((p3.x + p3.y) * p3.z);',
-		'}',
-		'',
-		'float vnoise(vec2 p) {',
-		'  vec2 i = floor(p);',
-		'  vec2 f = fract(p);',
-		'  vec2 u = f * f * (3.0 - 2.0 * f);',
-		'  float a = hash21(i);',
-		'  float b = hash21(i + vec2(1.0, 0.0));',
-		'  float c = hash21(i + vec2(0.0, 1.0));',
-		'  float d = hash21(i + vec2(1.0, 1.0));',
-		'  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);',
-		'}',
-		'',
-		'float cloudFbm(vec2 p) {',
-		'  mat2 m2 = mat2(0.80, 0.60, -0.60, 0.80);',
-		'  float f = 0.0;',
-		'  f += 0.5000 * vnoise(p); p = m2 * p * 2.02;',
-		'  f += 0.2500 * vnoise(p); p = m2 * p * 2.03;',
-		'  f += 0.1250 * vnoise(p); p = m2 * p * 2.01;',
-		'  f += 0.0625 * vnoise(p);',
-		'  return f;',
-		'}',
-		'',
 		'void main() {',
 		'  float t = uTime;',
 		'  float ca = uRes.x / uRes.y; float ia = uImg.x / uImg.y;',
@@ -482,49 +455,9 @@
 		'  vec2 p = vec2(vUv.x, 1.0 - vUv.y);',
 		'  p = (p - 0.5) * s + 0.5;',
 		'',
-		'  // 1. Natural Tree Swaying for Foreground Pines (Bottom-Left and Bottom-Right)',
-		'  vec2 swayDisp = vec2(0.0);',
-		'  if (p.y > 0.70) {',
-		'    float yTree = clamp((p.y - 0.70) / 0.28, 0.0, 1.0);',
-		'    // Left pine grove (x < 0.25)',
-		'    if (p.x < 0.25) {',
-		'      float wL = (1.0 - smoothstep(0.10, 0.25, p.x)) * yTree;',
-		'      float sL = 0.0075 * pow(yTree, 1.4) * (sin(t * 1.8) + 0.35 * sin(t * 3.3));',
-		'      swayDisp.x += sL * wL;',
-		'      swayDisp.y -= abs(sL) * 0.25 * wL;',
-		'    }',
-		'    // Right pine grove (x > 0.75)',
-		'    if (p.x > 0.75) {',
-		'      float wR = smoothstep(0.75, 0.90, p.x) * yTree;',
-		'      float sR = 0.0075 * pow(yTree, 1.4) * (sin(t * 1.8 + 1.4) + 0.35 * sin(t * 3.3 + 0.8));',
-		'      swayDisp.x += sR * wR;',
-		'      swayDisp.y -= abs(sR) * 0.25 * wR;',
-		'    }',
-		'  }',
+		'  vec3 col = texture2D(uTex, p).rgb;',
 		'',
-		'  vec3 col = texture2D(uTex, p - swayDisp).rgb;',
-		'',
-		'  // 2. Real Dynamic Alpine Sky (drifting clouds across pure mountain sky gradient)',
-		'  float isSky = (1.0 - smoothstep(0.20, 0.38, p.y)) * smoothstep(0.04, 0.18, col.b - col.r);',
-		'  if (isSky > 0.005) {',
-		'    vec2 cUv1 = vec2((p.x - t * 0.012) * 2.5, p.y * 4.2);',
-		'    float n1 = cloudFbm(cUv1);',
-		'    float d1 = smoothstep(0.44, 0.74, n1);',
-		'',
-		'    vec2 cUv2 = vec2((p.x - t * 0.022 + 4.0) * 3.8, p.y * 6.5);',
-		'    float n2 = cloudFbm(cUv2);',
-		'    float d2 = smoothstep(0.46, 0.76, n2) * 0.65;',
-		'',
-		'    float cloudDensity = clamp(d1 + d2, 0.0, 1.0);',
-		'    if (cloudDensity > 0.005) {',
-		'      vec3 sunlitWhite = vec3(1.0, 0.99, 0.97);',
-		'      vec3 shadowBlue  = vec3(0.74, 0.84, 0.96);',
-		'      vec3 cloudCol = mix(shadowBlue, sunlitWhite, smoothstep(0.40, 0.68, n1));',
-		'      col = mix(col, cloudCol, cloudDensity * isSky * 0.92);',
-		'    }',
-		'  }',
-		'',
-		'  // 3. High Alpine Wind & Ridge Spindrift (crystalline snow dust blowing across summit cols)',
+		'  // 1. High Alpine Wind & Ridge Spindrift (crystalline snow dust blowing across summit cols)',
 		'  float ridgeZone = smoothstep(0.18, 0.28, p.y) * (1.0 - smoothstep(0.38, 0.46, p.y));',
 		'  if (ridgeZone > 0.001) {',
 		'    float drift1 = 0.5 + 0.5 * sin(p.x * 22.0 - t * 0.45 + sin(p.y * 18.0));',
@@ -534,7 +467,7 @@
 		'    col = mix(col, snowHaze, spindrift);',
 		'  }',
 		'',
-		'  // 4. Dynamic 2D Alpine Skiers carving diagonally down the mountainside',
+		'  // 2. Dynamic Alpine Skiers carving down the pistes with powder spray plumes',
 		'  for (int i = 0; i < 3; i++) {',
 		'    vec4 sData = uSkiers[i];',
 		'    vec4 sProp = uSkierProps[i];',
@@ -543,66 +476,72 @@
 		'      vec2 sPos = sData.xy;',
 		'      vec2 sDir = sData.zw;',
 		'      vec2 toPixel = p - sPos;',
+		'      float d = length(toPixel);',
 		'      float pScale = sProp.z;',
 		'      float colorId = sProp.y;',
 		'      float carveFactor = sProp.w;',
 		'',
-		'      // Normalized skier frame: forward along velocity & lateral',
+		'      // Normalized skier coordinate frame: forward along velocity & lateral',
 		'      vec2 fwd = normalize(sDir + vec2(1e-5, 0.0));',
 		'      vec2 lat = vec2(-fwd.y, fwd.x);',
 		'      float distFwd = dot(toPixel, fwd);',
 		'      float distLat = dot(toPixel, lat);',
 		'',
-		'      // A. Powder Snow Spray Plume behind skis',
-		'      vec2 sprayCenter = -fwd * (0.010 * pScale) + lat * (carveFactor * 0.006 * pScale);',
+		'      // A. Powder Snow Spray Plume behind & outside the carve',
+		'      vec2 sprayCenter = -fwd * (0.006 * pScale) + lat * (carveFactor * 0.005 * pScale);',
 		'      float sprayDist = length(toPixel - sprayCenter);',
-		'      float sprayRadius = 0.024 * pScale;',
+		'      float sprayRadius = 0.018 * pScale;',
 		'      if (sprayDist < sprayRadius && distFwd < 0.002) {',
-		'        float sprayDensity = exp(-sprayDist * sprayDist / (2.0 * pow(0.009 * pScale, 2.0))) * (0.65 + 0.35 * abs(carveFactor)) * sActive * 0.80;',
-		'        col = mix(col, vec3(0.98, 0.99, 1.0), clamp(sprayDensity, 0.0, 0.88));',
+		'        float sprayDensity = exp(-sprayDist * sprayDist / (2.0 * pow(0.007 * pScale, 2.0))) * abs(carveFactor) * sActive * 0.75;',
+		'        col = mix(col, vec3(0.98, 0.99, 1.0), clamp(sprayDensity, 0.0, 0.85));',
 		'      }',
 		'',
-		'      // B. Skier Shadow (cast onto snow beneath skier)',
-		'      vec2 shadowOffset = vec2(0.002, 0.004) * pScale;',
-		'      float dShadow = length(vec2(distLat * 1.5, distFwd - 0.002 * pScale));',
-		'      float shadowRadius = 0.0080 * pScale;',
+		'      // B. Skier Shadow (cast onto snow just behind skier)',
+		'      vec2 shadowOffset = vec2(0.002, 0.003) * pScale;',
+		'      float dShadow = length(toPixel - shadowOffset);',
+		'      float shadowRadius = 0.0045 * pScale;',
 		'      if (dShadow < shadowRadius) {',
-		'        float shadow = (1.0 - smoothstep(shadowRadius * 0.2, shadowRadius, dShadow)) * sActive * 0.48;',
+		'        float shadow = smoothstep(shadowRadius, shadowRadius * 0.2, dShadow) * sActive * 0.42;',
 		'        col *= (1.0 - shadow);',
 		'      }',
 		'',
-		'      // C. Skis (twin parallel dark slats aligned with carve direction)',
-		'      float skiLen = 0.015 * pScale;',
-		'      float skiWidth = 0.0022 * pScale;',
-		'      float skiSeparation = 0.0035 * pScale;',
-		'      if (abs(distFwd) < skiLen * 0.5 && abs(abs(distLat) - skiSeparation) < skiWidth) {',
-		'        col = mix(col, vec3(0.10, 0.12, 0.16), sActive * 0.90);',
+		'      // C. Skis (dark parallel slats aligned with carve direction)',
+		'      float skiLen = 0.009 * pScale;',
+		'      float skiWidth = 0.0018 * pScale;',
+		'      if (abs(distFwd) < skiLen * 0.5 && abs(distLat) < skiWidth * 1.5) {',
+		'        col = mix(col, vec3(0.12, 0.15, 0.20), sActive * 0.85);',
 		'      }',
 		'',
-		'      // D. Skier Body / High-Visibility Alpine Parka',
-		'      float bodyRadius = 0.0058 * pScale;',
+		'      // D. Skier Body / High-Visibility Alpine Jacket',
+		'      float bodyRadius = 0.0040 * pScale;',
 		'      float dBody = length(toPixel + fwd * 0.001 * pScale);',
 		'      if (dBody < bodyRadius) {',
-		'        vec3 jacketCol = vec3(0.96, 0.16, 0.12);',
-		'        if (colorId > 0.5 && colorId < 1.5) jacketCol = vec3(0.08, 0.48, 0.96);',
-		'        else if (colorId >= 1.5) jacketCol = vec3(1.0, 0.72, 0.06);',
-		'        float bodyShade = (1.0 - smoothstep(bodyRadius * 0.2, bodyRadius, dBody)) * sActive;',
+		'        vec3 jacketCol = vec3(0.96, 0.18, 0.14);',
+		'        if (colorId > 0.5 && colorId < 1.5) jacketCol = vec3(0.10, 0.50, 0.98);',
+		'        else if (colorId >= 1.5) jacketCol = vec3(1.0, 0.76, 0.08);',
+		'        float bodyShade = smoothstep(bodyRadius, bodyRadius * 0.2, dBody) * sActive;',
 		'        col = mix(col, jacketCol, bodyShade);',
 		'      }',
 		'',
-		'      // E. Skier Helmet & Visor',
-		'      float headRadius = 0.0032 * pScale;',
-		'      float dHead = length(toPixel - fwd * 0.0035 * pScale);',
+		'      // E. Skier Helmet (high-contrast white/black dome)',
+		'      float headRadius = 0.0022 * pScale;',
+		'      float dHead = length(toPixel - fwd * 0.0025 * pScale);',
 		'      if (dHead < headRadius) {',
 		'        col = mix(col, vec3(0.95, 0.95, 0.98), sActive);',
-		'        if (abs(distFwd - 0.0035 * pScale) < 0.0012 * pScale) {',
-		'          col = mix(col, vec3(0.12, 0.14, 0.18), sActive);',
-		'        }',
 		'      }',
 		'    }',
 		'  }',
 		'',
-		'  // 5. Subtle Alpine Atmospheric Depth (recessed shadow cols have soft cool mountain haze)',
+		'  // 3. Delicate Alpine Crystalline Powder Sparkles on sunlit slopes',
+		'  if (p.y > 0.35 && p.y < 0.82) {',
+		'    float snowLum = dot(col, vec3(0.299, 0.587, 0.114));',
+		'    if (snowLum > 0.72) {',
+		'      float sparkle = pow(max(0.0, sin(t * 3.0 + p.x * 55.0 + p.y * 65.0)), 24.0) * 0.22;',
+		'      col += vec3(sparkle * (snowLum - 0.72) * 3.5);',
+		'    }',
+		'  }',
+		'',
+		'  // 4. Subtle Alpine Atmospheric Depth (recessed shadow cols have soft cool mountain haze)',
 		'  float depthCol = smoothstep(0.40, 0.75, p.y);',
 		'  vec3 coolHaze = vec3(0.74, 0.82, 0.94);',
 		'  col = mix(col, col * coolHaze, (1.0 - col.r) * depthCol * 0.12);',
@@ -624,9 +563,9 @@
 		'varying vec2 vUv;',
 		'',
 		'float hash21(vec2 p) {',
-		'  vec3 p3 = fract(vec3(p.xyx) * 0.1031);',
-		'  p3 += dot(p3, p3.yzx + 33.33);',
-		'  return fract((p3.x + p3.y) * p3.z);',
+		'  p = fract(p * vec2(123.34, 456.21));',
+		'  p += dot(p, p + 45.32);',
+		'  return fract(p.x * p.y);',
 		'}',
 		'',
 		'float vnoise(vec2 p) {',
@@ -641,11 +580,10 @@
 		'}',
 		'',
 		'float cloudFbm(vec2 p) {',
-		'  mat2 m2 = mat2(0.80, 0.60, -0.60, 0.80);',
 		'  float f = 0.0;',
-		'  f += 0.5000 * vnoise(p); p = m2 * p * 2.02;',
-		'  f += 0.2500 * vnoise(p); p = m2 * p * 2.03;',
-		'  f += 0.1250 * vnoise(p); p = m2 * p * 2.01;',
+		'  f += 0.5000 * vnoise(p); p = p * 2.04;',
+		'  f += 0.2500 * vnoise(p); p = p * 2.05;',
+		'  f += 0.1250 * vnoise(p); p = p * 2.02;',
 		'  f += 0.0625 * vnoise(p);',
 		'  return f;',
 		'}',
@@ -733,26 +671,38 @@
 		'  vec2 sampleCoord = p - refractOffset - boatOffset;',
 		'  vec3 baseColor = texture2D(uTex, sampleCoord).rgb;',
 		'',
-		'  // 5. Majestic Tropical Trade Wind Clouds across Azure Sky',
-		'  if (p.y < 0.404) {',
-		'    float isGazebo = (1.0 - smoothstep(0.0, 0.09, abs(p.x - 0.50))) * smoothstep(0.31, 0.38, p.y) * (1.0 - smoothstep(0.20, 0.42, baseColor.b - baseColor.r));',
-		'    float skyMask = (1.0 - smoothstep(0.380, 0.404, p.y)) * (1.0 - isGazebo);',
-		'    if (skyMask > 0.005) {',
-		'      // Two graceful layers of soft, billowing trade wind cumulus clouds drifting with the tropical breeze',
-		'      vec2 cUv1 = vec2((p.x - t * 0.015) * 2.2, (p.y - 0.03) * 4.2);',
+		'  // 5. Floating Tropical Trade Wind Clouds across the Azure Sky',
+		'  if (p.y < 0.38) {',
+		'    float isGazebo = smoothstep(0.08, 0.0, abs(p.x - 0.50)) * smoothstep(0.33, 0.38, p.y) * (1.0 - smoothstep(0.30, 0.45, baseColor.b));',
+		'    float skyMask = smoothstep(0.38, 0.34, p.y) * (1.0 - isGazebo);',
+		'    if (skyMask > 0.01) {',
+		'      vec3 azureSkyZenith = vec3(0.08, 0.76, 0.98);',
+		'      vec3 azureSkyHorizon = vec3(0.55, 0.88, 0.98);',
+		'      vec3 pureSky = mix(azureSkyZenith, azureSkyHorizon, smoothstep(0.0, 0.36, p.y));',
+		'      float photoStaticCloud = smoothstep(0.35, 0.75, baseColor.r) * smoothstep(0.70, 0.95, baseColor.g);',
+		'      baseColor = mix(baseColor, pureSky, photoStaticCloud * 0.75 * skyMask);',
+		'',
+		'      float altFactor = 0.65 + 0.35 * (1.0 - p.y / 0.38);',
+		'      vec2 cUv1 = vec2((p.x - t * 0.022) * 2.5, (p.y * 4.5) / altFactor);',
 		'      float c1 = cloudFbm(cUv1);',
-		'      float cloud1 = smoothstep(0.44, 0.74, c1);',
+		'      float cloud1 = smoothstep(0.46, 0.75, c1);',
 		'',
-		'      vec2 cUv2 = vec2((p.x - t * 0.024 + 3.8) * 3.5, (p.y - 0.03) * 6.5);',
+		'      vec2 cUv2 = vec2((p.x - t * 0.036 + 4.2) * 4.0, (p.y * 7.0) / altFactor);',
 		'      float c2 = cloudFbm(cUv2);',
-		'      float cloud2 = smoothstep(0.48, 0.78, c2) * 0.55;',
+		'      float cloud2 = smoothstep(0.48, 0.78, c2) * 0.65;',
 		'',
-		'      float cloudDensity = clamp(cloud1 + cloud2, 0.0, 1.0);',
+		'      vec2 cUv3 = vec2((p.x - t * 0.016 + 8.7) * 1.8, (p.y * 3.2) / altFactor);',
+		'      float c3 = cloudFbm(cUv3);',
+		'      float cloud3 = smoothstep(0.52, 0.80, c3) * 0.50;',
+		'',
+		'      float cloudDensity = clamp(cloud1 + cloud2 + cloud3, 0.0, 1.0);',
 		'      if (cloudDensity > 0.005) {',
 		'        vec3 sunlitCloud = vec3(1.0, 0.99, 0.96);',
-		'        vec3 shadowCloud = vec3(0.72, 0.85, 0.95);',
-		'        vec3 cloudColor = mix(shadowCloud, sunlitCloud, smoothstep(0.40, 0.70, c1));',
-		'        baseColor = mix(baseColor, cloudColor, cloudDensity * skyMask * 0.88);',
+		'        vec3 shadowCloud = vec3(0.74, 0.86, 0.95);',
+		'        float sunFacing = smoothstep(0.42, 0.72, c1);',
+		'        vec3 cloudColor = mix(shadowCloud, sunlitCloud, sunFacing);',
+		'        float cloudAlpha = cloudDensity * skyMask * 0.88;',
+		'        baseColor = mix(baseColor, cloudColor, cloudAlpha);',
 		'      }',
 		'    }',
 		'  }',
@@ -965,51 +915,38 @@
 	var peaksSkierProps = new Float32Array(3 * 4);
 
 	function updatePeaksSkiers(timeSec) {
-		// 2D Classic Game Skiers carving diagonally down the mountainside
-		// Skier 0: Crimson Red Jacket on Main Mountain Slope
-		var s0 = (timeSec * 0.082) % 1.0;
-		var x0 = 1.05 - s0 * 1.10;
-		var cWave0 = Math.sin(s0 * 22.0);
-		var y0 = 0.40 + s0 * 0.36 + cWave0 * 0.007;
-		var dx0 = -1.10;
-		var dy0 = 0.36 + Math.cos(s0 * 22.0) * 22.0 * 0.007;
-		var len0 = Math.sqrt(dx0 * dx0 + dy0 * dy0) || 1.0;
-		peaksSkierData[0] = x0; peaksSkierData[1] = y0;
-		peaksSkierData[2] = dx0 / len0; peaksSkierData[3] = dy0 / len0;
-		peaksSkierProps[0] = Math.sin(s0 * Math.PI);
+		// Skier 0: Crimson Red Jacket on Piste 1 (Grand Couloir, ~18s run)
+		var s0 = (timeSec * 0.055) % 1.0;
+		var p0 = getPeaksPistePos(1, s0);
+		peaksSkierData[0] = p0[0]; peaksSkierData[1] = p0[1];
+		peaksSkierData[2] = p0[2]; peaksSkierData[3] = p0[3];
+		var fade0 = Math.sin(s0 * Math.PI);
+		peaksSkierProps[0] = fade0;
 		peaksSkierProps[1] = 0.0;   // colorId 0 = Red
-		peaksSkierProps[2] = 1.35;  // pScale
-		peaksSkierProps[3] = cWave0; // carveFactor
+		peaksSkierProps[2] = p0[4]; // pScale
+		peaksSkierProps[3] = p0[5]; // carveFactor
 
-		// Skier 1: Electric Royal Blue Jacket on Steeper Middle Slope
-		var s1 = (timeSec * 0.074 + 0.36) % 1.0;
-		var x1 = 1.02 - s1 * 1.10;
-		var cWave1 = Math.sin(s1 * 24.0);
-		var y1 = 0.46 + s1 * 0.40 + cWave1 * 0.007;
-		var dx1 = -1.10;
-		var dy1 = 0.40 + Math.cos(s1 * 24.0) * 24.0 * 0.007;
-		var len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1) || 1.0;
-		peaksSkierData[4] = x1; peaksSkierData[5] = y1;
-		peaksSkierData[6] = dx1 / len1; peaksSkierData[7] = dy1 / len1;
-		peaksSkierProps[4] = Math.sin(s1 * Math.PI);
+		// Skier 1: Electric Royal Blue Jacket on Piste 2 (West Face, ~21s run)
+		var s1 = ((timeSec * 0.047 + 0.35) % 1.0);
+		var p1 = getPeaksPistePos(2, s1);
+		peaksSkierData[4] = p1[0]; peaksSkierData[5] = p1[1];
+		peaksSkierData[6] = p1[2]; peaksSkierData[7] = p1[3];
+		var fade1 = Math.sin(s1 * Math.PI);
+		peaksSkierProps[4] = fade1;
 		peaksSkierProps[5] = 1.0;   // colorId 1 = Blue
-		peaksSkierProps[6] = 1.45;
-		peaksSkierProps[7] = cWave1;
+		peaksSkierProps[6] = p1[4];
+		peaksSkierProps[7] = p1[5];
 
-		// Skier 2: Neon Amber Jacket on Upper Mountain Slope
-		var s2 = (timeSec * 0.088 + 0.70) % 1.0;
-		var x2 = 1.05 - s2 * 1.00;
-		var cWave2 = Math.sin(s2 * 18.0);
-		var y2 = 0.35 + s2 * 0.30 + cWave2 * 0.006;
-		var dx2 = -1.00;
-		var dy2 = 0.30 + Math.cos(s2 * 18.0) * 18.0 * 0.006;
-		var len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 1.0;
-		peaksSkierData[8] = x2; peaksSkierData[9] = y2;
-		peaksSkierData[10] = dx2 / len2; peaksSkierData[11] = dy2 / len2;
-		peaksSkierProps[8] = Math.sin(s2 * Math.PI);
+		// Skier 2: Neon Amber Jacket on Piste 1 (~18s run, trailing Skier 0 by ~9s)
+		var s2 = ((timeSec * 0.055 + 0.52) % 1.0);
+		var p2 = getPeaksPistePos(1, s2);
+		peaksSkierData[8] = p2[0];  peaksSkierData[9] = p2[1];
+		peaksSkierData[10] = p2[2]; peaksSkierData[11] = p2[3];
+		var fade2 = Math.sin(s2 * Math.PI);
+		peaksSkierProps[8] = fade2;
 		peaksSkierProps[9] = 2.0;   // colorId 2 = Gold/Amber
-		peaksSkierProps[10] = 1.25;
-		peaksSkierProps[11] = cWave2;
+		peaksSkierProps[10] = p2[4];
+		peaksSkierProps[11] = p2[5];
 	}
 
 	function liveCompile(gl, type, src) {
