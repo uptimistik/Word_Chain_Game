@@ -963,6 +963,7 @@
 					try { localStorage.setItem('word_chain_owned_sceneries', JSON.stringify(this.ownedSceneries)); } catch (e) {}
 				}
 				if (global.WordscapesScenery) {
+					try { localStorage.setItem('word_chain_scenery_user_selected', 'true'); } catch (e) {}
 					global.WordscapesScenery.setScenery(id);
 				}
 			}
@@ -982,6 +983,7 @@
 				TextureManager.setSkin(id);
 			} else if (type === 'scenery') {
 				if (global.WordscapesScenery) {
+					try { localStorage.setItem('word_chain_scenery_user_selected', 'true'); } catch (e) {}
 					global.WordscapesScenery.setScenery(id);
 				}
 			}
@@ -1069,6 +1071,7 @@
 				if (this.activeTrial.type === 'skin') {
 					TextureManager.setSkin('classic');
 				} else if (this.activeTrial.type === 'scenery') {
+					try { localStorage.removeItem('word_chain_scenery_user_selected'); } catch (e) {}
 					if (global.WordscapesScenery) {
 						global.WordscapesScenery.setScenery('sakura');
 					}
@@ -2878,6 +2881,7 @@
 			reward: reward,
 			group: giftGroup,
 			lid: lidGroup,
+			baseX: posX,
 			baseY: baseY,
 			rowY: rowY,
 			rackTilt: rackTilt,
@@ -3047,6 +3051,233 @@
 	}
 
 	// --------------------------------------------------------------------------
+	// Level Entrance Animation (Cascading Trays Top-to-Bottom)
+	// --------------------------------------------------------------------------
+	var levelEntranceState = null;
+
+	function initLevelEntrance() {
+		var slideOffsetX = -14.0;
+		// Hide all racks initially so players see the clear scenery backdrop first
+		for (var r = 0; r < chainRowData.length; r++) {
+			var rowInfo = chainRowData[r];
+			if (rowInfo && rowInfo.rowGroup) {
+				rowInfo.rowGroup.visible = false;
+				rowInfo.rowGroup.position.x = slideOffsetX;
+				rowInfo.rowGroup.position.y = 0;
+			}
+		}
+
+		// Row 0 anchor tiles
+		chainSlots.filter(function (s) { return s.row === 0; }).forEach(function (s) {
+			if (s.tile && s.tile.mesh) {
+				s.tile.mesh.visible = false;
+				s.tile.mesh.position.x = s.worldPos.x + slideOffsetX;
+				s.tile.mesh.position.y = s.worldPos.y;
+			}
+		});
+
+		// Active gift boxes
+		activeGiftBoxes.forEach(function (gb) {
+			if (gb && gb.group) {
+				gb.group.visible = false;
+				var bx = (gb.baseX !== undefined ? gb.baseX : gb.group.position.x);
+				gb.baseX = bx;
+				gb.group.position.x = bx + slideOffsetX;
+				gb.group.position.y = gb.baseY;
+			}
+		});
+
+		// Staging tray at bottom
+		if (stagingTrayGroup) {
+			stagingTrayGroup.visible = false;
+			stagingTrayGroup.position.x = slideOffsetX;
+			stagingTrayGroup.position.y = 0;
+		}
+
+		// Chevrons
+		if (activeRowIndicatorGroup) {
+			activeRowIndicatorGroup.visible = false;
+		}
+
+		// Clear staging tiles for now (they will slide in when staging tray lands)
+		stagingSlots.forEach(function (s) {
+			if (s.tile) {
+				var idx = allTiles.indexOf(s.tile);
+				if (idx !== -1) allTiles.splice(idx, 1);
+				scene.remove(s.tile.mesh);
+				s.tile = null;
+			}
+		});
+
+		levelEntranceState = {
+			active: true,
+			startTime: null,
+			initialPause: 0.35,  // 350ms pure scenery reveal!
+			rowDelay: 0.10,      // 100ms stagger between consecutive rows from top to bottom
+			slideDuration: 0.44, // 440ms smooth lateral slide-in
+			slideOffsetX: slideOffsetX,
+			numRows: chainRowData.length,
+			rowsLanded: {},
+			stagingLanded: false,
+			completed: false
+		};
+	}
+
+	function updateLevelEntrance(now) {
+		if (!levelEntranceState || !levelEntranceState.active) return;
+		if (!levelEntranceState.startTime) {
+			levelEntranceState.startTime = now;
+		}
+		var elapsed = (now - levelEntranceState.startTime) * 0.001;
+		var slideOffsetX = levelEntranceState.slideOffsetX;
+
+		// 1. Cascade Chain Rows from Row 0 (top) down to Row numRows-1
+		for (var r = 0; r < levelEntranceState.numRows; r++) {
+			var rowInfo = chainRowData[r];
+			if (!rowInfo) continue;
+
+			var rStart = levelEntranceState.initialPause + r * levelEntranceState.rowDelay;
+			if (elapsed < rStart) {
+				rowInfo.rowGroup.visible = false;
+				if (r === 0) {
+					chainSlots.filter(function (s) { return s.row === 0; }).forEach(function (s) {
+						if (s.tile && s.tile.mesh) s.tile.mesh.visible = false;
+					});
+				}
+				activeGiftBoxes.forEach(function (gb) {
+					if (gb && gb.rowIdx === r && gb.group) gb.group.visible = false;
+				});
+			} else {
+				rowInfo.rowGroup.visible = true;
+				if (r === 0) {
+					chainSlots.filter(function (s) { return s.row === 0; }).forEach(function (s) {
+						if (s.tile && s.tile.mesh) s.tile.mesh.visible = true;
+					});
+				}
+				activeGiftBoxes.forEach(function (gb) {
+					if (gb && gb.rowIdx === r && gb.group) gb.group.visible = true;
+				});
+
+				var u = (elapsed - rStart) / levelEntranceState.slideDuration;
+				if (u >= 1.0) {
+					rowInfo.rowGroup.position.x = 0;
+					rowInfo.rowGroup.position.y = 0;
+					if (r === 0) {
+						chainSlots.filter(function (s) { return s.row === 0; }).forEach(function (s) {
+							if (s.tile && s.tile.mesh) {
+								s.tile.mesh.position.x = s.worldPos.x;
+								s.tile.mesh.position.y = s.worldPos.y;
+							}
+						});
+					}
+					activeGiftBoxes.forEach(function (gb) {
+						if (gb && gb.rowIdx === r && gb.group) {
+							gb.group.position.x = gb.baseX;
+							gb.group.position.y = gb.baseY;
+						}
+					});
+
+					if (!levelEntranceState.rowsLanded[r]) {
+						levelEntranceState.rowsLanded[r] = true;
+						AudioManager.play('tilehit', 0.20 + r * 0.03);
+						AudioManager.haptic(10);
+					}
+				} else {
+					// Smooth ease-out quartic deceleration
+					var ease = 1.0 - Math.pow(1.0 - u, 3.5);
+					var dx = slideOffsetX * (1.0 - ease);
+
+					rowInfo.rowGroup.position.x = dx;
+					rowInfo.rowGroup.position.y = 0;
+					if (r === 0) {
+						chainSlots.filter(function (s) { return s.row === 0; }).forEach(function (s) {
+							if (s.tile && s.tile.mesh) {
+								s.tile.mesh.position.x = s.worldPos.x + dx;
+								s.tile.mesh.position.y = s.worldPos.y;
+							}
+						});
+					}
+					activeGiftBoxes.forEach(function (gb) {
+						if (gb && gb.rowIdx === r && gb.group) {
+							gb.group.position.x = gb.baseX + dx;
+							gb.group.position.y = gb.baseY;
+						}
+					});
+				}
+			}
+		}
+
+		// 2. Cascade Staging Tray (bottom tray)
+		var stagingStart = levelEntranceState.initialPause + levelEntranceState.numRows * levelEntranceState.rowDelay;
+		if (elapsed < stagingStart) {
+			if (stagingTrayGroup) stagingTrayGroup.visible = false;
+		} else {
+			if (stagingTrayGroup) stagingTrayGroup.visible = true;
+			var uStage = (elapsed - stagingStart) / levelEntranceState.slideDuration;
+			if (uStage >= 1.0) {
+				if (stagingTrayGroup) {
+					stagingTrayGroup.position.x = 0;
+					stagingTrayGroup.position.y = 0;
+				}
+				if (!levelEntranceState.stagingLanded) {
+					levelEntranceState.stagingLanded = true;
+					levelEntranceState.active = false;
+					levelEntranceState.completed = true;
+					AudioManager.play('tilehit', 0.35);
+					AudioManager.haptic(15);
+					spawnStagingTiles(currentWordIndex);
+					updateActiveRowVisuals();
+				}
+			} else {
+				var easeStage = 1.0 - Math.pow(1.0 - uStage, 3.5);
+				var dxStage = slideOffsetX * (1.0 - easeStage);
+				if (stagingTrayGroup) {
+					stagingTrayGroup.position.x = dxStage;
+					stagingTrayGroup.position.y = 0;
+				}
+			}
+		}
+	}
+
+	function completeLevelEntranceImmediately() {
+		if (!levelEntranceState || !levelEntranceState.active) return;
+		levelEntranceState.active = false;
+		levelEntranceState.completed = true;
+		for (var r = 0; r < chainRowData.length; r++) {
+			var rowInfo = chainRowData[r];
+			if (rowInfo && rowInfo.rowGroup) {
+				rowInfo.rowGroup.visible = true;
+				rowInfo.rowGroup.position.x = 0;
+				rowInfo.rowGroup.position.y = 0;
+			}
+		}
+		chainSlots.filter(function (s) { return s.row === 0; }).forEach(function (s) {
+			if (s.tile && s.tile.mesh) {
+				s.tile.mesh.visible = true;
+				s.tile.mesh.position.x = s.worldPos.x;
+				s.tile.mesh.position.y = s.worldPos.y;
+			}
+		});
+		activeGiftBoxes.forEach(function (gb) {
+			if (gb && gb.group) {
+				gb.group.visible = true;
+				gb.group.position.x = (gb.baseX !== undefined ? gb.baseX : gb.group.position.x);
+				gb.group.position.y = gb.baseY;
+			}
+		});
+		if (stagingTrayGroup) {
+			stagingTrayGroup.visible = true;
+			stagingTrayGroup.position.x = 0;
+			stagingTrayGroup.position.y = 0;
+		}
+		var hasStaging = stagingSlots.some(function (s) { return !!s.tile; });
+		if (!hasStaging) {
+			spawnStagingTiles(currentWordIndex);
+		}
+		updateActiveRowVisuals();
+	}
+
+	// --------------------------------------------------------------------------
 	// Level Loading & Tile Placement
 	// --------------------------------------------------------------------------
 	function loadLevel(levelIndex) {
@@ -3103,13 +3334,25 @@
 			}
 		}
 
-		// 2. Spawn scrambled tiles for Row 1 in staging tray
-		spawnStagingTiles(currentWordIndex);
+		// 2. Cascade tray spawn animation from top to bottom (revealing the live scenery first!)
+		initLevelEntrance();
 
-		updateActiveRowVisuals();
-		if (global.WordscapesScenery && typeof global.WordscapesScenery.setSceneryForLevel === 'function') {
+		// 3. Scenery selection: prioritize URL param or user-equipped choice over level cycling
+		var urlParams = new URLSearchParams(window.location.search);
+		var urlScenery = urlParams.get('scenery');
+		var userSelected = null;
+		try { userSelected = localStorage.getItem('word_chain_scenery_user_selected'); } catch (e) {}
+
+		if (urlScenery && global.WordscapesScenery) {
+			global.WordscapesScenery.setScenery(urlScenery);
+		} else if (userSelected && global.WordscapesScenery) {
+			var saved = null;
+			try { saved = localStorage.getItem('word_chain_scenery'); } catch (e) {}
+			if (saved) global.WordscapesScenery.setScenery(saved);
+		} else if (global.WordscapesScenery && typeof global.WordscapesScenery.setSceneryForLevel === 'function') {
 			global.WordscapesScenery.setSceneryForLevel(currentLevelIndex);
 		}
+
 		if (typeof SpeedometerManager !== 'undefined') {
 			SpeedometerManager.startLevel(currentLevelIndex);
 		}
@@ -3180,6 +3423,9 @@
 
 		// Pointer Down
 		dom.addEventListener('pointerdown', function (e) {
+			if (levelEntranceState && levelEntranceState.active) {
+				completeLevelEntranceImmediately();
+			}
 			if (isRowShaking || isCelebratingWin || isComboPlaying) return;
 			getPointerPos(e);
 			raycaster.setFromCamera(pointer, camera);
@@ -4408,7 +4654,9 @@
 		var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
 		var stagingZ = (numRows >= 8) ? 4.8 : (numRows === 7 ? 4.3 : 3.6);
 		var startZ = (numRows >= 8) ? -5.8 : (numRows === 7 ? -5.0 : -4.2);
-		var centerZ = (startZ + stagingZ) * 0.5 - 0.15;
+		// In mobile portrait mode (aspect < 0.75), shift board downward to cover the bottom fence petals and balance the vertical canvas
+		var verticalOffset = (aspect < 0.75) ? 0.95 : -0.15;
+		var centerZ = (startZ + stagingZ) * 0.5 + verticalOffset;
 
 		var fov = 46;
 		var fovRad = THREE.MathUtils.degToRad(fov);
@@ -4421,6 +4669,12 @@
 		var camY_by_width = (reqWidth / aspect) / (2 * halfFovTan);
 		var camY_by_height = reqHeight / (2 * halfFovTan);
 		var camY = Math.max(camY_by_width, camY_by_height);
+
+		// Carry the 3D camera further back for volcano environment so the volcano doesn't feel cramped or too close
+		var activeScenery = (global.WordscapesScenery && global.WordscapesScenery.getCurrent) ? global.WordscapesScenery.getCurrent() : null;
+		if (activeScenery === 'volcano') {
+			camY *= 1.25;
+		}
 
 		if (perspectiveMode === 'classic') {
 			camY *= 1.05;
@@ -4541,6 +4795,11 @@
 		// Update in-game tile animations & physics
 		for (var i = 0; i < allTiles.length; i++) {
 			allTiles[i].update(dt);
+		}
+
+		// Animate cascading tray spawn from top to bottom at start of level
+		if (levelEntranceState && levelEntranceState.active) {
+			updateLevelEntrance(now);
 		}
 
 		// Animate 3D Active Row Indicator Chevrons
@@ -4914,6 +5173,7 @@
 				if (!scId || !global.WordscapesScenery) return;
 
 				if (UnlockManager.isOwned('scenery', scId) || UnlockManager.isTrial('scenery', scId)) {
+					try { localStorage.setItem('word_chain_scenery_user_selected', 'true'); } catch (e) {}
 					global.WordscapesScenery.setScenery(scId);
 					updateThemeModalUI();
 					AudioManager.play('tilehit', 0.9);

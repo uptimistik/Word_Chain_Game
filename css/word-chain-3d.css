@@ -61,6 +61,36 @@ html, body {
 	opacity: 1;
 }
 
+/* Live animated backdrop (WebGL shader over the portrait art). Sits above the
+   static plate, which remains as the instant-load / no-WebGL fallback. */
+.scenery-live-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	display: block;
+	opacity: 0;
+	transition: opacity 1.0s cubic-bezier(0.4, 0, 0.2, 1);
+	pointer-events: none;
+}
+
+.scenery-live-canvas.active {
+	opacity: 1;
+}
+
+/* Background Particle Canvas — Drift BEHIND the 3D playing board (z-index: 3, board is z-index: 1 on #canvas-container with scenery-container at z-index: 0) */
+.scenery-bg-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	display: block;
+	pointer-events: none;
+	z-index: 3;
+}
+
 @keyframes sceneryKenBurns {
 	0% {
 		transform: scale(1.04) translate3d(0, 0, 0);
@@ -210,7 +240,9 @@ html, body {
 	-webkit-user-select: none;
 }
 
-#title-screen.hide {
+#title-screen.hide,
+#title-screen.hidden {
+	display: none !important;
 	opacity: 0;
 	visibility: hidden;
 	pointer-events: none;
@@ -649,8 +681,9 @@ html, body {
 }
 
 .hud-top-bar {
+	position: relative;
 	display: flex;
-	justify-content: space-between;
+	justify-content: center;
 	align-items: center;
 	width: 100%;
 	max-width: 500px;
@@ -733,6 +766,10 @@ html, body {
 }
 
 .hud-right-actions {
+	position: absolute;
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%);
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -744,8 +781,8 @@ html, body {
 	width: 42px;
 	height: 42px;
 	border-radius: 50%;
-	background: rgba(20, 16, 26, 0.78);
-	border: 1px solid rgba(251, 191, 36, 0.45);
+	background: rgba(15, 20, 30, 0.28);
+	border: 1px solid rgba(255, 255, 255, 0.20);
 	padding: 0;
 	cursor: pointer;
 	display: flex;
@@ -753,17 +790,17 @@ html, body {
 	justify-content: center;
 	font-size: 20px;
 	line-height: 1;
-	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-	backdrop-filter: blur(8px);
-	-webkit-backdrop-filter: blur(8px);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
 	transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .hud-action-pill-btn:hover {
 	transform: scale(1.1);
-	background: rgba(35, 28, 45, 0.95);
-	border-color: #fbbf24;
-	box-shadow: 0 0 16px rgba(251, 191, 36, 0.45);
+	background: rgba(35, 45, 60, 0.55);
+	border-color: rgba(255, 255, 255, 0.45);
+	box-shadow: 0 0 16px rgba(255, 255, 255, 0.3);
 }
 
 .hud-action-pill-btn:active {
@@ -775,29 +812,30 @@ html, body {
 	box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
 }
 
-/* Settings Gear Button */
+/* Settings Gear Button (Tesla / Glassmorphic Floating Icon) */
 .hud-gear-btn {
 	pointer-events: auto;
-	width: 42px;
-	height: 42px;
+	width: 40px;
+	height: 40px;
 	border-radius: 50%;
-	background: rgba(20, 16, 26, 0.78);
-	border: 1px solid rgba(251, 191, 36, 0.45);
+	background: rgba(20, 28, 42, 0.52);
+	border: 1px solid rgba(255, 255, 255, 0.25);
 	padding: 0;
 	cursor: pointer;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-	backdrop-filter: blur(8px);
-	-webkit-backdrop-filter: blur(8px);
-	transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+	isolation: isolate;
+	overflow: hidden;
+	transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .hud-gear-btn:hover {
 	transform: rotate(45deg) scale(1.08);
-	background: rgba(35, 28, 45, 0.9);
-	border-color: #fbbf24;
+	background: rgba(35, 45, 65, 0.5);
+	border-color: rgba(255, 255, 255, 0.5);
+	box-shadow: 0 0 16px rgba(255, 255, 255, 0.35);
 }
 
 .hud-gear-btn:active {
@@ -805,17 +843,14 @@ html, body {
 }
 
 .hud-gear-emoji {
-	font-size: 20px;
+	font-size: 19px;
 	line-height: 1;
 	display: block;
 	filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 /* ==============================================================================
-   In-Game HUD Speedometer Dial
-   ============================================================================== */
-/* ==============================================================================
-   Clean Minimalist Solving Speedometer Gauge (Title-Screen Aesthetic)
+   In-Game HUD Speedometer Dial (Tesla Windshield Heads-Up Display Aesthetic)
    ============================================================================== */
 .hud-speedometer {
 	pointer-events: auto;
@@ -823,15 +858,14 @@ html, body {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	background: #252429;
-	backdrop-filter: blur(12px);
-	-webkit-backdrop-filter: blur(12px);
-	border: 1.5px solid rgba(255, 255, 255, 0.14);
-	border-bottom: 3px solid #141318;
-	border-radius: 16px;
-	padding: 4px 10px 5px 10px;
-	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.12);
-	transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28), border-color 0.3s ease, box-shadow 0.3s ease;
+	background: rgba(12, 16, 24, 0.24);
+	backdrop-filter: blur(12px) saturate(150%);
+	-webkit-backdrop-filter: blur(12px) saturate(150%);
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	border-radius: 20px;
+	padding: 4px 12px 5px 12px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+	transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28), border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
 	position: relative;
 	cursor: pointer;
 	user-select: none;
@@ -1498,7 +1532,7 @@ html, body {
 	height: 100%;
 	background: rgba(10, 8, 14, 0.85);
 	backdrop-filter: blur(8px);
-	display: flex;
+	display: none;
 	justify-content: center;
 	align-items: center;
 	z-index: 100;
@@ -1508,6 +1542,7 @@ html, body {
 }
 
 #win-modal.show {
+	display: flex;
 	opacity: 1;
 	pointer-events: auto;
 }
@@ -1576,7 +1611,7 @@ html, body {
 	height: 100%;
 	background: rgba(10, 8, 14, 0.85);
 	backdrop-filter: blur(10px);
-	display: flex;
+	display: none;
 	justify-content: center;
 	align-items: center;
 	z-index: 120;
@@ -1587,6 +1622,7 @@ html, body {
 
 #theme-modal.show,
 .game-modal.show {
+	display: flex;
 	opacity: 1;
 	pointer-events: auto;
 }
@@ -1801,55 +1837,39 @@ html, body {
 	}
 
 	.hud-top-bar {
+		position: relative;
 		display: flex;
-		justify-content: space-between;
+		justify-content: center;
 		align-items: center;
 		width: 100%;
 		max-width: 500px;
 	}
 
 	.hud-left-pill {
-		padding: 4px 10px 4px 7px;
-		gap: 8px;
-	}
-
-	.hud-level-badge {
-		font-size: 11px;
-		padding: 2px 7px;
-		gap: 4px;
-	}
-
-	.hud-lvl-prefix {
-		font-size: 10px;
-	}
-
-	.hud-level-name {
-		font-size: 11px;
-		max-width: 84px;
-		overflow: hidden;
-		text-overflow: ellipsis;
+		display: none !important;
 	}
 
 	.hud-gear-btn {
-		width: 40px;
-		height: 40px;
+		width: 38px;
+		height: 38px;
 		flex-shrink: 0;
 	}
 
 	.hud-action-pill-btn {
-		width: 40px;
-		height: 40px;
-		flex-shrink: 0;
-		font-size: 18px;
+		display: none !important;
 	}
 
 	.hud-right-actions {
+		position: absolute;
+		right: 0;
+		top: 50%;
+		transform: translateY(-50%);
 		gap: 6px;
 	}
 
 	.hud-speedometer {
-		padding: 3px 8px 4px 8px;
-		border-radius: 14px;
+		padding: 3px 10px 4px 10px;
+		border-radius: 18px;
 	}
 
 	.speedo-dial {
@@ -3078,7 +3098,7 @@ html, body {
 	background: rgba(8, 6, 12, 0.88);
 	backdrop-filter: blur(12px);
 	-webkit-backdrop-filter: blur(12px);
-	display: flex;
+	display: none;
 	justify-content: center;
 	align-items: center;
 	z-index: 130;
@@ -3089,6 +3109,7 @@ html, body {
 }
 
 #tile-storage-modal.show {
+	display: flex;
 	opacity: 1;
 	pointer-events: auto;
 }

@@ -9,7 +9,7 @@
 	<title>Scruffle 3D Chain</title>
 	<link rel="icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
 	<link rel="shortcut icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
-	<link rel="stylesheet" href="css/word-chain-3d.css?v=4.0">
+	<link rel="stylesheet" href="css/word-chain-3d.css?v=7.0">
 	<style>
 		/* Title Screen: Semi-transparent background with sleek blur */
 		#title-screen {
@@ -231,17 +231,19 @@
 
 		#hud-speedometer {
 			position: relative;
-			transition: transform 0.3s ease, box-shadow 0.3s ease;
-			background: #252429;
-			border: 1.5px solid rgba(0, 229, 255, 0.45);
-			border-radius: 16px;
-			padding: 4px 10px 5px;
+			transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+			background: rgba(12, 16, 26, 0.22);
+			backdrop-filter: blur(12px) saturate(150%);
+			-webkit-backdrop-filter: blur(12px) saturate(150%);
+			border: 1px solid rgba(255, 255, 255, 0.18);
+			border-radius: 20px;
+			padding: 4px 12px 5px;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
 			overflow: hidden;
-			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.20);
 		}
 
 		#hud-speedometer.win-highlight {
@@ -509,10 +511,12 @@
 		<div class="scenery-photo-plate active" id="scenery-plate-sakura" style="background-image: url('images/scenery/3d/sakura.jpg');"></div>
 		<div class="scenery-photo-plate" id="scenery-plate-volcano" style="background-image: url('images/scenery/3d/volcano.jpg');"></div>
 		<div class="scenery-photo-plate" id="scenery-plate-snowtown" style="background-image: url('images/scenery/3d/snowtown.jpg');"></div>
-		<div class="scenery-photo-plate" id="scenery-plate-peaks" style="background-image: url('images/scenery/3d/peaks.jpg');"></div>
-		<div class="scenery-photo-plate" id="scenery-plate-ocean" style="background-image: url('images/scenery/3d/ocean.jpg');"></div>
+		<div class="scenery-photo-plate" id="scenery-plate-peaks" style="background-image: url('images/scenery/3d/peaks.jpg?v=3');"></div>
+		<div class="scenery-photo-plate" id="scenery-plate-ocean" style="background-image: url('images/scenery/3d/ocean.jpg?v=3');"></div>
 		<div class="scenery-vignette scenery-vignette-sakura" id="scenery-vignette"></div>
 		<div class="scenery-ambient-glow scenery-glow-sakura" id="scenery-ambient-glow"></div>
+		<!-- Dedicated Particle Canvas BEHIND the 3D board -->
+		<canvas id="scenery-bg-canvas" class="scenery-bg-canvas"></canvas>
 	</div>
 
 	<!-- 3D WebGL Canvas Container -->
@@ -618,7 +622,8 @@
 	<!-- In-Game Minimal Clean HUD Header with Live Speedometer -->
 	<header id="hud-header">
 		<div class="hud-top-bar">
-			<div class="hud-left-pill" title="Tap to open Level Select & Stars">
+			<!-- Hidden Level Select hook (accessible via settings & title) -->
+			<div class="hud-left-pill" title="Tap to open Level Select & Stars" style="display: none !important;">
 				<span class="hud-level-badge">
 					<span class="hud-lvl-prefix">LVL <span id="hud-level-num">1</span></span>
 					<span class="hud-lvl-sep">•</span>
@@ -627,8 +632,7 @@
 				<div class="chain-progress" id="chain-progress-dots"></div>
 			</div>
 
-			<!-- 3D Tactile Magical Solving Speedometer Gauge -->
-			<!-- Clean Minimalist Solving Speedometer Gauge (No Stray Lines, No Overlap) -->
+			<!-- Centered Tesla Windshield Glassmorphic Speedometer HUD -->
 			<div class="hud-speedometer tier-cruise" id="hud-speedometer" title="Solving Speed (Words Per Minute)">
 				<div class="speedo-magical-aura" id="speedo-magical-aura"></div>
 				<div class="speedo-dial">
@@ -651,13 +655,13 @@
 						</defs>
 						<!-- Gauge background track -->
 						<path class="speedo-track" d="M 13.4 50 A 36.6 36.6 0 0 1 86.6 50" fill="none"
-							stroke="rgba(255,255,255,0.12)" stroke-width="6" stroke-linecap="round" />
+							stroke="rgba(255,255,255,0.15)" stroke-width="5" stroke-linecap="round" />
 						<!-- Gauge active colored fill -->
 						<path class="speedo-fill" id="speedo-fill" d="M 13.4 50 A 36.6 36.6 0 0 1 86.6 50" fill="none"
-							stroke="url(#speedoGrad)" stroke-width="6" stroke-linecap="round" stroke-dasharray="115"
+							stroke="url(#speedoGrad)" stroke-width="5" stroke-linecap="round" stroke-dasharray="115"
 							stroke-dashoffset="115" filter="url(#gaugeGlow)" />
 						<!-- Tachometer Tick Divisions (subtle, clean) -->
-						<g class="speedo-ticks" stroke="rgba(255,255,255,0.25)" stroke-width="1.2" stroke-linecap="round">
+						<g class="speedo-ticks" stroke="rgba(255,255,255,0.30)" stroke-width="1.2" stroke-linecap="round">
 							<line x1="16" y1="46" x2="20" y2="44" />
 							<line x1="28" y1="28" x2="32" y2="30" />
 							<line x1="50" y1="18" x2="50" y2="22" />
@@ -666,8 +670,8 @@
 						</g>
 						<!-- Glowing needle jewel bead (calibrated to glide cleanly along track) -->
 						<g id="speedo-needle-group" transform="rotate(-90 50 50)">
-							<circle cx="50" cy="13.4" r="3.5" fill="#ffffff" filter="url(#gaugeGlow)" />
-							<circle cx="50" cy="13.4" r="1.8" fill="#ffd700" />
+							<circle cx="50" cy="13.4" r="3.2" fill="#ffffff" filter="url(#gaugeGlow)" />
+							<circle cx="50" cy="13.4" r="1.6" fill="#ffd700" />
 						</g>
 					</svg>
 					<div class="speedo-center-readout">
@@ -686,8 +690,9 @@
 				</div>
 			</div>
 
+			<!-- Top Right Actions: ONLY Settings icon -->
 			<div class="hud-right-actions">
-				<button class="hud-action-pill-btn" id="btn-toggle-cam" type="button" title="Toggle 3D Highway Incline / Classic View" aria-label="Camera Perspective View">
+				<button class="hud-action-pill-btn" id="btn-toggle-cam" type="button" title="Toggle Camera View" style="display: none !important;" aria-label="Camera Perspective View">
 					<span id="cam-toggle-icon">🎸</span>
 				</button>
 				<button class="hud-gear-btn" id="btn-settings" title="Settings" aria-label="Settings">
@@ -1045,8 +1050,8 @@
 	<!-- Scripts -->
 	<script src="js/three.min.js"></script>
 	<script src="js/levels.js"></script>
-	<script src="js/wordscapes-scenery.js?v=4.0"></script>
-	<script src="js/word-chain-3d.js?v=4.0"></script>
+	<script src="js/wordscapes-scenery.js?v=16.0"></script>
+	<script src="js/word-chain-3d.js?v=8.0"></script>
 
 	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
 	<script>
