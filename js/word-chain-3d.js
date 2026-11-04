@@ -5307,12 +5307,10 @@
 		victoryTrayGroup = new THREE.Group();
 		scene.add(victoryTrayGroup);
 
-		// Calculate center screen Z position dynamically based on aspect & layout
-		var aspect = window.innerWidth / window.innerHeight;
-		var verticalOffset = (aspect < 0.75) ? 0.95 : -0.15;
+		// Calculate center screen Z position dynamically based on camera framing
 		var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
 		var layout = getBoardLayout(numRows);
-		var centerZ = (layout.startZ + layout.stagingZ) * 0.5 + verticalOffset;
+		var centerZ = currentCenterZ || ((layout.startZ + layout.stagingZ) * 0.5);
 
 		var slotWidth = 1.15;
 		var rackDepth = 1.30;
@@ -5533,11 +5531,6 @@
 				AudioManager.playSnap(1.4);
 				AudioManager.haptic(45);
 
-				// Show celebratory toast
-				if (winCelebrationState.victoryMessage) {
-					showToast(winCelebrationState.victoryMessage.r1 + ' ' + winCelebrationState.victoryMessage.r2 + '!');
-				}
-
 				// Reveal the NEXT button at the bottom of the screen!
 				var btnNext = document.getElementById('btn-floating-next');
 				if (btnNext) {
@@ -5582,6 +5575,14 @@
 		var hudBottom = document.getElementById('hud-bottom');
 		if (hudBottom) hudBottom.style.display = 'none';
 
+		// Dismiss any active toast notifications during celebration
+		var toast = document.getElementById('toast-banner');
+		if (toast) toast.classList.remove('show');
+		if (toastTimeout) {
+			clearTimeout(toastTimeout);
+			toastTimeout = null;
+		}
+
 		// Clean up any previous celebration particles or victory trays
 		if (confettiGroup) {
 			scene.remove(confettiGroup);
@@ -5605,6 +5606,13 @@
 
 		var btnNext = document.getElementById('btn-floating-next');
 		if (btnNext) btnNext.classList.remove('show');
+
+		var toast = document.getElementById('toast-banner');
+		if (toast) toast.classList.remove('show');
+		if (toastTimeout) {
+			clearTimeout(toastTimeout);
+			toastTimeout = null;
+		}
 
 		winCelebrationStartTime = performance.now();
 
@@ -5658,6 +5666,13 @@
 
 		var btnNext = document.getElementById('btn-floating-next');
 		if (btnNext) btnNext.classList.remove('show');
+
+		var toast = document.getElementById('toast-banner');
+		if (toast) toast.classList.remove('show');
+		if (toastTimeout) {
+			clearTimeout(toastTimeout);
+			toastTimeout = null;
+		}
 
 		var celebCard = document.getElementById('win-celebration-card');
 		if (celebCard) celebCard.classList.remove('show');
@@ -5743,6 +5758,8 @@
 	// --------------------------------------------------------------------------
 	// Responsive Camera Framing & Dynamic Full-Vertical System
 	// --------------------------------------------------------------------------
+	var currentCenterZ = 0;
+
 	function updateCameraFraming() {
 		if (!camera || !renderer) return;
 
@@ -5753,31 +5770,62 @@
 		var layout = getBoardLayout(numRows);
 		var stagingZ = layout.stagingZ;
 		var startZ = layout.startZ;
-		// In mobile portrait mode (aspect < 0.75), shift board downward to balance the vertical canvas
-		var verticalOffset = (aspect < 0.75) ? 0.95 : -0.15;
-		var centerZ = (startZ + stagingZ) * 0.5 + verticalOffset;
+
+		// Exact physical vertical bounds of the 3D board
+		var boardTopZ = startZ - 0.70;       // Top rim of upper rack
+		var boardBottomZ = stagingZ + 0.75;  // Bottom rim of player staging rack
+		var boardHeight = boardBottomZ - boardTopZ;
+
+		var isMobilePortrait = (aspect < 0.75);
+
+		// Determine dynamic top and bottom margin fractions on screen
+		// Top HUD header (speedometer + star gauge) height measured from actual DOM
+		var headerEl = document.getElementById('hud-header');
+		var headerBottomPx = 130;
+		if (headerEl) {
+			var hRect = headerEl.getBoundingClientRect();
+			if (hRect && hRect.bottom > 0) {
+				headerBottomPx = hRect.bottom;
+			}
+		}
+		var topPaddingPx = isMobilePortrait ? 24 : 18;
+		var topMarginFraction = (headerBottomPx + topPaddingPx) / window.innerHeight;
+		topMarginFraction = Math.max(0.16, Math.min(0.28, topMarginFraction));
+
+		// Bottom HUD (#hud-bottom with shuffle/hint/recall) takes ~64-75px
+		var bottomPaddingPx = isMobilePortrait ? 84 : 70;
+		var bottomMarginFraction = bottomPaddingPx / window.innerHeight;
+		bottomMarginFraction = Math.max(0.10, Math.min(0.20, bottomMarginFraction));
+
+		// Target vertical occupancy for the board between top HUD and bottom HUD
+		var maxOccupancy = Math.max(0.46, 1.0 - (topMarginFraction + bottomMarginFraction));
+		var targetOccupancy = isMobilePortrait ? Math.min(0.60, maxOccupancy) : Math.min(0.70, maxOccupancy);
 
 		var fov = 46;
 		var fovRad = THREE.MathUtils.degToRad(fov);
 		var halfFovTan = Math.tan(fovRad * 0.5);
 
-		// Board width & vertical rack span
 		var reqWidth = (numRows >= 8) ? 11.2 : ((numRows === 7) ? 10.9 : 10.6);
-		var reqHeight = (stagingZ - startZ) + 4.6;
+		var reqHeight = boardHeight / targetOccupancy;
 
 		var camY_by_width = (reqWidth / aspect) / (2 * halfFovTan);
 		var camY_by_height = reqHeight / (2 * halfFovTan);
 		var camY = Math.max(camY_by_width, camY_by_height);
 
-		// Carry the 3D camera further back for volcano environment so the volcano doesn't feel cramped or too close
+		// Carry the 3D camera further back for volcano environment so the volcano doesn't feel cramped
 		var activeScenery = (global.WordscapesScenery && global.WordscapesScenery.getCurrent) ? global.WordscapesScenery.getCurrent() : null;
 		if (activeScenery === 'volcano') {
-			camY *= 1.25;
+			camY *= 1.20;
 		}
 
 		if (perspectiveMode === 'classic') {
 			camY *= 1.05;
 		}
+
+		// Calculate centerZ so that boardTopZ is guaranteed to sit exactly at topMarginFraction on screen!
+		var viewHeight = 2 * camY * halfFovTan;
+		var centerZ = boardTopZ + viewHeight * (0.5 - topMarginFraction);
+		currentCenterZ = centerZ;
 
 		camera.fov = fov;
 		camera.up.set(0, 0, -1);
@@ -6066,7 +6114,7 @@
 			camera.position.x = Math.sin(now * 0.0006) * 0.22;
 			var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
 			var layout = getBoardLayout(numRows);
-			var cZ = (layout.startZ + layout.stagingZ) * 0.5 - 0.15;
+			var cZ = currentCenterZ || ((layout.startZ + layout.stagingZ) * 0.5);
 			camera.lookAt(0, 0, cZ);
 		}
 
