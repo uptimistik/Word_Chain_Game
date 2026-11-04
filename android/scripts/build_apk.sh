@@ -91,11 +91,7 @@ echo "Compiling Java sources..."
 
 # 7. Convert bytecode to Dalvik (dex)
 echo "Converting bytecode to dex with d8..."
-CLASS_FILES=()
-while IFS= read -r f; do
-    CLASS_FILES+=("$f")
-done < <(find "$BUILD_DIR/classes" -name "*.class")
-"$D8" --release --min-api 26 --lib "$ANDROID_JAR" --output "$BUILD_DIR/dex" "${CLASS_FILES[@]}"
+"$D8" --release --min-api 26 --lib "$ANDROID_JAR" --output "$BUILD_DIR/dex" "$BUILD_DIR/classes/com/wordchaingame/app/"*.class
 
 # 8. Add classes.dex to APK
 echo "Adding classes.dex to APK..."

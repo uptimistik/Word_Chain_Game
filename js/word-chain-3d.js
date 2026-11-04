@@ -153,8 +153,16 @@
 			}
 		},
 
+		lastTileHitTime: 0,
+		lastHapticTime: 0,
+
 		play: function (name, volume, pitch) {
 			if (this.isAppInBackground || !this.soundEnabled) return;
+			if (name === 'tilehit') {
+				var nowSnd = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+				if (nowSnd - this.lastTileHitTime < 28) return;
+				this.lastTileHitTime = nowSnd;
+			}
 			var vol = (volume !== undefined ? volume : 1.0);
 
 			// Web Audio path: allows gain boost up to 2.0x and realistic acoustic pitch nuance
@@ -194,10 +202,12 @@
 			}
 		},
 
-		playSnap: function (volume) {
+		playSnap: function (volume, skipHaptic) {
 			var vol = (volume !== undefined ? volume : 1.25);
 			this.play('tilehit', vol);
-			this.haptic(22);
+			if (!skipHaptic) {
+				this.haptic(20);
+			}
 		},
 
 		playBell: function (volume) {
@@ -254,6 +264,10 @@
 		},
 
 		haptic: function (ms, intensity, sharpness) {
+			var nowH = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+			if (nowH - (this.lastHapticTime || 0) < 42) return;
+			this.lastHapticTime = nowH;
+
 			var durationSec = (ms || 15) / 1000.0;
 			var i = (intensity !== undefined) ? intensity : Math.min(1.0, 0.45 + (ms || 15) * 0.015);
 			var s = (sharpness !== undefined) ? sharpness : 0.75;
@@ -266,6 +280,7 @@
 						type: 'pattern',
 						events: [{ t: 0.0, i: i, s: s, d: Math.min(0.12, durationSec) }]
 					});
+					return;
 				}
 			} catch (e1) {}
 
@@ -276,6 +291,7 @@
 						type: 'pattern',
 						events: [{ t: 0.0, i: i, s: s, d: Math.min(0.12, durationSec) }]
 					}));
+					return;
 				}
 			} catch (e2) {}
 
@@ -606,7 +622,7 @@
 			}
 
 			// Placeholder while the image is loading
-			ctx.font = '900 132px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+			ctx.font = '900 ' + Math.round(size * 0.52) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
 			ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
@@ -619,7 +635,7 @@
 			var key = sid + ':' + letter;
 			if (this.letterTextures[key]) return this.letterTextures[key];
 
-			var size = 256;
+			var size = 512;
 			var canvas = document.createElement('canvas');
 			canvas.width = size;
 			canvas.height = size;
@@ -627,9 +643,9 @@
 
 			var texture = new THREE.CanvasTexture(canvas);
 			texture.encoding = THREE.sRGBEncoding;
-			if (renderer && renderer.capabilities) {
-				texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-			}
+			texture.minFilter = THREE.LinearMipmapLinearFilter;
+			texture.magFilter = THREE.LinearFilter;
+			texture.anisotropy = (renderer && renderer.capabilities) ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 4;
 			this.letterTextures[key] = texture;
 
 			var self = this;
@@ -667,6 +683,7 @@
 
 			var skin = TILE_SKINS[skinId];
 			this.letterTextures = {};
+			cachedTileFaceMaterials = {};
 			this.preloadSkinImages(skinId);
 
 			var sideMap = this.getHardwoodTexture(skin.sideBase, skin.sideDark, skin.sideLight);
@@ -693,10 +710,7 @@
 			for (var i = 0; i < allTiles.length; i++) {
 				var t = allTiles[i];
 				if (t && t.mesh && t.mesh.material && t.mesh.material[2]) {
-					var tex = this.getLetterTexture(t.letter);
-					t.mesh.material[2].map = tex;
-					t.mesh.material[2].emissiveMap = tex;
-					t.mesh.material[2].needsUpdate = true;
+					t.mesh.material[2] = getSharedTileFaceMaterial(t.letter);
 				}
 			}
 		},
@@ -704,17 +718,15 @@
 		preloadTitleShowcaseImages: function () {
 			var self = this;
 			var letters = ['W', 'O', 'R', 'D', 'C', 'H', 'A', 'I', 'N'];
-			for (var i = 0; i < TILE_SKIN_ORDER.length; i++) {
-				var sid = TILE_SKIN_ORDER[i];
-				for (var j = 0; j < letters.length; j++) {
-					(function (s, c) {
-						var key = s + ':' + c;
-						if (self.tileImages[key]) return;
-						var img = new Image();
-						self.tileImages[key] = img;
-						img.src = getTileImageUrl(s, c);
-					})(sid, letters[j]);
-				}
+			var sid = currentSkinId || 'classic';
+			for (var j = 0; j < letters.length; j++) {
+				(function (s, c) {
+					var key = s + ':' + c;
+					if (self.tileImages[key]) return;
+					var img = new Image();
+					self.tileImages[key] = img;
+					img.src = getTileImageUrl(s, c);
+				})(sid, letters[j]);
 			}
 		},
 
@@ -1578,6 +1590,7 @@
 		if (!modal) return;
 		renderStorageCubbies();
 		updateStoragePreviewUI();
+		modal.style.display = 'flex';
 		modal.classList.add('show');
 		AudioManager.play('tilehit', 0.9);
 		AudioManager.haptic(20);
@@ -1587,6 +1600,11 @@
 		var modal = document.getElementById('tile-storage-modal');
 		if (!modal) return;
 		modal.classList.remove('show');
+		setTimeout(function () {
+			if (modal && !modal.classList.contains('show')) {
+				modal.style.display = '';
+			}
+		}, 350);
 		AudioManager.play('tilehit', 0.8);
 	}
 
@@ -1865,7 +1883,13 @@
 				var rect = this.canvas.getBoundingClientRect();
 				this.canvasWidth = Math.max(220, rect.width || 264);
 				this.canvasHeight = Math.max(68, rect.height || 88);
-				this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+				this.dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+
+				this._dimColor = new THREE.Color(0x64748b);
+				this._litColor = new THREE.Color(0xffb700);
+				this._dimRim = new THREE.Color(0x1e293b);
+				this._litRim = new THREE.Color(0x6b2f02);
+				this.lastRenderTime = 0;
 
 				this.renderer = new THREE.WebGLRenderer({
 					canvas: this.canvas,
@@ -2046,7 +2070,7 @@
 			var rect = this.canvas.getBoundingClientRect();
 			this.canvasWidth = Math.max(220, rect.width || 264);
 			this.canvasHeight = Math.max(68, rect.height || 88);
-			this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+			this.dpr = Math.min(window.devicePixelRatio || 1, 2.0);
 
 			this.renderer.setPixelRatio(this.dpr);
 			this.renderer.setSize(this.canvasWidth, this.canvasHeight, false);
@@ -2150,12 +2174,13 @@
 		render: function (now, dt) {
 			if (!this.initialized) this.init();
 			if (!this.initialized) return;
+
 			dt = Math.min(dt || 0.016, 0.05);
 
-			var dimColor = new THREE.Color(0x64748b);
-			var litColor = new THREE.Color(0xffb700); // Rich 24K Gold (never washes out to white)
-			var dimRim = new THREE.Color(0x1e293b);
-			var litRim = new THREE.Color(0x6b2f02);   // Deep burnished bronze rim to keep 5-pointed star outline razor-sharp
+			var dimColor = this._dimColor || (this._dimColor = new THREE.Color(0x64748b));
+			var litColor = this._litColor || (this._litColor = new THREE.Color(0xffb700)); // Rich 24K Gold (never washes out to white)
+			var dimRim = this._dimRim || (this._dimRim = new THREE.Color(0x1e293b));
+			var litRim = this._litRim || (this._litRim = new THREE.Color(0x6b2f02));   // Deep burnished bronze rim to keep 5-pointed star outline razor-sharp
 
 			var totalLitAmount = 0;
 
@@ -3028,7 +3053,7 @@
 			}
 
 			// Springy interpolation
-			this.displayedSpeed += (this.targetSpeed - this.displayedSpeed) * 0.12;
+			this.displayedSpeed += (this.targetSpeed - this.displayedSpeed) * 0.14;
 
 			var roundedSpeed = Math.round(this.displayedSpeed);
 			if (roundedSpeed !== this.lastRoundedSpeed) {
@@ -3039,10 +3064,10 @@
 			// Needle angle: 0 WPM -> -90deg, 60 WPM -> +90deg
 			var angle = (Math.min(60, Math.max(0, this.displayedSpeed)) / 60) * 180 - 90;
 
-			// Dynamic mechanical vibration / jitter at high speeds
+			// Smooth mechanical oscillation at high speeds (no random frame-to-frame flicker)
 			if (this.displayedSpeed >= 25) {
-				var jitterAmp = Math.min(2.2, (this.displayedSpeed - 20) * 0.07);
-				angle += (Math.random() - 0.5) * jitterAmp;
+				var jitterAmp = Math.min(1.2, (this.displayedSpeed - 25) * 0.04);
+				angle += Math.sin(now * 0.035) * jitterAmp;
 			}
 
 			var angleStr = angle.toFixed(1);
@@ -3483,14 +3508,20 @@
 		materials.feederFelt = new THREE.MeshStandardMaterial({
 			color: trayTheme.feederFeltColor || 0x0f2619,
 			roughness: 0.88,
-			metalness: 0.0
+			metalness: 0.0,
+			polygonOffset: true,
+			polygonOffsetFactor: -1,
+			polygonOffsetUnits: -2
 		});
 
 		// Tray slot felt lining
 		materials.slotFelt = new THREE.MeshStandardMaterial({
 			color: trayTheme.feltColor,
 			roughness: 0.90,
-			metalness: 0.0
+			metalness: 0.0,
+			polygonOffset: true,
+			polygonOffsetFactor: -1,
+			polygonOffsetUnits: -2
 		});
 
 		// Slot hover snap indicator
@@ -3498,7 +3529,10 @@
 			map: TextureManager.getSlotHoverTexture(),
 			transparent: true,
 			opacity: 0.85,
-			depthWrite: false
+			depthWrite: false,
+			polygonOffset: true,
+			polygonOffsetFactor: -2,
+			polygonOffsetUnits: -4
 		});
 
 		// Active slot brackets (corner targets [ ])
@@ -3506,7 +3540,10 @@
 			map: TextureManager.getSlotBracketTexture(trayTheme.bracketVariant),
 			transparent: true,
 			opacity: 0.75,
-			depthWrite: false
+			depthWrite: false,
+			polygonOffset: true,
+			polygonOffsetFactor: -2,
+			polygonOffsetUnits: -4
 		});
 
 		// 3D Chevron Arrow Material
@@ -3577,19 +3614,16 @@
 	}
 
 	// --------------------------------------------------------------------------
-	// 3D Tile Class
+	// 3D Tile Class (Shared Geometry & Cached Face Materials for Zero-Lag Spawns)
 	// --------------------------------------------------------------------------
-	function Tile(letter, isLocked) {
-		this.letter = letter;
-		this.isLocked = !!isLocked;
-		this.currentSlot = null;
+	var sharedTileBoxGeometry = null;
+	var cachedTileFaceMaterials = {};
 
-		// Geometry: 1.04 x 0.28 x 1.04 with beveled box (warm, bold wooden tile)
-		var geom = new THREE.BoxGeometry(1.04, 0.28, 1.04);
-
-		// Multi-material: Top face (Index 2 in BoxGeometry is +Y face)
-		// The 2D art drives the face mostly through emissiveMap so it renders at its
-		// true colours; a small diffuse term keeps subtle 3D shading when tilted.
+	function getSharedTileFaceMaterial(letter) {
+		var key = (currentSkinId || 'classic') + ':' + (letter || 'A');
+		if (cachedTileFaceMaterials[key]) {
+			return cachedTileFaceMaterials[key];
+		}
 		var faceTex = TextureManager.getLetterTexture(letter);
 		var faceMat = new THREE.MeshStandardMaterial({
 			map: faceTex,
@@ -3601,7 +3635,23 @@
 			metalness: 0.0,
 			toneMapped: false
 		});
+		cachedTileFaceMaterials[key] = faceMat;
+		return faceMat;
+	}
 
+	function Tile(letter, isLocked) {
+		this.letter = letter;
+		this.isLocked = !!isLocked;
+		this.currentSlot = null;
+
+		// Shared Geometry: 1.04 x 0.28 x 1.04 (allocated once for the entire game)
+		if (!sharedTileBoxGeometry) {
+			sharedTileBoxGeometry = new THREE.BoxGeometry(1.04, 0.28, 1.04);
+		}
+		var geom = sharedTileBoxGeometry;
+
+		// Multi-material: Top face (Index 2 in BoxGeometry is +Y face)
+		var faceMat = getSharedTileFaceMaterial(letter);
 		var sideMat = this.isLocked ? materials.tileLocked : materials.tileWood;
 
 		// BoxGeometry faces order: +X, -X, +Y, -Y, +Z, -Z
@@ -3609,7 +3659,7 @@
 			sideMat, // +X
 			sideMat, // -X
 			faceMat, // +Y (Top face with letter texture)
-			materials.slotFelt, // -Y (Bottom felt)
+			materials.slotFelt || sideMat, // -Y (Bottom face)
 			sideMat, // +Z
 			sideMat  // -Z
 		];
@@ -3709,7 +3759,8 @@
 	};
 
 	Tile.prototype.update = function (dt) {
-		var lerpRate = this.isDragging ? 0.32 : 0.22;
+		// Frame-rate-independent snappy exponential interpolation (fast flight even on mobile frame dips)
+		var lerpRate = this.isDragging ? (1.0 - Math.exp(-28.0 * dt)) : (1.0 - Math.exp(-22.0 * dt));
 
 		// Horizontal "No-No" Headshake physics
 		var shakeExtraX = 0;
@@ -4091,7 +4142,7 @@
 
 		// Slots inside tray (using distinct emerald velvet materials.feederFelt!)
 		var startX = -((slotCount - 1) * slotWidth) * 0.5;
-		var localTileY = trayHeight + 0.14;
+		var localTileY = trayHeight + 0.155;
 
 		for (var i = 0; i < slotCount; i++) {
 			var sx = startX + i * slotWidth;
@@ -4100,7 +4151,7 @@
 				materials.feederFelt || materials.slotFelt
 			);
 			slotMesh.rotation.x = -Math.PI * 0.5;
-			slotMesh.position.set(sx, trayHeight + 0.01, 0);
+			slotMesh.position.set(sx, trayHeight + 0.015, 0);
 			stagingTrayGroup.add(slotMesh);
 
 			var worldPos = new THREE.Vector3(
@@ -4191,7 +4242,7 @@
 					materials.slotFelt
 				);
 				sMesh.rotation.x = -Math.PI * 0.5;
-				sMesh.position.set(sx, rackHeight + 0.01, 0);
+				sMesh.position.set(sx, rackHeight + 0.015, 0);
 				rowGroup.add(sMesh);
 
 				// Glowing target bracket mesh
@@ -4200,14 +4251,14 @@
 					materials.activeSlotBracket
 				);
 				bracketMesh.rotation.x = -Math.PI * 0.5;
-				bracketMesh.position.set(sx, rackHeight + 0.02, 0);
+				bracketMesh.position.set(sx, rackHeight + 0.026, 0);
 				bracketMesh.visible = false;
 				rowGroup.add(bracketMesh);
 				rowBrackets.push(bracketMesh);
 
 				var slotWorldPos = new THREE.Vector3(
 					sx,
-					rackHeight + 0.14,
+					rackHeight + 0.155,
 					rz
 				);
 
@@ -4986,22 +5037,110 @@
 		var pointerDownScreenPos = { x: 0, y: 0 };
 		var pointerDownTime = 0;
 		var pointerHasDragged = false;
+		var activePointerId = null;
+		var DRAG_START_PX = 24; // Prevents rapid thumb taps from being misclassified as drags
+		var tempProjVec = new THREE.Vector3();
+		var tempHitPoint = new THREE.Vector3();
+
+		// Cache canvas bounding rect to eliminate synchronous DOM reflows inside pointerdown/pointermove
+		var cachedCanvasRect = { left: 0, top: 0, width: window.innerWidth || 390, height: window.innerHeight || 844 };
+		function refreshCanvasRect() {
+			var r = dom.getBoundingClientRect();
+			if (r && r.width > 0 && r.height > 0) {
+				cachedCanvasRect.left = r.left;
+				cachedCanvasRect.top = r.top;
+				cachedCanvasRect.width = r.width;
+				cachedCanvasRect.height = r.height;
+			} else {
+				cachedCanvasRect.left = 0;
+				cachedCanvasRect.top = 0;
+				cachedCanvasRect.width = window.innerWidth || 390;
+				cachedCanvasRect.height = window.innerHeight || 844;
+			}
+		}
+		refreshCanvasRect();
+		window.addEventListener('resize', refreshCanvasRect, { passive: true });
+		window.addEventListener('orientationchange', refreshCanvasRect, { passive: true });
 
 		function getPointerPos(e) {
-			var rect = dom.getBoundingClientRect();
 			var clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
 			var clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-			pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-			pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+			pointer.x = ((clientX - cachedCanvasRect.left) / cachedCanvasRect.width) * 2 - 1;
+			pointer.y = -((clientY - cachedCanvasRect.top) / cachedCanvasRect.height) * 2 + 1;
 			return { x: clientX, y: clientY };
 		}
 
-		// Pointer Down - Ultra-responsive touch detection with Multi-Tier Snapping
+		// Fast, deterministic Tap-to-Place helper (used for single taps and rapid multi-thumb typing)
+		function executeTapPlace(tile) {
+			if (!tile || !tile.currentSlot) return false;
+			if (tile.currentSlot.type === 'staging') {
+				var targetSlot = null;
+				for (var i = 0; i < chainSlots.length; i++) {
+					var s = chainSlots[i];
+					if (s.row === currentWordIndex && s.tile === null) {
+						targetSlot = s;
+						break;
+					}
+				}
+				if (targetSlot) {
+					if (currentGhostSlot && targetSlot === currentGhostSlot) {
+						dismissGhostTile();
+					}
+					tile.currentSlot.tile = null;
+					targetSlot.tile = tile;
+					tile.currentSlot = targetSlot;
+					tile.setTarget(targetSlot.worldPos.x, targetSlot.worldPos.y, targetSlot.worldPos.z);
+					tile.targetRotation.set(0, 0, 0);
+					tile.startSnapFx();
+					AudioManager.playSnap(1.30, true);
+					AudioManager.haptic(20, 0.90, 0.80);
+					updateSlotBrackets();
+					checkWordCompletion();
+					return true;
+				}
+			} else if (tile.currentSlot.type === 'chain' && tile.currentSlot.row === currentWordIndex) {
+				var returnSlot = null;
+				for (var j = 0; j < stagingSlots.length; j++) {
+					if (stagingSlots[j].tile === null) {
+						returnSlot = stagingSlots[j];
+						break;
+					}
+				}
+				if (returnSlot) {
+					if (currentGhostSlot && returnSlot === currentGhostSlot) {
+						dismissGhostTile();
+					}
+					tile.currentSlot.tile = null;
+					returnSlot.tile = tile;
+					tile.currentSlot = returnSlot;
+					tile.setTarget(returnSlot.worldPos.x, returnSlot.worldPos.y, returnSlot.worldPos.z);
+					tile.targetRotation.set(0, 0, 0);
+					tile.startSnapFx();
+					AudioManager.playSnap(1.05, true);
+					AudioManager.haptic(16, 0.80, 0.70);
+					updateSlotBrackets();
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// Pointer Down - Ultra-responsive touch detection with Zero-Reflow 2D Fast-Path
 		dom.addEventListener('pointerdown', function (e) {
 			if (levelEntranceState && levelEntranceState.active) {
 				completeLevelEntranceImmediately();
 			}
 			if (isRowShaking || isCelebratingWin || isComboPlaying) return;
+
+			// If a previous tap is still pending (e.g. rapid alternating two-thumb typing), commit it immediately!
+			if (activeTile && !pointerHasDragged) {
+				var prevTile = activeTile;
+				activeTile = null;
+				prevTile.isDragging = false;
+				prevTile.targetRotation.set(0, 0, 0);
+				executeTapPlace(prevTile);
+			}
+
 			var pt = getPointerPos(e);
 			var clientX = pt.x;
 			var clientY = pt.y;
@@ -5009,10 +5148,11 @@
 			pointerDownScreenPos.y = clientY;
 			pointerDownTime = performance.now();
 			pointerHasDragged = false;
-			raycaster.setFromCamera(pointer, camera);
+			activePointerId = (e.pointerId !== undefined) ? e.pointerId : null;
 
-			// 1. Check tap directly on ghost tile
+			// 1. Check tap directly on ghost tile (only when a ghost tile is visible)
 			if (ghostTileMesh) {
+				raycaster.setFromCamera(pointer, camera);
 				var ghostHits = raycaster.intersectObject(ghostTileMesh);
 				if (ghostHits.length > 0 && currentGhostSlot && currentGhostLetter) {
 					var gSlot = currentGhostSlot;
@@ -5024,89 +5164,86 @@
 				}
 			}
 
-			// 2. Multi-tier hit-testing hierarchy for letter tiles
+			// 2. Fast-Path Tier 1: Zero-allocation 2D screen-space proximity hit test on unlocked tiles
 			var targetTile = null;
+			var bestScreenDist = 58; // 58px radius (~15mm on mobile) guarantees instant first-tap response
+			var w = cachedCanvasRect.width;
+			var h = cachedCanvasRect.height;
 
-			// Tier 1: Direct 3D Raycast on unlocked tile meshes
-			var unlockedTiles = allTiles.filter(function (t) { return !t.isLocked && t.mesh; });
-			var tileMeshes = unlockedTiles.map(function (t) { return t.mesh; });
-			var intersects = raycaster.intersectObjects(tileMeshes);
-
-			if (intersects.length > 0) {
-				var hitMesh = intersects[0].object;
-				if (hitMesh && hitMesh.userData && hitMesh.userData.tile && !hitMesh.userData.tile.isLocked) {
-					targetTile = hitMesh.userData.tile;
-				}
-			}
-
-			// Tier 2: Raycast on tray slot meshes (staging slots & active row chain slots)
-			if (!targetTile) {
-				var activeChainSlots = chainSlots.filter(function (s) { return s.row === currentWordIndex && s.slotMesh; });
-				var testSlots = stagingSlots.concat(activeChainSlots);
-				var slotMeshes = testSlots.map(function (s) { return s.slotMesh; }).filter(Boolean);
-				var slotHits = raycaster.intersectObjects(slotMeshes);
-				if (slotHits.length > 0) {
-					var hitSlotMesh = slotHits[0].object;
-					var matchedSlot = testSlots.find(function (s) { return s.slotMesh === hitSlotMesh; });
-					if (matchedSlot && matchedSlot.tile && !matchedSlot.tile.isLocked) {
-						targetTile = matchedSlot.tile;
+			for (var ti = 0; ti < allTiles.length; ti++) {
+				var candidateTile = allTiles[ti];
+				if (candidateTile.isLocked || !candidateTile.mesh) continue;
+				// Check both current position and target position (so tiles settling into tray are 100% clickable)
+				tempProjVec.copy(candidateTile.targetPosition).project(camera);
+				if (tempProjVec.z < 1.0) {
+					var sx = (tempProjVec.x * 0.5 + 0.5) * w + cachedCanvasRect.left;
+					var sy = (-(tempProjVec.y * 0.5) + 0.5) * h + cachedCanvasRect.top;
+					var d = Math.hypot(clientX - sx, clientY - sy);
+					if (d < bestScreenDist) {
+						bestScreenDist = d;
+						targetTile = candidateTile;
 					}
 				}
 			}
 
-			// Tier 3: 2D Screen-space proximity snapping (Covers wide finger touches across feeder tray on mobile)
-			if (!targetTile && unlockedTiles.length > 0) {
-				var bestScreenDist = 58; // 58px radius (~15mm on mobile) guarantees instant first-tap response
-				var tempVec = new THREE.Vector3();
-				for (var ti = 0; ti < unlockedTiles.length; ti++) {
-					var candidateTile = unlockedTiles[ti];
-					tempVec.copy(candidateTile.mesh.position).project(camera);
-					if (tempVec.z < 1.0) {
-						var sx = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
-						var sy = (-(tempVec.y * 0.5) + 0.5) * window.innerHeight;
-						var d = Math.hypot(clientX - sx, clientY - sy);
-						if (d < bestScreenDist) {
-							bestScreenDist = d;
-							targetTile = candidateTile;
+			// Tier 2: 3D Raycast fallback if touch was outside the 2D fast-path center
+			if (!targetTile) {
+				raycaster.setFromCamera(pointer, camera);
+				for (var rti = 0; rti < allTiles.length; rti++) {
+					var tCandidate = allTiles[rti];
+					if (!tCandidate.isLocked && tCandidate.mesh) {
+						var hits = raycaster.intersectObject(tCandidate.mesh, false);
+						if (hits.length > 0) {
+							targetTile = tCandidate;
+							break;
 						}
 					}
 				}
 			}
 
-			// On confirmed tile grab
+			// On confirmed tile touch
 			if (targetTile) {
 				activeTile = targetTile;
-				activeTile.isDragging = true;
+				// Keep isDragging false until finger moves past DRAG_START_PX so quick taps don't waste frames lifting in place
+				activeTile.isDragging = false;
 				dom.style.cursor = 'grabbing';
-
-				// Intersect with drag plane to calculate grab offset
-				var hitPoint = new THREE.Vector3();
-				raycaster.ray.intersectPlane(dragPlane, hitPoint);
-				dragOffset.copy(activeTile.mesh.position).sub(hitPoint);
 				prevDragPos.copy(activeTile.mesh.position);
 
-				AudioManager.play('tilehit', 0.9);
-				AudioManager.haptic(16, 0.85, 0.75); // Instant tactile on-touch feedback!
+				AudioManager.play('tilehit', 0.85);
+				AudioManager.haptic(14, 0.80, 0.75);
 			}
 		});
 
 		// Pointer Move
 		window.addEventListener('pointermove', function (e) {
 			if (isRowShaking || isCelebratingWin) return;
-			getPointerPos(e);
 
 			if (activeTile) {
-				var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-				var clientY = e.touches ? e.touches[0].clientY : e.clientY;
-				if (Math.hypot(clientX - pointerDownScreenPos.x, clientY - pointerDownScreenPos.y) > 8) {
-					pointerHasDragged = true;
+				if (activePointerId !== null && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
+				var clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+				var clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+				var moveDist = Math.hypot(clientX - pointerDownScreenPos.x, clientY - pointerDownScreenPos.y);
+
+				// Fast-path: ignore finger micro-movement during taps (< 24px) — zero raycasting during rapid letter entry!
+				if (!pointerHasDragged && moveDist < DRAG_START_PX) {
+					return;
 				}
 
+				getPointerPos(e);
 				raycaster.setFromCamera(pointer, camera);
-				var hitPoint = new THREE.Vector3();
 
-				if (raycaster.ray.intersectPlane(dragPlane, hitPoint)) {
-					var newPos = hitPoint.add(dragOffset);
+				if (!pointerHasDragged) {
+					pointerHasDragged = true;
+					activeTile.isDragging = true;
+					if (raycaster.ray.intersectPlane(dragPlane, tempHitPoint)) {
+						dragOffset.copy(activeTile.mesh.position).sub(tempHitPoint);
+					} else {
+						dragOffset.set(0, 0, 0);
+					}
+				}
+
+				if (raycaster.ray.intersectPlane(dragPlane, tempHitPoint)) {
+					var newPos = tempHitPoint.add(dragOffset);
 					activeTile.setTarget(newPos.x, activeTile.targetPosition.y, newPos.z);
 
 					// Dynamic physical tilt from drag velocity
@@ -5117,18 +5254,28 @@
 					activeTile.targetRotation.x = THREE.MathUtils.clamp(dragVelocity.z * 0.45, -0.28, 0.28);
 
 					// Real-time hover slot snap indicator
-					var validSlots = chainSlots.filter(function (s) { return s.row === currentWordIndex; }).concat(stagingSlots);
 					var hoverSlot = null;
 					var hoverDist = 1.85;
 
-					for (var i = 0; i < validSlots.length; i++) {
-						var s = validSlots[i];
-						var dx = activeTile.mesh.position.x - s.worldPos.x;
-						var dz = activeTile.mesh.position.z - s.worldPos.z;
-						var distXZ = Math.sqrt(dx * dx + dz * dz);
-						if (distXZ < hoverDist) {
-							hoverDist = distXZ;
-							hoverSlot = s;
+					for (var i = 0; i < chainSlots.length; i++) {
+						var cs = chainSlots[i];
+						if (cs.row !== currentWordIndex) continue;
+						var cdx = activeTile.mesh.position.x - cs.worldPos.x;
+						var cdz = activeTile.mesh.position.z - cs.worldPos.z;
+						var cDist = Math.sqrt(cdx * cdx + cdz * cdz);
+						if (cDist < hoverDist) {
+							hoverDist = cDist;
+							hoverSlot = cs;
+						}
+					}
+					for (var j = 0; j < stagingSlots.length; j++) {
+						var ss = stagingSlots[j];
+						var sdx = activeTile.mesh.position.x - ss.worldPos.x;
+						var sdz = activeTile.mesh.position.z - ss.worldPos.z;
+						var sDist = Math.sqrt(sdx * sdx + sdz * sdz);
+						if (sDist < hoverDist) {
+							hoverDist = sDist;
+							hoverSlot = ss;
 						}
 					}
 
@@ -5143,7 +5290,8 @@
 				}
 			} else {
 				// Hover cursor check (desktop mouse only, skipped on mobile touch for 60FPS speed)
-				if (e.pointerType !== 'touch') {
+				if (e.pointerType === 'mouse') {
+					getPointerPos(e);
 					raycaster.setFromCamera(pointer, camera);
 					var hasHit = false;
 					for (var t = 0; t < allTiles.length; t++) {
@@ -5163,6 +5311,7 @@
 
 		// Pointer Up
 		window.addEventListener('pointerup', function (e) {
+			if (activePointerId !== null && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
 			if (hoverSlotHighlightMesh) {
 				hoverSlotHighlightMesh.visible = false;
 			}
@@ -5171,74 +5320,51 @@
 
 			var tile = activeTile;
 			activeTile = null;
+			activePointerId = null;
 			tile.isDragging = false;
 			dom.style.cursor = 'default';
 			tile.targetRotation.set(0, 0, 0);
 
 			var elapsed = performance.now() - pointerDownTime;
-			var isTap = (!pointerHasDragged && elapsed < 450);
+			var isTap = (!pointerHasDragged && elapsed < 550);
 
 			// 1. TAP-TO-PLACE: Instant effortless tap manipulation
 			if (isTap) {
-				if (tile.currentSlot && tile.currentSlot.type === 'staging') {
-					// Tap on staging tile: fly to first empty slot of active row
-					var targetSlot = chainSlots.find(function (s) {
-						return s.row === currentWordIndex && s.tile === null;
-					});
-
-					if (targetSlot) {
-						if (currentGhostSlot && targetSlot === currentGhostSlot) {
-							dismissGhostTile();
-						}
-						tile.currentSlot.tile = null;
-						targetSlot.tile = tile;
-						tile.currentSlot = targetSlot;
-						tile.setTarget(targetSlot.worldPos.x, targetSlot.worldPos.y, targetSlot.worldPos.z);
-						tile.targetRotation.set(0, 0, 0);
-						tile.startSnapFx();
-						AudioManager.playSnap(1.35);
-						AudioManager.haptic(28, 0.95, 0.85); // Haptic feedback when clicked into the tray!
-						updateSlotBrackets();
-						checkWordCompletion();
-						return;
-					}
-				} else if (tile.currentSlot && tile.currentSlot.type === 'chain' && tile.currentSlot.row === currentWordIndex) {
-					// Tap on active row tile: fly back to first empty staging slot
-					var targetSlot = stagingSlots.find(function (s) {
-						return s.tile === null;
-					});
-
-					if (targetSlot) {
-						if (currentGhostSlot && targetSlot === currentGhostSlot) {
-							dismissGhostTile();
-						}
-						tile.currentSlot.tile = null;
-						targetSlot.tile = tile;
-						tile.currentSlot = targetSlot;
-						tile.setTarget(targetSlot.worldPos.x, targetSlot.worldPos.y, targetSlot.worldPos.z);
-						tile.targetRotation.set(0, 0, 0);
-						tile.startSnapFx();
-						AudioManager.playSnap(1.1);
-						AudioManager.haptic(22, 0.85, 0.75); // Haptic feedback when returned to staging tray!
-						updateSlotBrackets();
-						return;
-					}
+				if (executeTapPlace(tile)) {
+					return;
 				}
 			}
 
 			// 2. DRAG-AND-DROP: Generous 2D horizontal (X-Z) snap detection
-			var validSlots = chainSlots.filter(function (s) { return s.row === currentWordIndex; }).concat(stagingSlots);
 			var bestSlot = null;
 			var bestDist = 1.85; // Generous horizontal snap threshold
 
-			for (var i = 0; i < validSlots.length; i++) {
-				var slot = validSlots[i];
-				var dx = tile.mesh.position.x - slot.worldPos.x;
-				var dz = tile.mesh.position.z - slot.worldPos.z;
-				var distXZ = Math.sqrt(dx * dx + dz * dz);
-				if (distXZ < bestDist) {
-					bestDist = distXZ;
-					bestSlot = slot;
+			for (var i = 0; i < chainSlots.length; i++) {
+				var cSlot = chainSlots[i];
+				if (cSlot.row !== currentWordIndex) continue;
+				var cdx = tile.mesh.position.x - cSlot.worldPos.x;
+				var cdz = tile.mesh.position.z - cSlot.worldPos.z;
+				var cDistXZ = Math.sqrt(cdx * cdx + cdz * cdz);
+				if (cDistXZ < bestDist) {
+					bestDist = cDistXZ;
+					bestSlot = cSlot;
+				}
+			}
+			for (var j = 0; j < stagingSlots.length; j++) {
+				var sSlot = stagingSlots[j];
+				var sdx = tile.mesh.position.x - sSlot.worldPos.x;
+				var sdz = tile.mesh.position.z - sSlot.worldPos.z;
+				var sDistXZ = Math.sqrt(sdx * sdx + sdz * sdz);
+				if (sDistXZ < bestDist) {
+					bestDist = sDistXZ;
+					bestSlot = sSlot;
+				}
+			}
+
+			// Smart mobile thumb-swipe recovery: if a quick gesture ended back on its own starting slot, treat as Tap-to-Place!
+			if ((!bestSlot || bestSlot === tile.currentSlot) && elapsed < 480) {
+				if (executeTapPlace(tile)) {
+					return;
 				}
 			}
 
@@ -5276,8 +5402,8 @@
 				tile.setTarget(bestSlot.worldPos.x, bestSlot.worldPos.y, bestSlot.worldPos.z);
 				tile.targetRotation.set(0, 0, 0);
 				tile.startSnapFx();
-				AudioManager.playSnap(1.35);
-				AudioManager.haptic(28, 0.95, 0.85); // Haptic feedback when clicked into the tray!
+				AudioManager.playSnap(1.30, true);
+				AudioManager.haptic(22, 0.90, 0.80);
 
 				updateSlotBrackets();
 				checkWordCompletion();
@@ -6122,7 +6248,6 @@
 			scene.remove(t.mesh);
 			var idx = allTiles.indexOf(t);
 			if (idx !== -1) allTiles.splice(idx, 1);
-			if (t.mesh.geometry) t.mesh.geometry.dispose();
 		});
 		victoryMessageTiles = [];
 
@@ -6183,14 +6308,14 @@
 					materials.slotFelt
 				);
 				sMesh.rotation.x = -Math.PI * 0.5;
-				sMesh.position.set(sx, rackHeight + 0.01, 0);
+				sMesh.position.set(sx, rackHeight + 0.015, 0);
 				trayGroup.add(sMesh);
 
 				// Locked Golden Victory Tile block sitting on the tray!
 				var letter = word[c];
 				var tile = new Tile(letter, true);
 				var tileX = sx;
-				var tileY = rackHeight + 0.14;
+				var tileY = rackHeight + 0.155;
 
 				tile.mesh.position.set(tileX + initialX, tileY, trayZ);
 				tile.targetPosition.set(tileX + initialX, tileY, trayZ);
@@ -6425,7 +6550,6 @@
 			scene.remove(t.mesh);
 			var idx = allTiles.indexOf(t);
 			if (idx !== -1) allTiles.splice(idx, 1);
-			if (t.mesh.geometry) t.mesh.geometry.dispose();
 		});
 		victoryMessageTiles = [];
 
@@ -6517,7 +6641,6 @@
 			scene.remove(t.mesh);
 			var idx = allTiles.indexOf(t);
 			if (idx !== -1) allTiles.splice(idx, 1);
-			if (t.mesh.geometry) t.mesh.geometry.dispose();
 		});
 		victoryMessageTiles = [];
 
@@ -6676,6 +6799,7 @@
 		camera.lookAt(0, 0, centerZ);
 
 		camera.updateProjectionMatrix();
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
 		renderer.setSize(window.innerWidth, window.innerHeight);
 
 		// Synchronize panoramic backdrop photo dynamically
@@ -6702,7 +6826,7 @@
 
 			for (var c = 0; c < rowInfo.slots.length; c++) {
 				var slot = rowInfo.slots[c];
-				slot.worldPos.y = rowInfo.rackHeight + 0.14;
+				slot.worldPos.y = rowInfo.rackHeight + 0.155;
 				slot.worldPos.z = rowInfo.rz;
 
 				if (slot.tile && !slot.tile.isDragging) {
@@ -6990,15 +7114,15 @@
 		scene = new THREE.Scene();
 		scene.background = null;
 
-		// 2. Camera
-		camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 100);
+		// 2. Camera (near=2.0 maximizes depth-buffer precision at board distance ~18-24 to eliminate Z-fighting)
+		camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 2.0, 80);
 		camera.up.set(0, 0, -1);
 
-		// 3. Renderer (Optimized for cool, locked 60FPS mobile performance with transparent background)
+		// 3. Renderer (Crisp HD 2.0x DPR & hardware MSAA with transparent background)
 		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 		renderer.setClearColor(0x000000, 0);
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
 		renderer.setSize(window.innerWidth, window.innerHeight);
-		renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
 		renderer.shadowMap.enabled = false; // Heavy real-time shadow passes disabled
 		renderer.outputEncoding = THREE.sRGBEncoding;
 		// NoToneMapping prevents grey compression and preserves 100% rich, punchy color vibrancy!
@@ -7253,37 +7377,62 @@
 		renderStorageCubbies();
 		updateStoragePreviewUI();
 
-		// Title Screen Storage Entrance Bar
+		// Title Screen & Settings Storage Entrance Triggers
+		var lastStorageTap = 0;
+		function triggerTileStorage(e) {
+			if (e) {
+				e.stopPropagation();
+				if (e.cancelable && e.type === 'touchend') e.preventDefault();
+			}
+			var now = performance.now();
+			if (now - lastStorageTap < 350) return;
+			lastStorageTap = now;
+			openTileStorageModal();
+		}
+
 		var btnTitleStorageBar = document.getElementById('btn-title-storage-bar');
 		if (btnTitleStorageBar) {
-			btnTitleStorageBar.addEventListener('click', function (e) {
-				e.stopPropagation();
-				openTileStorageModal();
-			});
+			btnTitleStorageBar.addEventListener('click', triggerTileStorage);
+			btnTitleStorageBar.addEventListener('touchend', triggerTileStorage, { passive: false });
 		}
 
 		// Title Screen Footer Storage Icon
 		var btnTitleStorageIcon = document.getElementById('btn-title-storage-icon');
 		if (btnTitleStorageIcon) {
-			btnTitleStorageIcon.addEventListener('click', function (e) {
-				e.stopPropagation();
-				openTileStorageModal();
-			});
+			btnTitleStorageIcon.addEventListener('click', triggerTileStorage);
+			btnTitleStorageIcon.addEventListener('touchend', triggerTileStorage, { passive: false });
 		}
 
 		// Settings Modal Storage Portal Button
 		var btnSettingsOpenStorage = document.getElementById('btn-settings-open-storage');
 		if (btnSettingsOpenStorage) {
-			btnSettingsOpenStorage.addEventListener('click', function (e) {
-				e.stopPropagation();
-				openTileStorageModal();
-			});
+			btnSettingsOpenStorage.addEventListener('click', triggerTileStorage);
+			btnSettingsOpenStorage.addEventListener('touchend', triggerTileStorage, { passive: false });
 		}
 
-		// Storage Cabinet Close Button
+		// Storage Cabinet Close Button & Backdrop Dismiss
 		var btnStorageClose = document.getElementById('btn-storage-close');
 		if (btnStorageClose) {
-			btnStorageClose.addEventListener('click', closeTileStorageModal);
+			btnStorageClose.addEventListener('click', function (e) {
+				if (e) e.stopPropagation();
+				closeTileStorageModal();
+			});
+			btnStorageClose.addEventListener('touchend', function (e) {
+				if (e) {
+					e.stopPropagation();
+					if (e.cancelable) e.preventDefault();
+				}
+				closeTileStorageModal();
+			}, { passive: false });
+		}
+
+		var tileStorageModalEl = document.getElementById('tile-storage-modal');
+		if (tileStorageModalEl) {
+			tileStorageModalEl.addEventListener('click', function (e) {
+				if (e.target === tileStorageModalEl) {
+					closeTileStorageModal();
+				}
+			});
 		}
 
 		// Living Scenery option buttons (Instantly switch and equip)

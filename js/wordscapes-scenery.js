@@ -1091,8 +1091,7 @@
 		if (!live.canvas) return;
 		var cssW = window.innerWidth;
 		var cssH = window.innerHeight;
-		// Optimized 1.0 DPR for cool mobile thermals & locked 60FPS app performance
-		var dpr = 1.0;
+		var dpr = Math.min(window.devicePixelRatio || 1, 2.0);
 		var w = Math.round(cssW * dpr);
 		var h = Math.round(cssH * dpr);
 		if (w !== live.width || h !== live.height) {
@@ -1108,8 +1107,6 @@
 	function liveDraw(force) {
 		if (!live.gl || !live.texReady) return;
 		var now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-		// Smooth 30 FPS background shader pacing to prevent thermal throttling and battery drain
-		if (!force && now - live.lastDraw < 32) return;
 		live.lastDraw = now;
 		var gl = live.gl;
 		var pInfo = liveGetProgram(currentScenery);
@@ -1275,46 +1272,89 @@
 		return tex;
 	}
 
-	function buildSnowyConiferTree(scale, isShadowSide, isGoldenAspen) {
-		var group = new THREE.Group();
-		var s = scale || 1.0;
+	var sharedTreeGeoms = {};
+	var sharedTreeVertexColorMat = null;
 
-		var trunkMat = new THREE.MeshLambertMaterial({ color: 0x3d2817, flatShading: true });
-		var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09 * s, 0.16 * s, 0.75 * s, 5), trunkMat);
-		trunk.position.y = 0.37 * s;
-		group.add(trunk);
+	function appendGeometryWithColor(geom, matrix, colorHex, outPos, outCol) {
+		var posAttr = geom.getAttribute('position');
+		var idxAttr = geom.getIndex();
+		var c = new THREE.Color(colorHex);
+		var v = new THREE.Vector3();
+		if (idxAttr) {
+			for (var i = 0; i < idxAttr.count; i++) {
+				var vi = idxAttr.getX(i);
+				v.fromBufferAttribute(posAttr, vi).applyMatrix4(matrix);
+				outPos.push(v.x, v.y, v.z);
+				outCol.push(c.r, c.g, c.b);
+			}
+		} else {
+			for (var j = 0; j < posAttr.count; j++) {
+				v.fromBufferAttribute(posAttr, j).applyMatrix4(matrix);
+				outPos.push(v.x, v.y, v.z);
+				outCol.push(c.r, c.g, c.b);
+			}
+		}
+	}
+
+	function getSharedTreeGeometry(isShadowSide, isGoldenAspen) {
+		var key = isGoldenAspen ? 'aspen' : (isShadowSide ? 'shadow' : 'sun');
+		if (sharedTreeGeoms[key]) return sharedTreeGeoms[key];
+
+		var outPos = [];
+		var outCol = [];
+		var m = new THREE.Matrix4();
+
+		var trunkGeom = new THREE.CylinderGeometry(0.09, 0.16, 0.75, 5);
+		m.makeTranslation(0, 0.37, 0);
+		appendGeometryWithColor(trunkGeom, m, 0x3d2817, outPos, outCol);
 
 		if (isGoldenAspen) {
-			var aspenMat = new THREE.MeshLambertMaterial({ color: 0xd9a05b, flatShading: true });
-			var crown = new THREE.Mesh(new THREE.ConeGeometry(0.62 * s, 2.2 * s, 6), aspenMat);
-			crown.position.y = 1.45 * s;
-			group.add(crown);
-			return group;
+			var crownGeom = new THREE.ConeGeometry(0.62, 2.2, 6);
+			m.makeTranslation(0, 1.45, 0);
+			appendGeometryWithColor(crownGeom, m, 0xd9a05b, outPos, outCol);
+		} else {
+			var pineColor = isShadowSide ? 0x1a3352 : 0x1e4a38;
+			var snowColor = isShadowSide ? 0x8fb3de : 0xfff5e4;
+			var tiers = [
+				{ r: 0.85, h: 1.25, y: 1.05 },
+				{ r: 0.68, h: 1.10, y: 1.72 },
+				{ r: 0.48, h: 0.95, y: 2.32 },
+				{ r: 0.30, h: 0.75, y: 2.82 }
+			];
+			for (var i = 0; i < tiers.length; i++) {
+				var t = tiers[i];
+				var boughGeom = new THREE.ConeGeometry(t.r, t.h, 6);
+				m.makeTranslation(0, t.y, 0);
+				appendGeometryWithColor(boughGeom, m, pineColor, outPos, outCol);
+
+				var frostGeom = new THREE.ConeGeometry(t.r * 0.93, t.h * 0.56, 6);
+				var rotM = new THREE.Matrix4().makeRotationY(0.35);
+				var transM = new THREE.Matrix4().makeTranslation(0, t.y + t.h * 0.22, 0);
+				m.multiplyMatrices(transM, rotM);
+				appendGeometryWithColor(frostGeom, m, snowColor, outPos, outCol);
+			}
 		}
 
-		var pineColor = isShadowSide ? 0x1a3352 : 0x1e4a38;
-		var snowColor = isShadowSide ? 0x8fb3de : 0xfff5e4;
-		var foliageMat = new THREE.MeshLambertMaterial({ color: pineColor, flatShading: true });
-		var snowMat = new THREE.MeshLambertMaterial({ color: snowColor, flatShading: true });
+		var merged = new THREE.BufferGeometry();
+		merged.setAttribute('position', new THREE.Float32BufferAttribute(outPos, 3));
+		merged.setAttribute('color', new THREE.Float32BufferAttribute(outCol, 3));
+		merged.computeVertexNormals();
+		sharedTreeGeoms[key] = merged;
+		return merged;
+	}
 
-		var tiers = [
-			{ r: 0.85 * s, h: 1.25 * s, y: 1.05 * s },
-			{ r: 0.68 * s, h: 1.10 * s, y: 1.72 * s },
-			{ r: 0.48 * s, h: 0.95 * s, y: 2.32 * s },
-			{ r: 0.30 * s, h: 0.75 * s, y: 2.82 * s }
-		];
-		for (var i = 0; i < tiers.length; i++) {
-			var t = tiers[i];
-			var bough = new THREE.Mesh(new THREE.ConeGeometry(t.r, t.h, 6), foliageMat);
-			bough.position.y = t.y;
-			group.add(bough);
-
-			var frost = new THREE.Mesh(new THREE.ConeGeometry(t.r * 0.93, t.h * 0.56, 6), snowMat);
-			frost.position.y = t.y + t.h * 0.22;
-			frost.rotation.y = 0.35;
-			group.add(frost);
+	function buildSnowyConiferTree(scale, isShadowSide, isGoldenAspen) {
+		if (!sharedTreeVertexColorMat) {
+			sharedTreeVertexColorMat = new THREE.MeshLambertMaterial({
+				vertexColors: true,
+				flatShading: true
+			});
 		}
-		return group;
+		var s = scale || 1.0;
+		var geom = getSharedTreeGeometry(isShadowSide, isGoldenAspen);
+		var mesh = new THREE.Mesh(geom, sharedTreeVertexColorMat);
+		mesh.scale.set(s, s, s);
+		return mesh;
 	}
 
 	function buildQuadChairliftCarrier(hasPassengers, variantIdx) {
@@ -1588,7 +1628,7 @@
 				alpha: false,
 				powerPreference: 'high-performance'
 			});
-			renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+			renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
 			renderer.setClearColor(0x52a2f7, 1);
 			renderer.outputEncoding = THREE.sRGBEncoding;
 			if (typeof THREE.ACESFilmicToneMapping !== 'undefined') {
@@ -1599,7 +1639,7 @@
 			var scene = new THREE.Scene();
 			scene.fog = new THREE.FogExp2(0xffe8c2, 0.0024);
 
-			var camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.5, 450);
+			var camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 2.0, 420);
 
 			peaks3D.canvas = canvas;
 			peaks3D.renderer = renderer;
@@ -1632,19 +1672,22 @@
 			cobaltFill.position.set(-42, 22, 18);
 			scene.add(cobaltFill);
 
-			// 3. Expansive 3D Sea of Valley Clouds (Upper-Middle of Mobile Portrait: y ~ 13.5, z = -38 to -165)
+			// 3. Expansive 3D Sea of Valley Clouds (Batched to 1 Mesh per Row = 8 Draw Calls Total)
 			peaks3D.cloudRows = [];
 			var cloudPuffGeom = new THREE.IcosahedronGeometry(1.0, 2);
 			var cloudDeckMat = new THREE.MeshLambertMaterial({
 				color: 0xfff6e6,
 				emissive: 0x3b4d70,
 				emissiveIntensity: 0.25,
-				flatShading: true
+				flatShading: true,
+				polygonOffset: true,
+				polygonOffsetFactor: 2,
+				polygonOffsetUnits: 2
 			});
-			var cloudShadowMat = new THREE.MeshLambertMaterial({
-				color: 0x9cb8e3,
-				emissive: 0x253859,
-				emissiveIntensity: 0.22,
+			var cloudRowVertexMat = new THREE.MeshLambertMaterial({
+				vertexColors: true,
+				emissive: 0x334566,
+				emissiveIntensity: 0.24,
 				flatShading: true
 			});
 
@@ -1654,14 +1697,21 @@
 				cloudDeckMat
 			);
 			seaBase.rotation.x = -Math.PI / 2;
-			seaBase.position.set(0, 12.8, -102);
+			seaBase.position.set(0, 12.2, -102);
 			scene.add(seaBase);
 
+			var puffMatrix = new THREE.Matrix4();
+			var puffPos = new THREE.Vector3();
+			var puffQuat = new THREE.Quaternion();
+			var puffScale = new THREE.Vector3();
+
 			for (var row = 0; row < 8; row++) {
-				var rowGroup = new THREE.Group();
 				var rz = -39.0 - row * 15.5;
 				var ry = 13.0 + row * 0.22;
 				var puffsInRow = 14 + (row % 3) * 2;
+				var rowPosArr = [];
+				var rowColArr = [];
+
 				for (var cp = 0; cp < puffsInRow; cp++) {
 					var cx = -56.0 + (cp / (puffsInRow - 1)) * 112.0 + Math.sin(row * 2.3 + cp) * 3.2;
 					var cy = Math.cos(cp * 1.4 + row) * 0.45;
@@ -1670,14 +1720,19 @@
 					var radY = 1.25 + (cp % 2) * 0.45;
 					var radZ = 4.2 + (row % 2) * 1.4;
 
-					var puff = new THREE.Mesh(
-						cloudPuffGeom,
-						(cp + row) % 3 === 0 ? cloudShadowMat : cloudDeckMat
-					);
-					puff.position.set(cx, cy, cz);
-					puff.scale.set(radX, radY, radZ);
-					rowGroup.add(puff);
+					puffPos.set(cx, cy, cz);
+					puffScale.set(radX, radY, radZ);
+					puffMatrix.compose(puffPos, puffQuat, puffScale);
+					var pHex = ((cp + row) % 3 === 0) ? 0x9cb8e3 : 0xfff6e6;
+					appendGeometryWithColor(cloudPuffGeom, puffMatrix, pHex, rowPosArr, rowColArr);
 				}
+
+				var rowMergedGeom = new THREE.BufferGeometry();
+				rowMergedGeom.setAttribute('position', new THREE.Float32BufferAttribute(rowPosArr, 3));
+				rowMergedGeom.setAttribute('color', new THREE.Float32BufferAttribute(rowColArr, 3));
+				rowMergedGeom.computeVertexNormals();
+
+				var rowGroup = new THREE.Mesh(rowMergedGeom, cloudRowVertexMat);
 				rowGroup.position.set(0, ry, rz);
 				scene.add(rowGroup);
 				peaks3D.cloudRows.push({
@@ -1756,7 +1811,18 @@
 			scene.add(valleyMesh);
 
 			// 5. Dense Snow-Frosted 3D Conifer Forest, Golden Aspens & Foreground Right Snow Pines
+			// Background trees (tIdx < 95) are merged into 1 static forest mesh (1 draw call instead of 855!)
+			// while foreground trees (tIdx >= 95) sway gently in the alpine breeze.
 			peaks3D.trees = [];
+			var forestPosArr = [];
+			var forestColArr = [];
+			var treeMat4 = new THREE.Matrix4();
+			var treePosV = new THREE.Vector3();
+			var treeQuat = new THREE.Quaternion();
+			var treeEuler = new THREE.Euler();
+			var treeScaleV = new THREE.Vector3();
+			var tmpTreeV = new THREE.Vector3();
+
 			for (var tIdx = 0; tIdx < 115; tIdx++) {
 				var s1 = Math.sin(tIdx * 12.9898 + 0.7) * 43758.5453;
 				var r1 = s1 - Math.floor(s1);
@@ -1788,17 +1854,44 @@
 				}
 
 				var ty = peaksValleyHeightAt(tx, tz) - 0.12;
-				var treeMesh = buildSnowyConiferTree(tScale, isShadow, isAspen);
-				treeMesh.position.set(tx, ty, tz);
-				treeMesh.rotation.y = r2 * Math.PI * 2;
-				scene.add(treeMesh);
+				if (tIdx < 95) {
+					var protoGeom = getSharedTreeGeometry(isShadow, isAspen);
+					var pAttr = protoGeom.getAttribute('position');
+					var cAttr = protoGeom.getAttribute('color');
+					treePosV.set(tx, ty, tz);
+					treeEuler.set(0, r2 * Math.PI * 2, 0);
+					treeQuat.setFromEuler(treeEuler);
+					treeScaleV.set(tScale, tScale, tScale);
+					treeMat4.compose(treePosV, treeQuat, treeScaleV);
+					for (var pvi = 0; pvi < pAttr.count; pvi++) {
+						tmpTreeV.fromBufferAttribute(pAttr, pvi).applyMatrix4(treeMat4);
+						forestPosArr.push(tmpTreeV.x, tmpTreeV.y, tmpTreeV.z);
+						forestColArr.push(cAttr.getX(pvi), cAttr.getY(pvi), cAttr.getZ(pvi));
+					}
+				} else {
+					var treeMesh = buildSnowyConiferTree(tScale, isShadow, isAspen);
+					treeMesh.position.set(tx, ty, tz);
+					treeMesh.rotation.y = r2 * Math.PI * 2;
+					scene.add(treeMesh);
 
-				peaks3D.trees.push({
-					group: treeMesh,
-					phase: tIdx * 0.7,
-					speed: 1.3 + r1 * 0.7,
-					amp: 0.025 + r2 * 0.02
-				});
+					peaks3D.trees.push({
+						group: treeMesh,
+						phase: tIdx * 0.7,
+						speed: 1.3 + r1 * 0.7,
+						amp: 0.025 + r2 * 0.02
+					});
+				}
+			}
+
+			if (forestPosArr.length > 0) {
+				var staticForestGeom = new THREE.BufferGeometry();
+				staticForestGeom.setAttribute('position', new THREE.Float32BufferAttribute(forestPosArr, 3));
+				staticForestGeom.setAttribute('color', new THREE.Float32BufferAttribute(forestColArr, 3));
+				staticForestGeom.computeVertexNormals();
+				if (!sharedTreeVertexColorMat) {
+					sharedTreeVertexColorMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+				}
+				scene.add(new THREE.Mesh(staticForestGeom, sharedTreeVertexColorMat));
 			}
 
 			// 6. Hero Moving 3D Element: Diagonal Quad Chairlift (Bottom-Left Tower to Top-Right Sky)
@@ -1925,6 +2018,7 @@
 		if (w === peaks3D.width && h === peaks3D.height) return;
 		peaks3D.width = w;
 		peaks3D.height = h;
+		peaks3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
 		peaks3D.renderer.setSize(w, h, false);
 		var aspect = w / h;
 		peaks3D.camera.aspect = aspect;
@@ -1940,6 +2034,7 @@
 
 	function peaks3DUpdate(dt, now) {
 		if (!peaks3D.active || !peaks3D.initialized) return;
+		dt = Math.min(dt || 0.016, 0.05);
 		var t = ((now - peaks3D.startTime) * 0.001);
 
 		// 1. Elevated High-Mountain Camera Looking Out Over the Sea of Clouds & Diagonal Chairlift
@@ -2095,7 +2190,7 @@
 		if (!bgCanvas) return;
 		bgWidth = window.innerWidth;
 		bgHeight = window.innerHeight;
-		bgDpr = 1.0;
+		bgDpr = Math.min(window.devicePixelRatio || 1, 2.0);
 		bgCanvas.width = bgWidth * bgDpr;
 		bgCanvas.height = bgHeight * bgDpr;
 		bgCanvas.style.width = bgWidth + 'px';
@@ -2202,11 +2297,81 @@
 		return p;
 	}
 
+	var bgParticleSprites = {};
+	var lastBgParticleRenderTime = 0;
+	var bgCanvasClearedForPeaks = false;
+
+	function getBgParticleSprite(type) {
+		if (bgParticleSprites[type]) return bgParticleSprites[type];
+		var c = document.createElement('canvas');
+		c.width = 64;
+		c.height = 64;
+		var ctx = c.getContext('2d');
+		var cx = 32, cy = 32;
+
+		if (type === 'petal') {
+			var s = 26;
+			ctx.translate(cx, cy);
+			ctx.beginPath();
+			ctx.moveTo(0, -s * 0.6);
+			ctx.bezierCurveTo(s * 0.55, -s * 0.5, s * 0.6, s * 0.3, 0, s * 0.7);
+			ctx.bezierCurveTo(-s * 0.6, s * 0.3, -s * 0.55, -s * 0.5, 0, -s * 0.6);
+			var pGrad = ctx.createLinearGradient(0, -s * 0.6, 0, s * 0.7);
+			pGrad.addColorStop(0.0, 'rgba(255, 250, 252, 1.0)');
+			pGrad.addColorStop(0.45, 'rgba(255, 185, 215, 0.95)');
+			pGrad.addColorStop(1.0, 'rgba(235, 110, 160, 0.90)');
+			ctx.fillStyle = pGrad;
+			ctx.fill();
+		} else if (type === 'ember') {
+			var eGrad = ctx.createRadialGradient(cx, cy, 3, cx, cy, 28);
+			eGrad.addColorStop(0.0, 'rgba(255, 255, 230, 1.0)');
+			eGrad.addColorStop(0.3, 'rgba(255, 160, 20, 0.9)');
+			eGrad.addColorStop(0.7, 'rgba(255, 60, 0, 0.6)');
+			eGrad.addColorStop(1.0, 'rgba(180, 20, 0, 0)');
+			ctx.fillStyle = eGrad;
+			ctx.beginPath();
+			ctx.arc(cx, cy, 28, 0, Math.PI * 2);
+			ctx.fill();
+		} else if (type === 'snow') {
+			var sGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 28);
+			sGrad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+			sGrad.addColorStop(0.6, 'rgba(240, 248, 255, 0.8)');
+			sGrad.addColorStop(1.0, 'rgba(220, 235, 255, 0)');
+			ctx.fillStyle = sGrad;
+			ctx.beginPath();
+			ctx.arc(cx, cy, 28, 0, Math.PI * 2);
+			ctx.fill();
+		} else {
+			var mGrad = ctx.createRadialGradient(cx, cy, 3, cx, cy, 28);
+			mGrad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+			mGrad.addColorStop(0.4, 'rgba(120, 240, 235, 0.7)');
+			mGrad.addColorStop(1.0, 'rgba(64, 224, 208, 0)');
+			ctx.fillStyle = mGrad;
+			ctx.beginPath();
+			ctx.arc(cx, cy, 28, 0, Math.PI * 2);
+			ctx.fill();
+		}
+
+		bgParticleSprites[type] = c;
+		return c;
+	}
+
 	function updateAndRenderBackgroundParticles(dt, now) {
 		if (!bgCtx || !bgCanvas || !PARTICLES_BEHIND_ENABLED) return;
 		var w = bgWidth;
 		var h = bgHeight;
 		if (w <= 0 || h <= 0) return;
+
+		// Skip 2D particle canvas when 3D Alpine Peaks scene is active (peaks3D already renders 3D snow)
+		if (currentScenery === 'peaks') {
+			if (!bgCanvasClearedForPeaks) {
+				bgCtx.clearRect(0, 0, w, h);
+				bgCanvasClearedForPeaks = true;
+			}
+			return;
+		}
+		bgCanvasClearedForPeaks = false;
+		dt = Math.min(dt || 0.016, 0.05);
 
 		bgCtx.clearRect(0, 0, w, h);
 
@@ -2301,70 +2466,27 @@
 			bgCtx.scale(flip, 1);
 
 			if (p.type === 'petal') {
-				// Organic Sakura / Cherry Blossom Petal with vibrant contrast
-				var s = p.size;
-				bgCtx.beginPath();
-				bgCtx.moveTo(0, -s * 0.6);
-				bgCtx.bezierCurveTo(s * 0.55, -s * 0.5, s * 0.6, s * 0.3, 0, s * 0.7);
-				bgCtx.bezierCurveTo(-s * 0.6, s * 0.3, -s * 0.55, -s * 0.5, 0, -s * 0.6);
-
-				var grad = bgCtx.createLinearGradient(0, -s * 0.6, 0, s * 0.7);
-				grad.addColorStop(0.0, 'rgba(255, 250, 252, ' + p.alpha + ')');
-				grad.addColorStop(0.45, 'rgba(255, 185, 215, ' + (p.alpha * 0.95) + ')');
-				grad.addColorStop(1.0, 'rgba(235, 110, 160, ' + (p.alpha * 0.90) + ')');
-				bgCtx.fillStyle = grad;
-				bgCtx.fill();
+				var s = p.size * 1.3;
+				bgCtx.globalAlpha = p.alpha;
+				bgCtx.drawImage(getBgParticleSprite('petal'), -s, -s, s * 2, s * 2);
 			} else if (p.type === 'ember') {
-				var r = p.size;
+				var r = p.size * 1.8;
 				var flicker = 0.80 + Math.sin(now * 0.015 + p.phase) * 0.20;
-				var grad = bgCtx.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 1.8);
-				grad.addColorStop(0.0, 'rgba(255, 255, 230, ' + (p.alpha * flicker) + ')');
-				grad.addColorStop(0.3, 'rgba(255, 160, 20, ' + (p.alpha * flicker * 0.9) + ')');
-				grad.addColorStop(0.7, 'rgba(255, 60, 0, ' + (p.alpha * flicker * 0.6) + ')');
-				grad.addColorStop(1.0, 'rgba(180, 20, 0, 0)');
-				bgCtx.fillStyle = grad;
-				bgCtx.beginPath();
-				bgCtx.arc(0, 0, r * 1.8, 0, Math.PI * 2);
-				bgCtx.fill();
+				bgCtx.globalAlpha = p.alpha * flicker;
+				bgCtx.drawImage(getBgParticleSprite('ember'), -r, -r, r * 2, r * 2);
 			} else if (p.type === 'snow') {
-				var r = p.size;
-				var grad = bgCtx.createRadialGradient(0, 0, 0, 0, 0, r);
-				grad.addColorStop(0.0, 'rgba(255, 255, 255, ' + p.alpha + ')');
-				grad.addColorStop(0.6, 'rgba(240, 248, 255, ' + (p.alpha * 0.8) + ')');
-				grad.addColorStop(1.0, 'rgba(220, 235, 255, 0)');
-				bgCtx.fillStyle = grad;
-				bgCtx.beginPath();
-				bgCtx.arc(0, 0, r, 0, Math.PI * 2);
-				bgCtx.fill();
+				var rSnow = p.size;
+				bgCtx.globalAlpha = p.alpha;
+				bgCtx.drawImage(getBgParticleSprite('snow'), -rSnow, -rSnow, rSnow * 2, rSnow * 2);
 			} else if (p.type === 'crystal') {
-				var r = p.size;
+				var rCrys = p.size;
 				var glint = Math.pow(Math.max(0, Math.sin(now * 0.005 + p.phase)), 3);
-				bgCtx.fillStyle = 'rgba(255, 255, 255, ' + (p.alpha * (0.6 + glint * 0.4)) + ')';
-				bgCtx.beginPath();
-				bgCtx.moveTo(0, -r * (1 + glint * 0.8));
-				bgCtx.lineTo(r * 0.35, 0);
-				bgCtx.lineTo(0, r * (1 + glint * 0.8));
-				bgCtx.lineTo(-r * 0.35, 0);
-				bgCtx.closePath();
-				bgCtx.fill();
-
-				bgCtx.beginPath();
-				bgCtx.moveTo(-r * (1 + glint * 0.8), 0);
-				bgCtx.lineTo(0, r * 0.35);
-				bgCtx.lineTo(r * (1 + glint * 0.8), 0);
-				bgCtx.lineTo(0, -r * 0.35);
-				bgCtx.closePath();
-				bgCtx.fill();
+				bgCtx.globalAlpha = p.alpha * (0.6 + glint * 0.4);
+				bgCtx.drawImage(getBgParticleSprite('snow'), -rCrys * 1.2, -rCrys * 1.2, rCrys * 2.4, rCrys * 2.4);
 			} else {
-				var r = p.size;
-				var grad = bgCtx.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 1.6);
-				grad.addColorStop(0.0, 'rgba(255, 255, 255, ' + p.alpha + ')');
-				grad.addColorStop(0.4, 'rgba(120, 240, 235, ' + (p.alpha * 0.7) + ')');
-				grad.addColorStop(1.0, 'rgba(64, 224, 208, 0)');
-				bgCtx.fillStyle = grad;
-				bgCtx.beginPath();
-				bgCtx.arc(0, 0, r * 1.6, 0, Math.PI * 2);
-				bgCtx.fill();
+				var rMote = p.size * 1.6;
+				bgCtx.globalAlpha = p.alpha;
+				bgCtx.drawImage(getBgParticleSprite('seaMote'), -rMote, -rMote, rMote * 2, rMote * 2);
 			}
 
 			bgCtx.restore();
