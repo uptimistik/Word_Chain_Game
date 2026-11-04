@@ -761,34 +761,117 @@
 		[0.900, 0.750],
 		[0.960, 0.765]
 	];
-	var snowtownRoadDists = null;
+	var snowtownPieces = null;
 	var snowtownRoadTotalLen = 0;
 	function initSnowtownRoad() {
-		if (snowtownRoadDists) return;
-		snowtownRoadDists = [0];
-		snowtownRoadTotalLen = 0;
-		for (var i = 0; i < SNOWTOWN_WAYPOINTS.length - 1; i++) {
+		if (snowtownPieces) return;
+		var n = SNOWTOWN_WAYPOINTS.length;
+		var segLens = [], segDirs = [], segAngs = [];
+		for (var i = 0; i < n - 1; i++) {
 			var dx = SNOWTOWN_WAYPOINTS[i+1][0] - SNOWTOWN_WAYPOINTS[i][0];
 			var dy = SNOWTOWN_WAYPOINTS[i+1][1] - SNOWTOWN_WAYPOINTS[i][1];
-			snowtownRoadTotalLen += Math.sqrt(dx*dx + dy*dy);
-			snowtownRoadDists.push(snowtownRoadTotalLen);
+			var l = Math.hypot(dx, dy);
+			segLens.push(l);
+			segDirs.push([dx / l, dy / l]);
+			segAngs.push(Math.atan2(dy, dx));
+		}
+
+		// Corner fillet radius (proportional to segment length, capped to keep turns inside road)
+		var cornerR = [];
+		for (var i = 1; i < n - 1; i++) {
+			var r = Math.min(segLens[i-1] * 0.44, segLens[i] * 0.44, 0.022);
+			cornerR.push(r);
+		}
+
+		snowtownPieces = [];
+		snowtownRoadTotalLen = 0;
+
+		for (var i = 0; i < n - 1; i++) {
+			var rStart = (i === 0) ? 0 : cornerR[i-1];
+			var rEnd = (i === n - 2) ? 0 : cornerR[i];
+			var straightLen = Math.max(0, segLens[i] - rStart - rEnd);
+			var pStart = [
+				SNOWTOWN_WAYPOINTS[i][0] + segDirs[i][0] * rStart,
+				SNOWTOWN_WAYPOINTS[i][1] + segDirs[i][1] * rStart
+			];
+			var pEnd = [
+				SNOWTOWN_WAYPOINTS[i+1][0] - segDirs[i][0] * rEnd,
+				SNOWTOWN_WAYPOINTS[i+1][1] - segDirs[i][1] * rEnd
+			];
+
+			snowtownPieces.push({
+				type: 0, // straight
+				pStart: pStart,
+				pEnd: pEnd,
+				dir: segDirs[i],
+				len: straightLen,
+				startDist: snowtownRoadTotalLen,
+				endDist: snowtownRoadTotalLen + straightLen
+			});
+			snowtownRoadTotalLen += straightLen;
+
+			if (i < n - 2) {
+				var r = cornerR[i];
+				var wpC = SNOWTOWN_WAYPOINTS[i+1];
+				var pA = [wpC[0] - segDirs[i][0] * r, wpC[1] - segDirs[i][1] * r];
+				var pB = [wpC[0] + segDirs[i+1][0] * r, wpC[1] + segDirs[i+1][1] * r];
+				var dAng = segAngs[i+1] - segAngs[i];
+				while (dAng > Math.PI) dAng -= 2 * Math.PI;
+				while (dAng < -Math.PI) dAng += 2 * Math.PI;
+
+				// Numerically approximate quadratic Bezier arc length across turn
+				var arcLen = 0;
+				var prevPt = pA;
+				for (var step = 1; step <= 12; step++) {
+					var u = step / 12;
+					var omt = 1 - u;
+					var curX = omt * omt * pA[0] + 2 * omt * u * wpC[0] + u * u * pB[0];
+					var curY = omt * omt * pA[1] + 2 * omt * u * wpC[1] + u * u * pB[1];
+					arcLen += Math.hypot(curX - prevPt[0], curY - prevPt[1]);
+					prevPt = [curX, curY];
+				}
+
+				snowtownPieces.push({
+					type: 1, // filleted corner
+					pA: pA,
+					pB: pB,
+					pC: wpC,
+					angIn: segAngs[i],
+					dAng: dAng,
+					len: arcLen,
+					startDist: snowtownRoadTotalLen,
+					endDist: snowtownRoadTotalLen + arcLen
+				});
+				snowtownRoadTotalLen += arcLen;
+			}
 		}
 	}
 	function getSnowtownRoadPos(s) {
 		initSnowtownRoad();
 		s = Math.max(0, Math.min(1, s));
 		var targetDist = s * snowtownRoadTotalLen;
-		for (var i = 0; i < snowtownRoadDists.length - 1; i++) {
-			if (targetDist >= snowtownRoadDists[i] && targetDist <= snowtownRoadDists[i+1]) {
-				var segLen = snowtownRoadDists[i+1] - snowtownRoadDists[i];
-				var t = segLen > 0 ? (targetDist - snowtownRoadDists[i]) / segLen : 0;
-				var wp0 = SNOWTOWN_WAYPOINTS[i];
-				var wp1 = SNOWTOWN_WAYPOINTS[i+1];
-				var x = wp0[0] + (wp1[0] - wp0[0]) * t;
-				var y = wp0[1] + (wp1[1] - wp0[1]) * t;
-				var dirX = (wp1[0] - wp0[0]) / (segLen || 1);
-				var dirY = (wp1[1] - wp0[1]) / (segLen || 1);
-				return [x, y, dirX, dirY];
+		for (var i = 0; i < snowtownPieces.length; i++) {
+			var piece = snowtownPieces[i];
+			if (targetDist <= piece.endDist || i === snowtownPieces.length - 1) {
+				var segLen = piece.len;
+				var t = segLen > 1e-6 ? (targetDist - piece.startDist) / segLen : 0;
+				t = Math.max(0, Math.min(1, t));
+
+				if (piece.type === 0) {
+					// Straight roadway section
+					var x = piece.pStart[0] + (piece.pEnd[0] - piece.pStart[0]) * t;
+					var y = piece.pStart[1] + (piece.pEnd[1] - piece.pStart[1]) * t;
+					return [x, y, piece.dir[0], piece.dir[1]];
+				} else {
+					// Smoothly filleted corner turn
+					var omt = 1 - t;
+					var x = omt * omt * piece.pA[0] + 2 * omt * t * piece.pC[0] + t * t * piece.pB[0];
+					var y = omt * omt * piece.pA[1] + 2 * omt * t * piece.pC[1] + t * t * piece.pB[1];
+					// Smoothstep angular interpolation for continuous steering sweeps
+					var st = t * t * (3 - 2 * t);
+					var ang = piece.angIn + piece.dAng * st;
+					return [x, y, Math.cos(ang), Math.sin(ang)];
+				}
 			}
 		}
 		var last = SNOWTOWN_WAYPOINTS[SNOWTOWN_WAYPOINTS.length - 1];
@@ -797,24 +880,24 @@
 	var snowtownCarData = new Float32Array(3 * 4);
 	var snowtownCarProps = new Float32Array(3 * 3);
 	function updateSnowtownCars(timeSec) {
-		// Car 0: Downhill commuter from mountain pass (duration ~21s)
-		var s0 = (timeSec * 0.048) % 1.0;
+		// Car 0: Downhill commuter from mountain pass (~10.4s duration, ~2x speed)
+		var s0 = (timeSec * 0.096) % 1.0;
 		var p0 = getSnowtownRoadPos(s0);
 		snowtownCarData[0] = p0[0]; snowtownCarData[1] = p0[1];
 		snowtownCarData[2] = p0[2]; snowtownCarData[3] = p0[3];
 		var fade0 = Math.sin(s0 * Math.PI);
 		snowtownCarProps[0] = fade0; snowtownCarProps[1] = 0.0; snowtownCarProps[2] = 0.5 + 1.2 * (p0[1] - 0.58) / 0.20;
 
-		// Car 1: Uphill vehicle with red taillights (duration ~25s)
-		var s1 = 1.0 - ((timeSec * 0.040 + 0.45) % 1.0);
+		// Car 1: Uphill vehicle with red taillights (~12.5s duration, ~2x speed)
+		var s1 = 1.0 - ((timeSec * 0.080 + 0.45) % 1.0);
 		var p1 = getSnowtownRoadPos(s1);
 		snowtownCarData[4] = p1[0]; snowtownCarData[5] = p1[1];
 		snowtownCarData[6] = -p1[2]; snowtownCarData[7] = -p1[3];
 		var fade1 = Math.sin(s1 * Math.PI);
 		snowtownCarProps[3] = fade1; snowtownCarProps[4] = 1.0; snowtownCarProps[5] = 0.5 + 1.2 * (p1[1] - 0.58) / 0.20;
 
-		// Car 2: Second downhill car (offset ~11s)
-		var s2 = ((timeSec + 11.0) * 0.046) % 1.0;
+		// Car 2: Second downhill car (offset ~5.5s, ~2x speed)
+		var s2 = ((timeSec + 5.5) * 0.092) % 1.0;
 		var p2 = getSnowtownRoadPos(s2);
 		snowtownCarData[8] = p2[0]; snowtownCarData[9] = p2[1];
 		snowtownCarData[10] = p2[2]; snowtownCarData[11] = p2[3];

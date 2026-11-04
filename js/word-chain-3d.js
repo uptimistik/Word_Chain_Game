@@ -3203,6 +3203,20 @@
 		}
 	}
 
+	function triggerChainCouplerSnap(prevRow, currRow) {
+		if (!phraseCouplerGroup) return;
+		updatePhraseCoupler(prevRow, currRow);
+		phraseCouplerGroup.visible = true;
+
+		// Trigger dynamic physical swing and snap animation!
+		chainSwingState.active = true;
+		chainSwingState.startTime = performance.now();
+		chainSwingState.hasSnapped = false;
+		chainSwingState.prevRowIdx = currentWordIndex - 1;
+		chainSwingState.currRowIdx = currentWordIndex;
+		chainSwingState.lastTargetRow = currentWordIndex;
+	}
+
 	function updatePhraseCoupler(prevRow, currRow) {
 		if (!phraseCouplerGroup) return;
 		phraseCouplerGroup.visible = true;
@@ -3519,8 +3533,9 @@
 
 	/**
 	 * Update rack highlight materials, 3D active row indicators, and brackets.
+	 * If skipCoupler is true, updates the tray visuals first and leaves the chain to be linked afterwards.
 	 */
-	function updateActiveRowVisuals() {
+	function updateActiveRowVisuals(skipCoupler) {
 		for (var r = 0; r < chainRowData.length; r++) {
 			var rowInfo = chainRowData[r];
 			if (r === currentWordIndex) {
@@ -3562,8 +3577,10 @@
 		}
 
 		// Update 3D Phrase Coupler linking row (currentWordIndex - 1) and row (currentWordIndex)
-		if (currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
+		if (!skipCoupler && currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
 			updatePhraseCoupler(chainRowData[currentWordIndex - 1], chainRowData[currentWordIndex]);
+		} else if (skipCoupler) {
+			if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
 		} else {
 			if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
 		}
@@ -4030,7 +4047,16 @@
 					AudioManager.play('tilehit', 0.35);
 					AudioManager.haptic(15);
 					spawnStagingTiles(currentWordIndex);
-					updateActiveRowVisuals();
+
+					// SEQUENCE: The trays appear FIRST!
+					updateActiveRowVisuals(true);
+
+					// Then the chain appears AFTER to link the two solvable trays together with swing & snap!
+					setTimeout(function () {
+						if (currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
+							triggerChainCouplerSnap(chainRowData[currentWordIndex - 1], chainRowData[currentWordIndex]);
+						}
+					}, 280);
 				}
 			} else {
 				var easeStage = 1.0 - Math.pow(1.0 - uStage, 3.5);
@@ -4078,7 +4104,13 @@
 		if (!hasStaging) {
 			spawnStagingTiles(currentWordIndex);
 		}
-		updateActiveRowVisuals();
+		// SEQUENCE: Trays appear FIRST!
+		updateActiveRowVisuals(true);
+		setTimeout(function () {
+			if (currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
+				triggerChainCouplerSnap(chainRowData[currentWordIndex - 1], chainRowData[currentWordIndex]);
+			}
+		}, 180);
 	}
 
 	// --------------------------------------------------------------------------
@@ -4765,8 +4797,10 @@
 
 			playChainComboSequence(word1Row, word2Row, function () {
 				function proceedToNextStep() {
+					// Hide previous chain coupler immediately as the previous pair has finished
+					if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
+
 					currentWordIndex++;
-					updateActiveRowVisuals();
 
 					if (currentWordIndex >= currentLevelData.words.length) {
 						// LEVEL COMPLETE!
@@ -4784,7 +4818,16 @@
 					} else {
 						// Spawn next word scrambled tiles
 						spawnStagingTiles(currentWordIndex);
-						updateActiveRowVisuals();
+						// SEQUENCE: Trays appear FIRST!
+						updateActiveRowVisuals(true);
+
+						// Chain appears AFTER to link the two trays together with swing & snap!
+						setTimeout(function () {
+							if (isCelebratingWin) return;
+							if (currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
+								triggerChainCouplerSnap(chainRowData[currentWordIndex - 1], chainRowData[currentWordIndex]);
+							}
+						}, 280);
 					}
 				}
 
@@ -5778,53 +5821,71 @@
 
 		var isMobilePortrait = (aspect < 0.75);
 
-		// Determine dynamic top and bottom margin fractions on screen
+		// Determine dynamic top and bottom safe boundaries on screen
 		// Top HUD header (speedometer + star gauge) height measured from actual DOM
 		var headerEl = document.getElementById('hud-header');
-		var headerBottomPx = 130;
+		var headerBottomPx = 115;
 		if (headerEl) {
 			var hRect = headerEl.getBoundingClientRect();
 			if (hRect && hRect.bottom > 0) {
 				headerBottomPx = hRect.bottom;
 			}
 		}
-		var topPaddingPx = isMobilePortrait ? 24 : 18;
-		var topMarginFraction = (headerBottomPx + topPaddingPx) / window.innerHeight;
-		topMarginFraction = Math.max(0.16, Math.min(0.28, topMarginFraction));
+		var topPaddingPx = isMobilePortrait ? 20 : 16;
+		var topSafeFraction = (headerBottomPx + topPaddingPx) / window.innerHeight;
+		topSafeFraction = Math.max(0.14, Math.min(0.24, topSafeFraction));
 
-		// Bottom HUD (#hud-bottom with shuffle/hint/recall) takes ~64-75px
-		var bottomPaddingPx = isMobilePortrait ? 84 : 70;
-		var bottomMarginFraction = bottomPaddingPx / window.innerHeight;
-		bottomMarginFraction = Math.max(0.10, Math.min(0.20, bottomMarginFraction));
+		// Bottom HUD (#hud-bottom with shuffle/hint/recall) measured dynamically from DOM
+		var hudBottomEl = document.getElementById('hud-bottom');
+		var bottomBarTopPx = window.innerHeight - (isMobilePortrait ? 76 : 64);
+		if (hudBottomEl) {
+			var bRect = hudBottomEl.getBoundingClientRect();
+			if (bRect && bRect.top > 0) {
+				bottomBarTopPx = bRect.top;
+			}
+		}
+		var bottomPaddingPx = isMobilePortrait ? 24 : 18;
+		var bottomSafeFraction = (bottomBarTopPx - bottomPaddingPx) / window.innerHeight;
+		bottomSafeFraction = Math.max(0.78, Math.min(0.92, bottomSafeFraction));
 
-		// Target vertical occupancy for the board between top HUD and bottom HUD
-		var maxOccupancy = Math.max(0.46, 1.0 - (topMarginFraction + bottomMarginFraction));
-		var targetOccupancy = isMobilePortrait ? Math.min(0.60, maxOccupancy) : Math.min(0.70, maxOccupancy);
+		// Safe playable vertical span between top header and bottom action bar
+		var safeSpan = Math.max(0.40, bottomSafeFraction - topSafeFraction);
+		var targetOccupancy = isMobilePortrait ? Math.min(0.68, safeSpan) : Math.min(0.72, safeSpan);
 
 		var fov = 46;
 		var fovRad = THREE.MathUtils.degToRad(fov);
 		var halfFovTan = Math.tan(fovRad * 0.5);
 
-		var reqWidth = (numRows >= 8) ? 11.2 : ((numRows === 7) ? 10.9 : 10.6);
+		var reqWidth = (numRows >= 8) ? 10.8 : ((numRows === 7) ? 10.5 : 10.2);
 		var reqHeight = boardHeight / targetOccupancy;
 
 		var camY_by_width = (reqWidth / aspect) / (2 * halfFovTan);
 		var camY_by_height = reqHeight / (2 * halfFovTan);
 		var camY = Math.max(camY_by_width, camY_by_height);
 
-		// Carry the 3D camera further back for volcano environment so the volcano doesn't feel cramped
+		// Scenery adjustment for volcano
 		var activeScenery = (global.WordscapesScenery && global.WordscapesScenery.getCurrent) ? global.WordscapesScenery.getCurrent() : null;
 		if (activeScenery === 'volcano') {
-			camY *= 1.20;
+			camY *= 1.08;
 		}
 
 		if (perspectiveMode === 'classic') {
 			camY *= 1.05;
 		}
 
-		// Calculate centerZ so that boardTopZ is guaranteed to sit exactly at topMarginFraction on screen!
+		// Calculate vertical distribution of board within safe span
 		var viewHeight = 2 * camY * halfFovTan;
-		var centerZ = boardTopZ + viewHeight * (0.5 - topMarginFraction);
+		var boardFractionOnScreen = boardHeight / viewHeight;
+		var slack = Math.max(0, safeSpan - boardFractionOnScreen);
+
+		// Distribute slack: On mobile portrait, allocate ~62% of slack to the top,
+		// bringing everything DOWN to fill the bottom blank space while maintaining
+		// guaranteed clear clearance under the speedometer and milestone stars!
+		var topSlackRatio = isMobilePortrait ? 0.62 : 0.50;
+		var boardTopScreenFrac = topSafeFraction + topSlackRatio * slack;
+
+		// Calculate centerZ so that boardTopZ sits precisely at boardTopScreenFrac on screen
+		var centerZ = boardTopZ + viewHeight * (0.5 - boardTopScreenFrac);
 		currentCenterZ = centerZ;
 
 		camera.fov = fov;
@@ -6319,6 +6380,12 @@
 					box.classList.remove('hop');
 					void box.offsetWidth;
 					box.classList.add('hop');
+				});
+				var chainSvgs = titleGameBoard.querySelectorAll('.title-chain-svg');
+				chainSvgs.forEach(function (csv) {
+					csv.classList.remove('jingle');
+					void csv.offsetWidth;
+					csv.classList.add('jingle');
 				});
 			}
 			titleGameBoard.addEventListener('click', onTitleBoardTap);
