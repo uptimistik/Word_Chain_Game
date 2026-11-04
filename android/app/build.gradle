@@ -25,5 +25,18 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+
+    adbOptions {
+        timeOutInMs 300000
+        installOptions "-r", "-d"
+    }
 }
+
+tasks.register('syncWebAssets', Exec) {
+    workingDir rootProject.projectDir.parentFile
+    commandLine 'sh', 'android/scripts/sync_web.sh'
+}
+
+preBuild.dependsOn syncWebAssets
+
 

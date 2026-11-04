@@ -22,15 +22,16 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.TextView;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
 public class MainActivity extends Activity {
     private static final String TAG = "WordChain";
     private WebView webView;
+    private HapticsBridge hapticsBridge;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -45,46 +46,60 @@ public class MainActivity extends Activity {
         try {
             // Keep screen on during gameplay
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            setImmersiveMode();
 
             webView = new WebView(this);
             webView.setBackgroundColor(Color.BLACK);
+            // IMPORTANT: Do NOT set LAYER_TYPE_HARDWARE on WebView!
+            // WebView is already hardware-accelerated by the window; forcing LAYER_TYPE_HARDWARE
+            // allocates a redundant full-screen offscreen FBO in OpenGLRenderer that stalls Mali GPUs for 5+ seconds.
+            webView.setLayerType(View.LAYER_TYPE_NONE, null);
             webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
             webView.setVerticalScrollBarEnabled(false);
             webView.setHorizontalScrollBarEnabled(false);
+            webView.setFocusable(true);
+            webView.setFocusableInTouchMode(true);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
+            }
 
             WebSettings settings = webView.getSettings();
             settings.setJavaScriptEnabled(true);
             settings.setDomStorageEnabled(true);
             settings.setDatabaseEnabled(true);
+            settings.setCacheMode(WebSettings.LOAD_DEFAULT);
             settings.setMediaPlaybackRequiresUserGesture(false);
             settings.setAllowFileAccess(true);
             settings.setAllowContentAccess(true);
             settings.setAllowFileAccessFromFileURLs(true);
             settings.setAllowUniversalAccessFromFileURLs(true);
-            settings.setUseWideViewPort(true);
-            settings.setLoadWithOverviewMode(true);
+            settings.setUseWideViewPort(false);
+            settings.setLoadWithOverviewMode(false);
             settings.setSupportZoom(false);
             settings.setBuiltInZoomControls(false);
             settings.setDisplayZoomControls(false);
+            settings.setGeolocationEnabled(false);
 
             // Register Haptics Bridge safely
             try {
-                webView.addJavascriptInterface(new HapticsBridge(this), "AndroidHaptics");
+                hapticsBridge = new HapticsBridge(this);
+                webView.addJavascriptInterface(hapticsBridge, "AndroidHaptics");
             } catch (Throwable t) {
                 Log.w(TAG, "HapticsBridge initialization skipped: " + t.getMessage());
             }
 
-            // WebChromeClient for console logs
+            // WebChromeClient: only log errors to avoid logcat I/O overhead during gameplay
             webView.setWebChromeClient(new WebChromeClient() {
                 @Override
                 public boolean onConsoleMessage(ConsoleMessage cm) {
-                    Log.d(TAG + "-JS", cm.message() + " -- From line " + cm.lineNumber() + " of " + cm.sourceId());
+                    if (cm != null && cm.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
+                        Log.e(TAG + "-JS", cm.message() + " -- From line " + cm.lineNumber() + " of " + cm.sourceId());
+                    }
                     return true;
                 }
             });
 
-            // Custom WebViewClient to serve local assets under https://localhost/
+            // Custom WebViewClient to serve local assets under https://localhost/ with memory caching
             webView.setWebViewClient(new WebViewClient() {
                 @Override
                 public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
@@ -117,7 +132,13 @@ public class MainActivity extends Activity {
             });
 
             setContentView(webView);
-            webView.loadUrl("https://localhost/3d.html");
+            // Apply immersive mode and start loading URL after DecorView is attached so onCreate() returns immediately
+            webView.post(() -> {
+                setImmersiveMode();
+                if (webView != null) {
+                    webView.loadUrl("https://localhost/3d.html");
+                }
+            });
         } catch (Throwable t) {
             Log.e(TAG, "Critical error during MainActivity.onCreate()", t);
             FrameLayout root = new FrameLayout(this);
@@ -139,7 +160,6 @@ public class MainActivity extends Activity {
         if (path.startsWith("/")) {
             path = path.substring(1);
         }
-        // Strip any query strings or hashes
         int q = path.indexOf('?');
         if (q >= 0) path = path.substring(0, q);
         int h = path.indexOf('#');
@@ -147,15 +167,16 @@ public class MainActivity extends Activity {
 
         try {
             AssetManager am = getAssets();
-            InputStream is = am.open("www/" + path);
+            InputStream rawStream = am.open("www/" + path, AssetManager.ACCESS_RANDOM);
+            InputStream is = new BufferedInputStream(rawStream, 32768);
             String mimeType = getMimeType(path);
-            Map<String, String> headers = new HashMap<>();
+            String encoding = isTextMimeType(mimeType) ? "UTF-8" : null;
+            Map<String, String> headers = new HashMap<>(2);
             headers.put("Access-Control-Allow-Origin", "*");
-            headers.put("Cache-Control", "no-cache");
-            return new WebResourceResponse(mimeType, "UTF-8", 200, "OK", headers, is);
+            headers.put("Cache-Control", "public, max-age=31536000, immutable");
+            return new WebResourceResponse(mimeType, encoding, 200, "OK", headers, is);
         } catch (Exception e) {
-            // NEVER return null InputStream inside WebResourceResponse, as Chromium throws NPE
-            Map<String, String> headers = new HashMap<>();
+            Map<String, String> headers = new HashMap<>(1);
             headers.put("Access-Control-Allow-Origin", "*");
             byte[] empty = new byte[0];
             return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", headers, new ByteArrayInputStream(empty));
@@ -184,16 +205,27 @@ public class MainActivity extends Activity {
         return "application/octet-stream";
     }
 
+    private boolean isTextMimeType(String mimeType) {
+        if (mimeType == null) return false;
+        return mimeType.startsWith("text/")
+            || mimeType.equals("application/javascript")
+            || mimeType.equals("application/json")
+            || mimeType.equals("image/svg+xml");
+    }
+
     private void setImmersiveMode() {
         try {
+            if (getWindow() == null) return;
+            View decorView = getWindow().peekDecorView();
+            if (decorView == null) return;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                WindowInsetsController controller = getWindow().getInsetsController();
+                WindowInsetsController controller = decorView.getWindowInsetsController();
                 if (controller != null) {
                     controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
                     controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
                 }
             } else {
-                getWindow().getDecorView().setSystemUiVisibility(
+                decorView.setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -242,6 +274,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (hapticsBridge != null) {
+            hapticsBridge.shutdown();
+            hapticsBridge = null;
+        }
         if (webView != null) {
             webView.destroy();
             webView = null;

@@ -9,11 +9,16 @@
 	<title>Scruffle 3D Chain</title>
 	<link rel="icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
 	<link rel="shortcut icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
-	<!-- Digital HUD Fonts for Speedometer -->
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="css/word-chain-3d.css?v=21.0">
+	<link rel="stylesheet" href="css/word-chain-3d.css?v=23.0">
+	<script>
+		(function () {
+			var isAndroid = (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')) ||
+				(typeof window !== 'undefined' && (!!window.AndroidHaptics || /Android/i.test(navigator.appVersion || '')));
+			if (isAndroid && document.documentElement) {
+				document.documentElement.classList.add('is-android');
+			}
+		})();
+	</script>
 	<style>
 		/* Title Screen: Semi-transparent background with sleek blur */
 		#title-screen {
@@ -992,6 +997,33 @@
 			font-weight: 700;
 			cursor: pointer;
 		}
+
+		/* ==========================================================================
+		   ANDROID-ONLY COMPOSITOR STABILIZATION (iOS 100% UNTOUCHED)
+		   Promotes HUD layers cleanly without overriding centering transforms,
+		   animations, glows, or button styling.
+		   ========================================================================== */
+		html.is-android #title-screen {
+			backdrop-filter: none !important;
+			-webkit-backdrop-filter: none !important;
+			background: radial-gradient(circle at 50% 38%, rgba(16, 12, 26, 0.82) 0%, rgba(8, 6, 14, 0.96) 100%) !important;
+		}
+
+		html.is-android #hud-header,
+		html.is-android .hud-star-track,
+		html.is-android .hud-star-3d-canvas {
+			-webkit-transform: translateZ(0);
+			transform: translateZ(0);
+			-webkit-backface-visibility: hidden;
+			backface-visibility: hidden;
+		}
+
+		html.is-android #hud-bottom {
+			-webkit-transform: translate3d(-50%, 0, 0);
+			transform: translate3d(-50%, 0, 0);
+			-webkit-backface-visibility: hidden;
+			backface-visibility: hidden;
+		}
 	</style>
 
 
@@ -1650,8 +1682,8 @@
 	<!-- Scripts -->
 	<script src="js/three.min.js"></script>
 	<script src="js/levels.js"></script>
-	<script src="js/wordscapes-scenery.js?v=21.0"></script>
-	<script src="js/word-chain-3d.js?v=21.0"></script>
+	<script src="js/wordscapes-scenery.js?v=23.0"></script>
+	<script src="js/word-chain-3d.js?v=23.0"></script>
 
 	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
 	<script>
