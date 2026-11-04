@@ -75,10 +75,10 @@
 			glowClass: 'scenery-glow-volcano',
 			particleType: 'ember',
 			lighting: {
-				ambient: { color: 0x3d2028, intensity: 0.88 },
-				sun: { color: 0xff5511, intensity: 1.15, pos: [0, 22, -10] },
-				fill: { color: 0x221222, intensity: 0.32, pos: [-8, 8, -6] },
-				point: { color: 0xff4500, intensity: 2.8, pos: [0, 3.5, -3] }
+				ambient: { color: 0x24222a, intensity: 0.92 },
+				sun: { color: 0xffcaa0, intensity: 0.75, pos: [2, 22, 8] },
+				fill: { color: 0x181a24, intensity: 0.35, pos: [-8, 8, -6] },
+				point: { color: 0xff8833, intensity: 0.85, pos: [0, 3.5, -3] }
 			}
 		},
 		snowtown: {
@@ -1819,6 +1819,11 @@
 
 		// 6. Reset Background High-DPI Particles (Passing BEHIND the board)
 		if (PARTICLES_BEHIND_ENABLED) initBackgroundParticles();
+
+		// 7. Update 3D tray theme (switching to Burnt Charcoal on volcano, and restoring fine hardwood on other scenes)
+		if (global.TextureManager && typeof global.TextureManager.updateTrayTheme === 'function') {
+			try { global.TextureManager.updateTrayTheme(); } catch (e) {}
+		}
 	}
 
 	function applyLighting(scId) {
@@ -1919,8 +1924,8 @@
 		// 3. Living Light Convection FX
 		if (dynamicPointLight) {
 			if (currentScenery === 'volcano') {
-				// Pulsing caldera heat convection
-				dynamicPointLight.intensity = 2.8 + Math.sin(now * 0.007) * 0.85 + Math.sin(now * 0.019) * 0.35;
+				// Gentle caldera heat convection breathing (soft warm amber, zero blinding red glare)
+				dynamicPointLight.intensity = 0.85 + Math.sin(now * 0.005) * 0.12;
 			} else if (currentScenery === 'snowtown') {
 				// Gentle chalet lantern glimmer
 				dynamicPointLight.intensity = 1.8 + Math.sin(now * 0.004) * 0.28;

@@ -353,6 +353,95 @@
 			return texture;
 		},
 
+		getCharcoalTexture: function (baseCharcoalHex, ashFissureHex, emberGlowHex, emberIntensity) {
+			var width = 512;
+			var height = 256;
+			var canvas = document.createElement('canvas');
+			canvas.width = width;
+			canvas.height = height;
+			var ctx = canvas.getContext('2d');
+
+			// Base deep charred matte black / graphite
+			ctx.fillStyle = baseCharcoalHex || '#151518';
+			ctx.fillRect(0, 0, width, height);
+
+			// Longitudinal char ridges & alligator fractures (burnt timber texture)
+			for (var y = 0; y < height; y += 3) {
+				var charAlpha = (Math.sin(y * 0.18) * 0.5 + 0.5) * 0.45 + Math.random() * 0.15;
+				ctx.fillStyle = (Math.sin(y * 0.35) > 0) ? (ashFissureHex || '#0a0a0c') : '#25252b';
+				ctx.globalAlpha = charAlpha;
+				ctx.beginPath();
+				ctx.moveTo(0, y);
+				for (var x = 0; x <= width; x += 18) {
+					var waveY = y + Math.sin(x * 0.035 + y * 0.015) * 4.5 + Math.cos(x * 0.015) * 3;
+					ctx.lineTo(x, waveY);
+				}
+				ctx.lineTo(width, y + 2.4);
+				ctx.lineTo(0, y + 2.4);
+				ctx.fill();
+			}
+
+			// Alligator cracks / char blocks characteristic of burnt wood
+			ctx.fillStyle = '#08080a';
+			ctx.globalAlpha = 0.55;
+			for (var c = 0; c < width; c += 22) {
+				var cx = c + (Math.random() * 8 - 4);
+				ctx.fillRect(cx, 0, 1.8, height);
+			}
+
+			// Ash flecks & carbon flakes
+			ctx.fillStyle = '#3a3a42';
+			ctx.globalAlpha = 0.25;
+			for (var f = 0; f < 300; f++) {
+				var fx = Math.random() * width;
+				var fy = Math.random() * height;
+				var fSize = Math.random() * 2.5 + 1.0;
+				ctx.fillRect(fx, fy, fSize, fSize * 0.6);
+			}
+
+			// Subtle smoldering glowing ember veins deep in the cracks (NOT loud neon red)
+			if (emberIntensity && emberIntensity > 0) {
+				ctx.fillStyle = emberGlowHex || '#d84315';
+				ctx.globalAlpha = emberIntensity;
+				for (var e = 0; e < 12; e++) {
+					var ey = (e * 21) + 8 + (Math.random() * 6);
+					ctx.beginPath();
+					ctx.moveTo(0, ey);
+					for (var ex = 0; ex <= width; ex += 25) {
+						var eWaveY = ey + Math.sin(ex * 0.04 + e) * 4.0;
+						ctx.lineTo(ex, eWaveY);
+					}
+					ctx.lineTo(width, ey + 1.6);
+					ctx.lineTo(0, ey + 1.6);
+					ctx.fill();
+				}
+
+				// Deep burning micro-ember hotspots
+				for (var h = 0; h < 20; h++) {
+					var hx = Math.random() * width;
+					var hy = Math.random() * height;
+					var grad = ctx.createRadialGradient(hx, hy, 0, hx, hy, 12);
+					grad.addColorStop(0, '#ff6d00');
+					grad.addColorStop(0.4, '#e64a19');
+					grad.addColorStop(1, 'transparent');
+					ctx.fillStyle = grad;
+					ctx.globalAlpha = emberIntensity * 0.85;
+					ctx.beginPath();
+					ctx.arc(hx, hy, 12, 0, Math.PI * 2);
+					ctx.fill();
+				}
+			}
+
+			ctx.globalAlpha = 1.0;
+
+			var texture = new THREE.CanvasTexture(canvas);
+			texture.encoding = THREE.sRGBEncoding;
+			texture.wrapS = THREE.RepeatWrapping;
+			texture.wrapT = THREE.RepeatWrapping;
+			texture.repeat.set(2, 1);
+			return texture;
+		},
+
 		renderLetterOnCanvas: function (letter, canvas, skinId) {
 			letter = (letter || '').toUpperCase();
 			var sid = skinId || currentSkinId || 'classic';
@@ -610,63 +699,103 @@
 			return texture;
 		},
 
-		// Cached procedural textures and color tokens for dark vs. light tray themes
+		// Cached procedural textures and color tokens for dark, light, and volcano tray themes
 		getTrayThemeTextures: function (theme) {
 			if (!this.trayThemeTextures) this.trayThemeTextures = {};
 			if (this.trayThemeTextures[theme]) return this.trayThemeTextures[theme];
 
-			if (theme === 'light') {
+			if (theme === 'volcano') {
+				// VOLCANO THEME: Burnt slightly glowing charcoal instead of intense red!
+				// Deep matte charred timber with subtle smoldering hot-coal embers deep in the crevices.
+				// Feeder tray is ALWAYS distinct: rich emerald pine hardwood with champagne brass lip & emerald velvet felt!
+				this.trayThemeTextures.volcano = {
+					rackWood: this.getCharcoalTexture('#18181b', '#0a0a0c', '#e64a19', 0.04),
+					activeWood: this.getCharcoalTexture('#1a1a1e', '#08080a', '#ff6600', 0.24),
+					partnerWood: this.getCharcoalTexture('#18181b', '#08080a', '#e64a19', 0.14),
+					solvedWood: this.getCharcoalTexture('#151517', '#08080a', '#000000', 0.0),
+					dimmedWood: this.getCharcoalTexture('#131315', '#060608', '#000000', 0.0),
+					greenWood: this.getHardwoodTexture('#193424', '#0c1d14', '#2a523a'), // Distinct rich emerald pine hardwood
+					feltColor: 0x111114, // Dark volcanic ash felt
+					feederFeltColor: 0x0f291b, // Rich deep emerald velvet felt
+					activeEmissive: 0x992e00, // Subtle warm smoldering charcoal ember (NOT blinding red!)
+					activeEmissiveIntensity: 0.22,
+					partnerEmissive: 0x551800,
+					partnerEmissiveIntensity: 0.15,
+					chevronColor: 0xff9800,
+					chevronEmissive: 0x78350f,
+					bracketVariant: 'darkTray',
+					rackRoughness: 0.88, // Dry matte charred wood
+					activeRoughness: 0.82,
+					partnerRoughness: 0.85,
+					solvedRoughness: 0.90,
+					dimmedRoughness: 0.92,
+					greenRoughness: 0.65
+				};
+			} else if (theme === 'light') {
 				// LIGHT TRAYS & LETTER HOLDERS (Never white! Lighter shade of warm golden honey-oak / cedar wood with rich visible grain texture)
+				// Feeder tray is ALWAYS distinct: rich deep forest evergreen hardwood!
 				this.trayThemeTextures.light = {
 					rackWood: this.getHardwoodTexture('#8e5b32', '#4e2c14', '#ad7340'),
 					activeWood: this.getHardwoodTexture('#9f6738', '#5a3318', '#bc8048'),
+					partnerWood: this.getHardwoodTexture('#965f34', '#522e15', '#b47842'),
 					solvedWood: this.getHardwoodTexture('#82522c', '#482610', '#9e6534'),
 					dimmedWood: this.getHardwoodTexture('#764926', '#3e1e0c', '#8e552a'),
-					greenWood: this.getHardwoodTexture('#684122', '#3a200e', '#825028'),
+					greenWood: this.getHardwoodTexture('#1d3e2d', '#0f2619', '#2f5e43'), // Distinct deep forest evergreen
 					feltColor: 0x3c2414,
+					feederFeltColor: 0x10281b, // Emerald velvet
 					activeEmissive: 0x381e08,
 					activeEmissiveIntensity: 0.35,
+					partnerEmissive: 0x2e1806,
+					partnerEmissiveIntensity: 0.28,
 					chevronColor: 0xf59e0b,
 					chevronEmissive: 0x78350f,
 					bracketVariant: 'lightTray',
 					rackRoughness: 0.70,
 					activeRoughness: 0.62,
+					partnerRoughness: 0.64,
 					solvedRoughness: 0.72,
 					dimmedRoughness: 0.76,
-					greenRoughness: 0.70
+					greenRoughness: 0.65
 				};
 			} else {
 				// DARK TRAYS & LETTER HOLDERS (Paired with light tiles)
-				// Rich dark roasted walnut / espresso racks, dark evergreen pine staging tray, charcoal felt, gold brackets
+				// Rich dark roasted walnut / espresso racks, distinct deep emerald spruce staging tray, charcoal felt, gold brackets
 				this.trayThemeTextures.dark = {
 					rackWood: this.getHardwoodTexture('#2c1b10', '#150c07', '#462c1c'),
 					activeWood: this.getHardwoodTexture('#3e2213', '#1e0f07', '#5d351e'),
+					partnerWood: this.getHardwoodTexture('#341b0e', '#190b05', '#4f2b18'),
 					solvedWood: this.getHardwoodTexture('#26170e', '#120a05', '#3e2617'),
 					dimmedWood: this.getHardwoodTexture('#18100a', '#0b0704', '#261b11'),
-					greenWood: this.getHardwoodTexture('#192b1d', '#0c160e', '#2b4731'),
+					greenWood: this.getHardwoodTexture('#152e20', '#0a1a11', '#234731'), // Distinct deep forest spruce
 					feltColor: 0x14100c,
+					feederFeltColor: 0x0d2216, // Emerald velvet
 					activeEmissive: 0x381705,
 					activeEmissiveIntensity: 0.40,
+					partnerEmissive: 0x2c1304,
+					partnerEmissiveIntensity: 0.30,
 					chevronColor: 0xf59e0b,
 					chevronEmissive: 0x78350f,
 					bracketVariant: 'darkTray',
 					rackRoughness: 0.76,
 					activeRoughness: 0.68,
+					partnerRoughness: 0.70,
 					solvedRoughness: 0.78,
 					dimmedRoughness: 0.82,
-					greenRoughness: 0.76
+					greenRoughness: 0.68
 				};
 			}
 			return this.trayThemeTextures[theme];
 		},
 
 		// Dynamically switch trays and letter holders to maintain optimal contrast with current tiles:
-		// Light tiles -> Dark trays & letter holders
-		// Dark tiles  -> Light trays & letter holders
+		// Volcano scenery -> Burnt slightly glowing charcoal trays
+		// Light tiles     -> Dark trays & letter holders
+		// Dark tiles      -> Light trays & letter holders
 		updateTrayTheme: function (skinId) {
 			var skin = TILE_SKINS[skinId] || TILE_SKINS[currentSkinId] || TILE_SKINS.classic;
 			var isLightTile = (skin.tone !== 'dark');
-			var themeName = isLightTile ? 'dark' : 'light';
+			var scId = (global.WordscapesScenery && global.WordscapesScenery.getCurrent) ? global.WordscapesScenery.getCurrent() : null;
+			var themeName = (scId === 'volcano') ? 'volcano' : (isLightTile ? 'dark' : 'light');
 			var theme = this.getTrayThemeTextures(themeName);
 
 			if (materials.yellowTray) {
@@ -680,6 +809,13 @@
 				materials.yellowTrayActive.emissive.setHex(theme.activeEmissive);
 				materials.yellowTrayActive.emissiveIntensity = theme.activeEmissiveIntensity;
 				materials.yellowTrayActive.needsUpdate = true;
+			}
+			if (materials.yellowTrayPartner) {
+				materials.yellowTrayPartner.map = theme.partnerWood;
+				materials.yellowTrayPartner.roughness = theme.partnerRoughness;
+				materials.yellowTrayPartner.emissive.setHex(theme.partnerEmissive);
+				materials.yellowTrayPartner.emissiveIntensity = theme.partnerEmissiveIntensity;
+				materials.yellowTrayPartner.needsUpdate = true;
 			}
 			if (materials.yellowTraySolved) {
 				materials.yellowTraySolved.map = theme.solvedWood;
@@ -695,6 +831,14 @@
 				materials.greenTray.map = theme.greenWood;
 				materials.greenTray.roughness = theme.greenRoughness;
 				materials.greenTray.needsUpdate = true;
+			}
+			if (materials.feederTrayLip) {
+				materials.feederTrayLip.map = theme.greenWood;
+				materials.feederTrayLip.needsUpdate = true;
+			}
+			if (materials.feederFelt) {
+				materials.feederFelt.color.setHex(theme.feederFeltColor || 0x0f2619);
+				materials.feederFelt.needsUpdate = true;
 			}
 			if (materials.slotFelt) {
 				materials.slotFelt.color.setHex(theme.feltColor);
@@ -841,6 +985,7 @@
 			return texture;
 		}
 	};
+	global.TextureManager = TextureManager;
 
 	// --------------------------------------------------------------------------
 	// Customization Unlocks, Gift Box Progression & Reward Ads
@@ -1416,6 +1561,11 @@
 		currentLevelSpeed: 0,
 		isLevelActive: false,
 		lastTileSnapTime: 0,
+		peakStarsAchieved: 0,
+		peakSpeedAchieved: 0,
+		levelFinished: false,
+		levelCompletedForIndex: -1,
+		lastCompletionResult: null,
 
 		TIERS: [
 			{ minWpm: 45, tier: 'S+', title: 'GODSPEED', cssTier: 'tier-godspeed', color: '#ff007f', gradient: 'linear-gradient(135deg, #ff007f, #ffd700)' },
@@ -1472,8 +1622,9 @@
 		calculateStarsForWpm: function (wpm) {
 			if (!wpm || wpm <= 0) return 0;
 			if (wpm >= 28) return 3; // ⭐⭐⭐ Lightning Fast (>=28 WPM)
-			if (wpm >= 15) return 2; // ⭐⭐ Swift (>=15 WPM)
-			return 1;                // ⭐ Steady/Completed (<15 WPM)
+			if (wpm >= 18) return 2; // ⭐⭐ Swift (>=18 WPM)
+			if (wpm >= 8) return 1;  // ⭐ Steady (>=8 WPM)
+			return 0;
 		},
 
 		getTotalStars: function () {
@@ -1614,15 +1765,24 @@
 			this.levelStartTime = performance.now();
 			this.lastWordSolveTime = performance.now();
 			this.wordsSolvedThisLevel = 0;
+			this.wrongAttemptsThisLevel = 0;
 			this.currentLevelSpeed = 0;
 			this.targetSpeed = 0;
 			this.displayedSpeed = 0;
+			this.peakStarsAchieved = 0;
+			this.peakSpeedAchieved = 0;
+			this.levelFinished = false;
+			this.levelCompletedForIndex = -1;
+			this.lastCompletionResult = null;
 			this.isLevelActive = true;
 			this.updateSettingsLevelUI(levelIndex);
 
 			var numEl = document.getElementById('speedo-number');
 			if (numEl) numEl.textContent = '0';
 			this.applyTierVisuals(0);
+
+			// Reset dynamic speed milestone star track
+			this.resetStarTrack();
 
 			var winCard = document.getElementById('win-speed-card');
 			if (winCard) winCard.classList.remove('show');
@@ -1631,15 +1791,45 @@
 		},
 
 		onTileInteraction: function () {
-			if (!this.isLevelActive) return;
-			var now = performance.now();
-			if (now - this.lastTileSnapTime < 120) return;
-			this.lastTileSnapTime = now;
-			// Provide an energetic needle boost on tile snap
-			this.targetSpeed = Math.min(65, this.targetSpeed + 1.6);
+			// Do NOT artificially boost speed on tile movement (WPM measures actual solved words)
+		},
+
+		onIncorrectWord: function () {
+			if (!this.isLevelActive || this.levelFinished) return;
+			this.wrongAttemptsThisLevel = (this.wrongAttemptsThisLevel || 0) + 1;
+
+			// HARD BRAKE: Immediate dramatic speed slash
+			// Cut speed down by 75% or cap at low crawl (prevent spam-submitting exploit)
+			this.targetSpeed = Math.max(0, Math.min(this.targetSpeed * 0.25, 6.0));
+			this.displayedSpeed = Math.max(0, Math.min(this.displayedSpeed * 0.30, 5.0));
+
+			// Reset lastWordSolveTime to now so next word cannot get free instantaneous speed
+			this.lastWordSolveTime = performance.now();
+
+			// Immediate visual feedback on speedometer
+			var hudSpeedo = document.getElementById('hud-speedometer');
+			if (hudSpeedo) {
+				hudSpeedo.classList.remove('speedo-pulse');
+				hudSpeedo.classList.add('speedo-brake');
+				setTimeout(function () {
+					hudSpeedo.classList.remove('speedo-brake');
+				}, 480);
+			}
+
+			// Immediately update numeric display, gauge tier, and dynamic stars
+			if (this.numEl) {
+				this.numEl.textContent = Math.round(this.displayedSpeed);
+			}
+			this.applyTierVisuals(this.displayedSpeed);
+			this.updateStarTrack(this.displayedSpeed);
+
+			// Brake shudder haptics
+			AudioManager.haptic(60);
+			setTimeout(function () { AudioManager.haptic(45); }, 90);
 		},
 
 		onWordSolved: function (wordIdx, totalWords) {
+			if (this.levelFinished) return;
 			var now = performance.now();
 			this.wordsSolvedThisLevel++;
 
@@ -1651,11 +1841,20 @@
 			var totalElapsedSec = Math.max(0.8, (now - this.levelStartTime) / 1000);
 			var cumulativeWpm = (this.wordsSolvedThisLevel / totalElapsedSec) * 60;
 
-			this.currentLevelSpeed = Math.round(cumulativeWpm * 10) / 10;
+			var activeWpm = Math.max(instantWpm, cumulativeWpm);
+			this.currentLevelSpeed = Math.round(activeWpm * 10) / 10;
 			this.lastWordSolveTime = now;
 
 			// Rev the needle towards whichever is faster
-			this.targetSpeed = Math.min(80, Math.max(instantWpm, cumulativeWpm));
+			this.targetSpeed = Math.min(80, activeWpm);
+			this.displayedSpeed = Math.max(this.displayedSpeed, activeWpm * 0.9);
+			this.peakSpeedAchieved = Math.max(this.peakSpeedAchieved, this.targetSpeed);
+
+			// Update peak stars achieved
+			var currentStars = this.calculateStarsForWpm(this.targetSpeed);
+			if (currentStars > this.peakStarsAchieved) {
+				this.peakStarsAchieved = currentStars;
+			}
 
 			// Visual pulse feedback on speedometer
 			var hudSpeedo = document.getElementById('hud-speedometer');
@@ -1665,25 +1864,43 @@
 					hudSpeedo.classList.remove('speedo-pulse');
 				}, 450);
 			}
+
+			this.updateStarTrack(this.displayedSpeed);
 		},
 
 		onLevelCompleted: function (levelIndex) {
+			if (this.levelFinished && this.levelCompletedForIndex === levelIndex) {
+				return this.lastCompletionResult;
+			}
+			this.levelFinished = true;
 			this.isLevelActive = false;
-			var totalElapsedSec = Math.max(0.8, (performance.now() - this.levelStartTime) / 1000);
-			var wordsCount = Math.max(1, this.wordsSolvedThisLevel || (currentLevelData ? currentLevelData.words.length : 5));
-			var finalWpm = Math.round((wordsCount / totalElapsedSec) * 60 * 10) / 10;
-			this.currentLevelSpeed = finalWpm;
-			this.displayedSpeed = finalWpm;
-			this.targetSpeed = finalWpm;
+			this.levelCompletedForIndex = levelIndex;
 
-			var starsEarned = this.calculateStarsForWpm(finalWpm);
-			var prevRecord = this.records.levels[levelIndex] || {};
+			var totalElapsedSec = Math.max(0.8, (performance.now() - this.levelStartTime) / 1000);
+			var wordsCount = Math.max(1, this.wordsSolvedThisLevel || (currentLevelData ? currentLevelData.words.length - 1 : 4));
+			// Each wrong attempt penalizes final WPM by 15% (minimum floor 35%)
+			var penaltyFactor = Math.max(0.35, 1.0 - (this.wrongAttemptsThisLevel || 0) * 0.15);
+			var rawWpm = (wordsCount / totalElapsedSec) * 60;
+			var finalWpm = Math.round(rawWpm * penaltyFactor * 10) / 10;
+
+			// Preserve the player's peak speed representation
+			var displayWpm = Math.max(finalWpm, this.displayedSpeed, (this.peakSpeedAchieved || 0) * 0.85);
+			this.currentLevelSpeed = finalWpm;
+			this.displayedSpeed = displayWpm;
+			this.targetSpeed = displayWpm;
+
+			// Final stars earned: at least the peak stars achieved during this run, or from finalWpm, minimum 1
+			var starsEarned = Math.max(1, this.peakStarsAchieved || 0, this.calculateStarsForWpm(finalWpm));
+			this.peakStarsAchieved = starsEarned;
+
+			var prevRecord = (this.records.levels && this.records.levels[levelIndex]) || {};
 			var prevStars = prevRecord.stars || this.calculateStarsForWpm(prevRecord.bestWpm || 0);
 			var bestStars = Math.max(prevStars, starsEarned);
 			var bestWpm = Math.max(prevRecord.bestWpm || 0, finalWpm);
 			var isNewRecord = !prevRecord.bestWpm || finalWpm > prevRecord.bestWpm;
 			this.isLastRunNewRecord = isNewRecord;
 
+			if (!this.records.levels) this.records.levels = {};
 			this.records.levels[levelIndex] = {
 				bestWpm: bestWpm,
 				bestTimeSec: prevRecord.bestTimeSec ? Math.min(prevRecord.bestTimeSec, Math.round(totalElapsedSec * 10) / 10) : Math.round(totalElapsedSec * 10) / 10,
@@ -1694,18 +1911,28 @@
 			};
 			this.saveRecords();
 
-			// Show win celebration speed card
-			var winCard = document.getElementById('win-speed-card');
-			var valEl = document.getElementById('win-speed-val');
-			var recBadge = document.getElementById('win-record-badge');
-			if (valEl) valEl.textContent = finalWpm + ' WPM';
-			if (recBadge) recBadge.style.display = isNewRecord ? 'inline-block' : 'none';
-			if (winCard) winCard.classList.add('show');
+			// Play the end-of-level Star Celebration FX and keep stars lit with periodic fireworks
+			this.playStarCelebrationFX(starsEarned);
+			this.startPeriodicStarFireworks(starsEarned);
+
+			// Freeze needle and gauge visually on winning speed
+			if (!this.domCached) this.cacheDOMElements();
+			if (this.numEl) this.numEl.textContent = Math.round(displayWpm);
+			this.applyTierVisuals(displayWpm);
+			var angle = (Math.min(60, Math.max(0, displayWpm)) / 60) * 180 - 90;
+			if (this.needleGroup) {
+				this.needleGroup.setAttribute('transform', 'rotate(' + angle.toFixed(1) + ' 50 50)');
+			}
+			if (this.fillEl) {
+				var fillOffset = 115 - (Math.min(60, Math.max(0, displayWpm)) / 60) * 115;
+				this.fillEl.style.strokeDashoffset = fillOffset.toFixed(1);
+			}
 
 			this.updateTitleScreenUI();
 			this.updateSettingsLevelUI(levelIndex);
 
-			return { finalWpm: finalWpm, starsEarned: starsEarned, isNewRecord: isNewRecord };
+			this.lastCompletionResult = { finalWpm: finalWpm, starsEarned: starsEarned, isNewRecord: isNewRecord };
+			return this.lastCompletionResult;
 		},
 
 		domCached: false,
@@ -1720,6 +1947,302 @@
 		lastFillOffsetFixed: '',
 		lastTierClass: '',
 
+		// Dynamic Speed Milestone Stars state & cache
+		starTrackCached: false,
+		starTrackEl: null,
+		starFillEl: null,
+		starNode1: null,
+		starNode2: null,
+		starNode3: null,
+		lastStarsLit: -1,
+
+		cacheStarTrackElements: function () {
+			this.starTrackEl = document.getElementById('hud-star-track');
+			this.starFillEl = document.getElementById('star-track-line-fill');
+			this.starNode1 = document.getElementById('star-node-1');
+			this.starNode2 = document.getElementById('star-node-2');
+			this.starNode3 = document.getElementById('star-node-3');
+			this.starTrackCached = true;
+		},
+
+		resetStarTrack: function () {
+			this.stopPeriodicStarFireworks();
+			if (!this.starTrackCached) this.cacheStarTrackElements();
+			if (!this.starTrackEl) return;
+			this.starTrackEl.classList.remove('celebrate-3', 'celebrate-2', 'celebrate-1');
+			if (this.starFillEl) this.starFillEl.style.width = '0%';
+			for (var i = 1; i <= 3; i++) {
+				var node = this['starNode' + i];
+				if (node) {
+					node.classList.remove('lit');
+					node.classList.add('dim');
+				}
+			}
+			this.lastStarsLit = 0;
+			var oldSparks = document.querySelectorAll('.star-sparkle-dot, .star-firework-particle, .star-firework-flash');
+			oldSparks.forEach(function (el) { el.remove(); });
+		},
+
+		updateStarTrack: function (speed) {
+			if (!this.starTrackCached) this.cacheStarTrackElements();
+			if (!this.starTrackEl) return;
+
+			var speedStars = 0;
+			if (speed >= 28) speedStars = 3;
+			else if (speed >= 18) speedStars = 2;
+			else if (speed >= 8) speedStars = 1;
+
+			// CRITICAL: Star milestones won are SAVED for this match!
+			// Stars achieved NEVER fall back to 0 when the needle relaxes or when pauses occur!
+			var starsLit = Math.max(speedStars, this.peakStarsAchieved || 0);
+			if (starsLit > (this.peakStarsAchieved || 0)) {
+				this.peakStarsAchieved = starsLit;
+			}
+
+			// Proportional fill calculation from 0% to 100%
+			// 0% = Star 1 node (8 WPM)
+			// 50% = Star 2 node (18 WPM)
+			// 100% = Star 3 node (28 WPM)
+			var fillPct = 0;
+			if (speed >= 28) {
+				fillPct = 100;
+			} else if (speed >= 18) {
+				fillPct = 50 + ((speed - 18) / 10) * 50;
+			} else if (speed >= 8) {
+				fillPct = ((speed - 8) / 10) * 50;
+			} else {
+				fillPct = 0;
+			}
+			// Fill line also honors the earned star floor
+			if (starsLit >= 3) {
+				fillPct = Math.max(fillPct, 100);
+			} else if (starsLit >= 2) {
+				fillPct = Math.max(fillPct, 50);
+			}
+			fillPct = Math.min(100, Math.max(0, fillPct));
+
+			if (this.starFillEl) {
+				this.starFillEl.style.width = fillPct.toFixed(1) + '%';
+			}
+
+			// Update star nodes dynamically
+			for (var i = 1; i <= 3; i++) {
+				var node = this['starNode' + i];
+				if (!node) continue;
+				var shouldBeLit = (i <= starsLit);
+				var isLit = node.classList.contains('lit');
+
+				if (shouldBeLit && !isLit) {
+					node.classList.add('lit');
+					node.classList.remove('dim');
+					if (this.isLevelActive && starsLit > this.lastStarsLit) {
+						AudioManager.play('tilehit', 0.55);
+						AudioManager.haptic(22);
+					}
+				} else if (!shouldBeLit && isLit) {
+					node.classList.remove('lit');
+					node.classList.add('dim');
+				}
+			}
+			this.lastStarsLit = starsLit;
+		},
+
+		playStarCelebrationFX: function (starsEarned) {
+			if (!this.starTrackCached) this.cacheStarTrackElements();
+			if (!this.starTrackEl) return;
+
+			this.starTrackEl.classList.remove('celebrate-3', 'celebrate-2', 'celebrate-1');
+
+			for (var i = 1; i <= 3; i++) {
+				var node = this['starNode' + i];
+				if (!node) continue;
+				if (i <= starsEarned) {
+					node.classList.add('lit');
+					node.classList.remove('dim');
+				} else {
+					node.classList.remove('lit');
+					node.classList.add('dim');
+				}
+			}
+
+			if (this.starFillEl) {
+				var fillPct = (starsEarned >= 3) ? 100 : (starsEarned === 2 ? 50 : 0);
+				this.starFillEl.style.width = fillPct + '%';
+			}
+
+			if (starsEarned >= 3) {
+				this.starTrackEl.classList.add('celebrate-3');
+				this.spawnStarSparkles(3);
+				AudioManager.play('greatJob', 1.0);
+				AudioManager.haptic(50);
+				setTimeout(function () { AudioManager.haptic(40); }, 180);
+				setTimeout(function () { AudioManager.haptic(60); }, 360);
+			} else if (starsEarned === 2) {
+				this.starTrackEl.classList.add('celebrate-2');
+				this.spawnStarSparkles(2);
+				AudioManager.play('tilehit', 0.95);
+				AudioManager.haptic(45);
+				setTimeout(function () { AudioManager.haptic(35); }, 180);
+			} else if (starsEarned === 1) {
+				this.starTrackEl.classList.add('celebrate-1');
+				this.spawnStarSparkles(1);
+				AudioManager.play('tilehit', 0.85);
+				AudioManager.haptic(35);
+			}
+		},
+
+		spawnStarSparkles: function (starCount) {
+			var track = this.starTrackEl;
+			if (!track) return;
+
+			var oldSparks = track.querySelectorAll('.star-sparkle-dot');
+			oldSparks.forEach(function (el) { el.remove(); });
+
+			for (var s = 1; s <= starCount; s++) {
+				var node = this['starNode' + s];
+				if (!node) continue;
+				var rect = node.getBoundingClientRect();
+				var trackRect = track.getBoundingClientRect();
+				var originX = (rect.left + rect.width / 2) - trackRect.left;
+				var originY = (rect.top + rect.height / 2) - trackRect.top;
+
+				var numParticles = (starCount === 3) ? 8 : (starCount === 2 ? 6 : 4);
+				for (var p = 0; p < numParticles; p++) {
+					var dot = document.createElement('div');
+					dot.className = 'star-sparkle-dot';
+					var angle = (p / numParticles) * Math.PI * 2 + (Math.random() * 0.4 - 0.2);
+					var dist = 14 + Math.random() * 16;
+					var dx = Math.cos(angle) * dist;
+					var dy = Math.sin(angle) * dist;
+					var size = 3 + Math.random() * 3.5;
+
+					dot.style.left = originX + 'px';
+					dot.style.top = originY + 'px';
+					dot.style.width = size + 'px';
+					dot.style.height = size + 'px';
+					dot.style.setProperty('--dx', dx.toFixed(1) + 'px');
+					dot.style.setProperty('--dy', dy.toFixed(1) + 'px');
+					dot.style.animationDelay = (p * 0.04) + 's';
+
+					track.appendChild(dot);
+					(function (elem) {
+						setTimeout(function () { elem.remove(); }, 900);
+					})(dot);
+				}
+			}
+		},
+
+		starFireworksInterval: null,
+
+		startPeriodicStarFireworks: function (starsEarned) {
+			this.stopPeriodicStarFireworks();
+			if (!starsEarned || starsEarned <= 0) return;
+
+			var self = this;
+			// Initial volley right after victory fanfare
+			setTimeout(function () {
+				if (isCelebratingWin || self.levelFinished) self.fireStarFireworks(starsEarned);
+			}, 320);
+
+			// Periodic firework bursts launched from each earned star every 1.65 seconds
+			this.starFireworksInterval = setInterval(function () {
+				if (isCelebratingWin || self.levelFinished) {
+					self.fireStarFireworks(starsEarned);
+				} else {
+					self.stopPeriodicStarFireworks();
+				}
+			}, 1650);
+		},
+
+		stopPeriodicStarFireworks: function () {
+			if (this.starFireworksInterval) {
+				clearInterval(this.starFireworksInterval);
+				this.starFireworksInterval = null;
+			}
+			document.querySelectorAll('.star-firework-particle, .star-firework-flash').forEach(function (el) {
+				el.remove();
+			});
+		},
+
+		fireStarFireworks: function (starsEarned) {
+			if (!this.starTrackEl) return;
+			var self = this;
+
+			for (var s = 1; s <= starsEarned; s++) {
+				(function (starIdx) {
+					setTimeout(function () {
+						if (!isCelebratingWin && !self.levelFinished) return;
+						self.launchSingleStarFirework(starIdx);
+					}, (starIdx - 1) * 220);
+				})(s);
+			}
+		},
+
+		launchSingleStarFirework: function (starIdx) {
+			var node = this['starNode' + starIdx];
+			if (!node) return;
+
+			// Tactile micro-pulse on the star node SVG
+			var starPolygon = node.querySelector('.star-track-svg polygon');
+			if (starPolygon) {
+				starPolygon.style.animation = 'none';
+				void starPolygon.offsetWidth;
+				starPolygon.style.animation = 'starFireworkPulse 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+			}
+
+			var rect = node.getBoundingClientRect();
+			var screenX = rect.left + rect.width / 2;
+			var screenY = rect.top + rect.height / 2;
+
+			var fireworkColors = [
+				'#ffd700', '#ffffff', '#ff9500', '#00e5ff',
+				'#ff007f', '#a855f7', '#10b981', '#f59e0b', '#38bdf8'
+			];
+			var particleCount = 18;
+
+			for (var i = 0; i < particleCount; i++) {
+				var p = document.createElement('div');
+				p.className = 'star-firework-particle';
+				var color = fireworkColors[i % fireworkColors.length];
+				p.style.backgroundColor = color;
+				p.style.color = color;
+
+				var angle = (i / particleCount) * Math.PI * 2 + (Math.random() * 0.30 - 0.15);
+				var dist = 26 + Math.random() * 32;
+				var fx = Math.cos(angle) * dist;
+				var fy = Math.sin(angle) * dist - 16; // upward arc
+				var size = 4.0 + Math.random() * 3.5;
+
+				p.style.width = size + 'px';
+				p.style.height = size + 'px';
+				p.style.left = screenX + 'px';
+				p.style.top = screenY + 'px';
+				p.style.setProperty('--fx', fx.toFixed(1) + 'px');
+				p.style.setProperty('--fy', fy.toFixed(1) + 'px');
+
+				document.body.appendChild(p);
+
+				(function (elem) {
+					setTimeout(function () {
+						if (elem && elem.parentNode) elem.remove();
+					}, 900);
+				})(p);
+			}
+
+			// Bright central flash
+			var flash = document.createElement('div');
+			flash.className = 'star-firework-flash';
+			flash.style.left = screenX + 'px';
+			flash.style.top = screenY + 'px';
+			document.body.appendChild(flash);
+			setTimeout(function () {
+				if (flash && flash.parentNode) flash.remove();
+			}, 450);
+
+			AudioManager.play('tilehit', 0.85);
+			AudioManager.haptic(20);
+		},
+
 		cacheDOMElements: function () {
 			this.numEl = document.getElementById('speedo-number');
 			this.needleGroup = document.getElementById('speedo-needle-group') || document.getElementById('speedo-needle');
@@ -1727,6 +2250,7 @@
 			this.hudSpeedo = document.getElementById('hud-speedometer');
 			this.auraEl = document.getElementById('speedo-magical-aura');
 			this.badgeEl = document.getElementById('speedo-sub-badge');
+			this.cacheStarTrackElements();
 			this.domCached = true;
 		},
 
@@ -1766,7 +2290,7 @@
 		},
 
 		updateLoop: function () {
-			if (!this.isLevelActive) return;
+			if (!this.isLevelActive || this.levelFinished) return;
 			if (!this.domCached) this.cacheDOMElements();
 
 			var now = performance.now();
@@ -1821,6 +2345,7 @@
 			}
 
 			this.applyTierVisuals(this.displayedSpeed);
+			this.updateStarTrack(this.displayedSpeed);
 		},
 
 		renderLevelSelectModal: function () {
@@ -2081,6 +2606,27 @@
 	var chevronRightMesh = null;
 	var hoverSlotHighlightMesh = null;
 
+	// 3D Phrase Coupler: Visually connecting the two current solvable trays (e.g. TENNIS-MATCH or MATCH-POINT)
+	var phraseCouplerGroup = null;
+	var leftMountUpper = null;
+	var leftMountLower = null;
+	var rightMountUpper = null;
+	var rightMountLower = null;
+	var leftLinks = [];
+	var rightLinks = [];
+	var centerChainGroup = null;
+
+	// Dynamic Physical Chain Swing & Snap Animation State
+	var chainSwingState = {
+		active: false,
+		startTime: 0,
+		duration: 0.44, // duration in seconds
+		hasSnapped: false,
+		prevRowIdx: 0,
+		currRowIdx: 1,
+		lastTargetRow: -1
+	};
+
 	// Ghost Tile Hint System State (translucent guide tile on top board)
 	var ghostTileMesh = null;
 	var currentGhostSlot = null;
@@ -2108,7 +2654,9 @@
 	var isComboPlaying = false;
 	var mexicanWaveInterval = null;
 	var victoryMessageTiles = [];
-	var celebrationParticles = []; // Confetti & Star meshes
+	var victoryTrayGroup = null;
+	var winCelebrationState = null;
+	var celebrationParticles = []; // Confetti & Star meshes (reserved for gift unboxing)
 	var confettiGroup = null;
 	var activeGiftBoxes = []; // 3D Gift Box reward instances on word racks
 
@@ -2118,7 +2666,8 @@
 	function initMaterials() {
 		var startSkin = TILE_SKINS[currentSkinId] || TILE_SKINS.classic;
 		var isLightTile = (startSkin.tone !== 'dark');
-		var themeName = isLightTile ? 'dark' : 'light';
+		var scId = (global.WordscapesScenery && global.WordscapesScenery.getCurrent) ? global.WordscapesScenery.getCurrent() : null;
+		var themeName = (scId === 'volcano') ? 'volcano' : (isLightTile ? 'dark' : 'light');
 		var trayTheme = TextureManager.getTrayThemeTextures(themeName);
 
 		var tileSideWoodMap = TextureManager.getHardwoodTexture(startSkin.sideBase, startSkin.sideDark, startSkin.sideLight);
@@ -2142,6 +2691,43 @@
 			metalness: 0.0
 		});
 
+		// Connected Phrase Partner row rack (Warm luminous amber wood coupling the phrase)
+		materials.yellowTrayPartner = new THREE.MeshStandardMaterial({
+			map: trayTheme.partnerWood,
+			color: 0xffffff,
+			emissive: trayTheme.partnerEmissive,
+			emissiveIntensity: trayTheme.partnerEmissiveIntensity,
+			roughness: trayTheme.partnerRoughness,
+			metalness: 0.0
+		});
+
+		// 3D Physical Radiant Golden Chain Links (glowing, polished, chunky)
+		materials.goldChainLink = new THREE.MeshStandardMaterial({
+			color: 0xffe033,
+			emissive: 0xff9900,
+			emissiveIntensity: 0.85,
+			roughness: 0.16,
+			metalness: 0.92
+		});
+
+		// Brushed glowing brass mount brackets and connector struts
+		materials.brassBracket = new THREE.MeshStandardMaterial({
+			color: 0xf5a524,
+			emissive: 0x884400,
+			emissiveIntensity: 0.45,
+			roughness: 0.26,
+			metalness: 0.85
+		});
+
+		// Radiant glowing connection beam in the inter-rack gap
+		materials.couplerGlowBeam = new THREE.MeshBasicMaterial({
+			color: 0xffbe1a,
+			transparent: true,
+			opacity: 0.65,
+			depthWrite: false,
+			blending: THREE.AdditiveBlending
+		});
+
 		// Solved row rack (Settled antique carved wood)
 		materials.yellowTraySolved = new THREE.MeshStandardMaterial({
 			map: trayTheme.solvedWood,
@@ -2158,11 +2744,26 @@
 			metalness: 0.0
 		});
 
-		// Letter Holder Tray (Player hand / staging tray)
+		// Letter Holder Tray Body (Player hand / staging tray - always visually distinct!)
 		materials.greenTray = new THREE.MeshStandardMaterial({
 			map: trayTheme.greenWood,
 			color: 0xffffff,
 			roughness: trayTheme.greenRoughness,
+			metalness: 0.0
+		});
+
+		// Letter Holder Tray Front Lip (Distinct polished champagne-brass accent rim)
+		materials.feederTrayLip = new THREE.MeshStandardMaterial({
+			map: trayTheme.greenWood,
+			color: 0xdeb86a,
+			roughness: 0.38,
+			metalness: 0.55
+		});
+
+		// Feeder Tray Slot Felt Lining (Rich emerald velvet felt bed)
+		materials.feederFelt = new THREE.MeshStandardMaterial({
+			color: trayTheme.feederFeltColor || 0x0f2619,
+			roughness: 0.88,
 			metalness: 0.0
 		});
 
@@ -2528,6 +3129,186 @@
 		activeRowIndicatorGroup.add(chevronRightMesh);
 
 		scene.add(activeRowIndicatorGroup);
+
+		// 5. 3D Phrase Coupler (Visually chains the two current solvable trays together)
+		initPhraseCoupler();
+	}
+
+	/**
+	 * 3D Phrase Coupler:
+	 * Visually and physically connects the two solvable trays in real-time
+	 * (e.g. TENNIS-MATCH or MATCH-POINT) so players clearly understand the compound phrase.
+	 * Features:
+	 *  - Left and Right flank heavy interlocking golden chain links with brass mount brackets
+	 *  - Central inter-rack double interlocking golden chain link (⛓️) emblem
+	 *  - Symmetrical polished brass connecting bridge struts across the inter-rack gap
+	 *  - Luminous glowing connector beam spanning between the two racks
+	 *  - Dynamic physical pendulum SWING and SNAP animation as words advance
+	 *  - Elevated ON TOP of the tray wood layer, positioned outside letter slots so it NEVER covers any letter!
+	 */
+	function initPhraseCoupler() {
+		phraseCouplerGroup = new THREE.Group();
+		phraseCouplerGroup.visible = false;
+		// Render order 8 ensures it renders cleanly on TOP of the wooden tray layer
+		phraseCouplerGroup.renderOrder = 8;
+
+		// Chunky Brushed Brass Mount Brackets for Left & Right rack ends (24 x 28 x 40)
+		var mountGeom = new THREE.BoxGeometry(0.24, 0.28, 0.40);
+
+		leftMountUpper = new THREE.Mesh(mountGeom, materials.brassBracket);
+		leftMountLower = new THREE.Mesh(mountGeom, materials.brassBracket);
+		phraseCouplerGroup.add(leftMountUpper);
+		phraseCouplerGroup.add(leftMountLower);
+
+		rightMountUpper = new THREE.Mesh(mountGeom, materials.brassBracket);
+		rightMountLower = new THREE.Mesh(mountGeom, materials.brassBracket);
+		phraseCouplerGroup.add(rightMountUpper);
+		phraseCouplerGroup.add(rightMountLower);
+
+		// Chunky Side Flank Chain Links (larger: radius 0.24, tube 0.072)
+		var linkGeom = new THREE.TorusGeometry(0.24, 0.072, 14, 26);
+		leftLinks = [];
+		rightLinks = [];
+
+		for (var i = 0; i < 3; i++) {
+			var lLink = new THREE.Mesh(linkGeom, materials.goldChainLink);
+			if (i === 1) {
+				lLink.rotation.set(0, Math.PI * 0.5, 0);
+				lLink.userData.baseRotX = 0;
+			} else {
+				lLink.rotation.set(Math.PI * 0.5, 0, 0);
+				lLink.userData.baseRotX = Math.PI * 0.5;
+			}
+			phraseCouplerGroup.add(lLink);
+			leftLinks.push(lLink);
+
+			var rLink = new THREE.Mesh(linkGeom, materials.goldChainLink);
+			if (i === 1) {
+				rLink.rotation.set(0, Math.PI * 0.5, 0);
+				rLink.userData.baseRotX = 0;
+			} else {
+				rLink.rotation.set(Math.PI * 0.5, 0, 0);
+				rLink.userData.baseRotX = Math.PI * 0.5;
+			}
+			phraseCouplerGroup.add(rLink);
+			rightLinks.push(rLink);
+		}
+
+		scene.add(phraseCouplerGroup);
+	}
+
+	function triggerChainSnapSparks(x, y, z) {
+		if (typeof createSparkleBurst === 'function') {
+			createSparkleBurst(x, y + 0.12, z, 12, false);
+		}
+	}
+
+	function updatePhraseCoupler(prevRow, currRow) {
+		if (!phraseCouplerGroup) return;
+		phraseCouplerGroup.visible = true;
+
+		var zPrev = prevRow.rz;
+		var zCurr = currRow.rz;
+		var zMid = (zPrev + zCurr) * 0.5;
+		var dz = zCurr - zPrev;
+
+		var yPrev = prevRow.rowY || 0;
+		var yCurr = currRow.rowY || 0;
+		var yMid = (yPrev + yCurr) * 0.5;
+
+		var wPrev = prevRow.rackWidth;
+		var wCurr = currRow.rackWidth;
+
+		// Elevated Y positions: sits squarely ON TOP of the wooden rack layer (never submerged behind!)
+		var yElevatedUpper = yPrev + 0.46;
+		var yElevatedLower = yCurr + 0.46;
+		var yElevatedMid = yMid + 0.48;
+
+		// Lateral X positions: placed outside the letter slots so it NEVER covers any letter!
+		var xLPrev = -wPrev * 0.5 - 0.16;
+		var xLCurr = -wCurr * 0.5 - 0.16;
+		var xRPrev = wPrev * 0.5 + 0.16;
+		var xRCurr = wCurr * 0.5 + 0.16;
+
+		// Check if we need to trigger a physical swing & snap onto the new tray
+		if (chainSwingState.lastTargetRow !== currentWordIndex) {
+			if (chainSwingState.lastTargetRow !== -1) {
+				// Trigger swing animation!
+				chainSwingState.active = true;
+				chainSwingState.startTime = performance.now();
+				chainSwingState.hasSnapped = false;
+				chainSwingState.prevRowIdx = currentWordIndex - 1;
+				chainSwingState.currRowIdx = currentWordIndex;
+			}
+			chainSwingState.lastTargetRow = currentWordIndex;
+		}
+
+		// 1. Position Left Flank Coupler (Upper & Lower Mounts)
+		if (leftMountUpper) {
+			leftMountUpper.position.set(xLPrev, yElevatedUpper, zPrev);
+			leftMountUpper.userData.targetY = yElevatedUpper;
+		}
+		if (leftMountLower) {
+			leftMountLower.position.set(xLCurr, yElevatedLower, zCurr);
+			leftMountLower.userData.targetY = yElevatedLower;
+		}
+
+		for (var i = 0; i < leftLinks.length; i++) {
+			var tL = (i + 1) / (leftLinks.length + 1);
+			var lx = THREE.MathUtils.lerp(xLPrev, xLCurr, tL);
+			var ly = THREE.MathUtils.lerp(yElevatedUpper, yElevatedLower, tL) + 0.06;
+			var lz = THREE.MathUtils.lerp(zPrev, zCurr, tL);
+			leftLinks[i].position.set(lx, ly, lz);
+			leftLinks[i].userData.targetY = ly;
+		}
+
+		// 2. Position Right Flank Coupler (Upper & Lower Mounts)
+		if (rightMountUpper) {
+			rightMountUpper.position.set(xRPrev, yElevatedUpper, zPrev);
+			rightMountUpper.userData.targetY = yElevatedUpper;
+		}
+		if (rightMountLower) {
+			rightMountLower.position.set(xRCurr, yElevatedLower, zCurr);
+			rightMountLower.userData.targetY = yElevatedLower;
+		}
+
+		for (var j = 0; j < rightLinks.length; j++) {
+			var tR = (j + 1) / (rightLinks.length + 1);
+			var rx = THREE.MathUtils.lerp(xRPrev, xRCurr, tR);
+			var ry = THREE.MathUtils.lerp(yElevatedUpper, yElevatedLower, tR) + 0.06;
+			var rz = THREE.MathUtils.lerp(zPrev, zCurr, tR);
+			rightLinks[j].position.set(rx, ry, rz);
+			rightLinks[j].userData.targetY = ry;
+		}
+	}
+
+	/**
+	 * Compute board layout coordinates ensuring generous clear space between
+	 * the chained word racks and the player's feeder/staging tray.
+	 */
+	function getBoardLayout(numRows) {
+		numRows = Math.max(2, numRows || 5);
+		var rowSpacing = (numRows >= 8) ? 1.38 : ((numRows >= 7) ? 1.44 : 1.50);
+		var rackSpan = (numRows - 1) * rowSpacing;
+
+		// Position startZ so racks sit in the upper half of the view
+		var startZ = -rackSpan * 0.5 - 0.75;
+		var maxRackZ = startZ + rackSpan;
+
+		// Generous clear space between the last chain tray and the feeder tray
+		// rackDepth is 1.30 (half 0.65), trayDepth is 1.44 (half 0.72)
+		// A gap of 1.25 units gives clear, comfortable physical separation between the chain trays and feeder tray!
+		var trayGap = 1.25;
+		var stagingZ = maxRackZ + 0.65 + trayGap + 0.72;
+
+		return {
+			numRows: numRows,
+			startZ: startZ,
+			maxRackZ: maxRackZ,
+			rowSpacing: rowSpacing,
+			stagingZ: stagingZ,
+			trayGap: trayGap
+		};
 	}
 
 	/**
@@ -2551,19 +3332,29 @@
 		stagingTrayGroup.position.set(0, 0, stagingZ);
 		stagingTrayGroup.rotation.x = 0;
 
-		// Main wooden beam
+		// Main wooden beam (Evergreen / emerald hardwood)
 		var beamGeom = new THREE.BoxGeometry(trayWidth, trayHeight, trayDepth);
 		var beam = new THREE.Mesh(beamGeom, materials.greenTray);
 		beam.position.y = trayHeight * 0.5;
 		stagingTrayGroup.add(beam);
 
-		// Front lip
+		// Front lip (Distinct champagne brass / gilded accent edge)
 		var lipGeom = new THREE.BoxGeometry(trayWidth + 0.04, 0.15, 0.15);
-		var lip = new THREE.Mesh(lipGeom, materials.greenTray);
+		var lip = new THREE.Mesh(lipGeom, materials.feederTrayLip || materials.greenTray);
 		lip.position.set(0, trayHeight + 0.075, trayDepth * 0.5 - 0.075);
 		stagingTrayGroup.add(lip);
 
-		// Slots inside tray
+		// Distinct brushed brass side brackets / end-caps on left & right of the feeder tray
+		var endCapGeom = new THREE.BoxGeometry(0.08, trayHeight + 0.06, trayDepth + 0.02);
+		var leftCap = new THREE.Mesh(endCapGeom, materials.brassBracket);
+		leftCap.position.set(-trayWidth * 0.5 - 0.04, (trayHeight + 0.06) * 0.5, 0);
+		stagingTrayGroup.add(leftCap);
+
+		var rightCap = new THREE.Mesh(endCapGeom, materials.brassBracket);
+		rightCap.position.set(trayWidth * 0.5 + 0.04, (trayHeight + 0.06) * 0.5, 0);
+		stagingTrayGroup.add(rightCap);
+
+		// Slots inside tray (using distinct emerald velvet materials.feederFelt!)
 		var startX = -((slotCount - 1) * slotWidth) * 0.5;
 		var localTileY = trayHeight + 0.14;
 
@@ -2571,7 +3362,7 @@
 			var sx = startX + i * slotWidth;
 			var slotMesh = new THREE.Mesh(
 				new THREE.PlaneGeometry(1.06, 1.06),
-				materials.slotFelt
+				materials.feederFelt || materials.slotFelt
 			);
 			slotMesh.rotation.x = -Math.PI * 0.5;
 			slotMesh.position.set(sx, trayHeight + 0.01, 0);
@@ -2612,15 +3403,13 @@
 		var words = levelData.words;
 		var numRows = words.length;
 
-		// Calculate staging tray Z and rack layout to take full advantage of screen height
-		// Perfectly clear of bottom controls and top header
-		var stagingZ = (numRows >= 8) ? 4.8 : (numRows === 7 ? 4.3 : 3.6);
-		buildStagingTray(stagingZ);
+		// Calculate staging tray Z and rack layout with generous clear space between feeder & chain trays
+		var layout = getBoardLayout(numRows);
+		var stagingZ = layout.stagingZ;
+		var startZ = layout.startZ;
+		var rowSpacing = layout.rowSpacing;
 
-		var startZ = (numRows >= 8) ? -5.8 : (numRows === 7 ? -5.0 : -4.2);
-		var maxRackZ = stagingZ - 1.35;
-		var availableSpan = maxRackZ - startZ;
-		var rowSpacing = (numRows > 1) ? Math.min(1.58, availableSpan / (numRows - 1)) : 1.58;
+		buildStagingTray(stagingZ);
 
 		var slotWidth = 1.15;
 		var rackDepth = 1.30;
@@ -2748,17 +3537,21 @@
 
 					// Left chevron points right ▶
 					if (chevronMesh) {
-						chevronMesh.position.set(-halfW - 0.36, 0.28 + rowY, rowInfo.rz);
+						chevronMesh.position.set(-halfW - 0.85, 0.28 + rowY, rowInfo.rz);
 						chevronMesh.rotation.x = -Math.PI * 0.5 + rackTilt;
 					}
 					// Right chevron points left ◀
 					if (chevronRightMesh) {
-						chevronRightMesh.position.set(halfW + 0.36, 0.28 + rowY, rowInfo.rz);
+						chevronRightMesh.position.set(halfW + 0.85, 0.28 + rowY, rowInfo.rz);
 						chevronRightMesh.rotation.x = -Math.PI * 0.5 + rackTilt;
 					}
 				}
-			} else if (r < currentWordIndex) {
-				// SOLVED ROW: Warm settled wood
+			} else if (r === currentWordIndex - 1) {
+				// CONNECTED PHRASE PARTNER ROW: Warm luminous amber wood coupling the phrase
+				rowInfo.rackMesh.material = materials.yellowTrayPartner;
+				rowInfo.lipMesh.material = materials.yellowTrayPartner;
+			} else if (r < currentWordIndex - 1) {
+				// OLD SOLVED ROW: Muted antique settled wood
 				rowInfo.rackMesh.material = materials.yellowTraySolved;
 				rowInfo.lipMesh.material = materials.yellowTraySolved;
 			} else {
@@ -2766,6 +3559,13 @@
 				rowInfo.rackMesh.material = materials.yellowTrayDimmed;
 				rowInfo.lipMesh.material = materials.yellowTrayDimmed;
 			}
+		}
+
+		// Update 3D Phrase Coupler linking row (currentWordIndex - 1) and row (currentWordIndex)
+		if (currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
+			updatePhraseCoupler(chainRowData[currentWordIndex - 1], chainRowData[currentWordIndex]);
+		} else {
+			if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
 		}
 
 		updateSlotBrackets();
@@ -2916,6 +3716,7 @@
 			var angle = Math.random() * Math.PI * 2;
 			var speed = 2.5 + Math.random() * 3.5;
 			mesh.userData = {
+				isSparkle: true,
 				vx: Math.cos(angle) * speed,
 				vy: 3.5 + Math.random() * 4.0,
 				vz: Math.sin(angle) * speed,
@@ -3094,9 +3895,12 @@
 			stagingTrayGroup.position.y = 0;
 		}
 
-		// Chevrons
+		// Chevrons & 3D Phrase Coupler
 		if (activeRowIndicatorGroup) {
 			activeRowIndicatorGroup.visible = false;
+		}
+		if (phraseCouplerGroup) {
+			phraseCouplerGroup.visible = false;
 		}
 
 		// Clear staging tiles for now (they will slide in when staging tray lands)
@@ -3353,6 +4157,10 @@
 			global.WordscapesScenery.setSceneryForLevel(currentLevelIndex);
 		}
 
+		if (TextureManager && typeof TextureManager.updateTrayTheme === 'function') {
+			TextureManager.updateTrayTheme();
+		}
+
 		if (typeof SpeedometerManager !== 'undefined') {
 			SpeedometerManager.startLevel(currentLevelIndex);
 		}
@@ -3483,7 +4291,7 @@
 			if (activeTile) {
 				var clientX = e.touches ? e.touches[0].clientX : e.clientX;
 				var clientY = e.touches ? e.touches[0].clientY : e.clientY;
-				if (Math.hypot(clientX - pointerDownScreenPos.x, clientY - pointerDownScreenPos.y) > 6) {
+				if (Math.hypot(clientX - pointerDownScreenPos.x, clientY - pointerDownScreenPos.y) > 8) {
 					pointerHasDragged = true;
 				}
 
@@ -3561,7 +4369,7 @@
 			tile.targetRotation.set(0, 0, 0);
 
 			var elapsed = performance.now() - pointerDownTime;
-			var isTap = (!pointerHasDragged && elapsed < 320);
+			var isTap = (!pointerHasDragged && elapsed < 450);
 
 			// 1. TAP-TO-PLACE: Instant effortless tap manipulation
 			if (isTap) {
@@ -3672,6 +4480,176 @@
 				AudioManager.play('thud', 0.5);
 			}
 		});
+
+		// ----------------------------------------------------------------------
+		// Desktop / PC Keyboard Support: Type Tray Letters Directly
+		// ----------------------------------------------------------------------
+		window.addEventListener('keydown', function (e) {
+			// Ignore keystrokes when typing into text boxes, inputs, or contentEditable areas
+			if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) {
+				return;
+			}
+
+			// Don't intercept browser shortcuts (Ctrl/Cmd/Alt)
+			if (e.ctrlKey || e.metaKey || e.altKey) {
+				return;
+			}
+
+			// If modal is open, let Escape close it
+			var openModal = document.querySelector('.game-modal.show, .game-modal.open, .admob-overlay.show');
+			if (openModal) {
+				if (e.key === 'Escape') {
+					e.preventDefault();
+					hideThemeModal();
+					hideLevelSelectModal();
+					closeTileStorageModal();
+				}
+				return;
+			}
+
+			// Title Screen: Enter or Space starts Solo Play
+			if (titleScreenEl && !titleScreenEl.classList.contains('hidden') && titleScreenEl.style.display !== 'none') {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					triggerSoloPlay();
+				}
+				return;
+			}
+
+			// Win Celebration: Enter, Space, or any key advances to next level
+			if (isCelebratingWin) {
+				if (e.key === 'Enter' || e.key === ' ' || /^[a-zA-Z]$/.test(e.key)) {
+					e.preventDefault();
+					if (performance.now() - winCelebrationStartTime > 600) {
+						AudioManager.play('tilehit', 1.0);
+						AudioManager.haptic(35);
+						stopWinCelebration();
+						loadLevel(currentLevelIndex + 1);
+					}
+				}
+				return;
+			}
+
+			// Complete level entrance animation immediately if typing while it slides in
+			if (levelEntranceState && levelEntranceState.active) {
+				completeLevelEntranceImmediately();
+			}
+
+			// If active tile is currently being dragged, cancel drag
+			if (activeTile) {
+				activeTile.isDragging = false;
+				dom.style.cursor = 'default';
+				if (activeTile.currentSlot) {
+					activeTile.setTarget(activeTile.currentSlot.worldPos.x, activeTile.currentSlot.worldPos.y, activeTile.currentSlot.worldPos.z);
+				}
+				activeTile = null;
+			}
+
+			if (isRowShaking || isComboPlaying) return;
+			if (!currentLevelData || !currentLevelData.words || !currentLevelData.words[currentWordIndex]) return;
+
+			var key = e.key;
+
+			// 1. Backspace / Delete: Return the last placed tile on active row back to tray
+			if (key === 'Backspace' || key === 'Delete') {
+				e.preventDefault();
+				var filledActiveSlots = chainSlots.filter(function (s) {
+					return s.row === currentWordIndex && s.tile !== null && !s.tile.isLocked;
+				});
+
+				if (filledActiveSlots.length > 0) {
+					var lastSlot = filledActiveSlots[filledActiveSlots.length - 1];
+					var tileToReturn = lastSlot.tile;
+					var targetStaging = stagingSlots.find(function (s) { return s.tile === null; });
+
+					if (targetStaging) {
+						if (currentGhostSlot && lastSlot === currentGhostSlot) {
+							dismissGhostTile();
+						}
+						lastSlot.tile = null;
+						targetStaging.tile = tileToReturn;
+						tileToReturn.currentSlot = targetStaging;
+						tileToReturn.setTarget(targetStaging.worldPos.x, targetStaging.worldPos.y, targetStaging.worldPos.z);
+						tileToReturn.targetRotation.set(0, 0, 0);
+						tileToReturn.startSnapFx();
+						AudioManager.playSnap(1.1);
+						AudioManager.haptic(10);
+						updateSlotBrackets();
+					}
+				}
+				return;
+			}
+
+			// 2. Escape: Recall all placed tiles in active row back to letter tray
+			if (key === 'Escape') {
+				e.preventDefault();
+				recallActiveRow();
+				return;
+			}
+
+			// 3. Spacebar: Shuffle tray letters
+			if (key === ' ') {
+				e.preventDefault();
+				shuffleStaging();
+				return;
+			}
+
+			// 4. Enter: If active row is full, trigger word completion check
+			if (key === 'Enter') {
+				e.preventDefault();
+				var activeSlots = chainSlots.filter(function (s) { return s.row === currentWordIndex; });
+				var allFilled = activeSlots.every(function (s) { return s.tile !== null; });
+				if (allFilled) {
+					checkWordCompletion();
+				}
+				return;
+			}
+
+			// 5. Letter keys A-Z / a-z: Type in available letter from tray into next active row slot
+			if (/^[a-zA-Z]$/.test(key)) {
+				var typedLetter = key.toUpperCase();
+
+				// Find next empty slot in active row
+				var targetSlot = chainSlots.find(function (s) {
+					return s.row === currentWordIndex && s.tile === null;
+				});
+
+				if (!targetSlot) {
+					// Row is already full
+					return;
+				}
+
+				// Find available matching letter tile currently in the staging tray
+				var matchingStagingSlot = stagingSlots.find(function (s) {
+					return s.tile && !s.tile.isLocked && s.tile.letter && s.tile.letter.toUpperCase() === typedLetter;
+				});
+
+				if (matchingStagingSlot) {
+					e.preventDefault();
+					var typedTile = matchingStagingSlot.tile;
+
+					if (currentGhostSlot && targetSlot === currentGhostSlot) {
+						dismissGhostTile();
+					}
+
+					matchingStagingSlot.tile = null;
+					targetSlot.tile = typedTile;
+					typedTile.currentSlot = targetSlot;
+					typedTile.setTarget(targetSlot.worldPos.x, targetSlot.worldPos.y, targetSlot.worldPos.z);
+					typedTile.targetRotation.set(0, 0, 0);
+					typedTile.startSnapFx();
+					AudioManager.playSnap(1.35);
+					AudioManager.haptic(15);
+					updateSlotBrackets();
+					checkWordCompletion();
+				} else {
+					// Letter not present in tray: gentle acoustic thud & haptic feedback
+					AudioManager.play('thud', 0.28);
+					AudioManager.haptic(8);
+				}
+				return;
+			}
+		});
 	}
 
 	// --------------------------------------------------------------------------
@@ -3755,7 +4733,11 @@
 			var isLevelComplete = (currentWordIndex + 1 >= currentLevelData.words.length);
 
 			if (isLevelComplete) {
-				// Final word solved: win celebration will play greatJob!
+				// ALL CHAINS HAVE BEEN SOLVED!
+				// Immediately record level completion, freeze speedometer & timer, and save stars!
+				if (typeof SpeedometerManager !== 'undefined') {
+					SpeedometerManager.onLevelCompleted(currentLevelIndex);
+				}
 				AudioManager.playSnap(1.6);
 			} else {
 				// Intermediate word solved: crisp confirmation snap
@@ -3795,6 +4777,7 @@
 							UnlockManager.onLevelCompleted(currentLevelIndex);
 						}
 						if (activeRowIndicatorGroup) activeRowIndicatorGroup.visible = false;
+						if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
 						setTimeout(function () {
 							triggerWinCelebration();
 						}, 250);
@@ -3817,8 +4800,11 @@
 				}
 			});
 		} else {
-			// INCORRECT WORD!
+			// INCORRECT WORD! Hard brake on speedometer to penalize wrong entries
 			isRowShaking = true;
+			if (typeof SpeedometerManager !== 'undefined') {
+				SpeedometerManager.onIncorrectWord();
+			}
 			AudioManager.play('wrong', 0.85);
 			AudioManager.haptic(35);
 			setTimeout(function () { AudioManager.haptic(35); }, 130);
@@ -4255,81 +5241,16 @@
 		return shape;
 	}
 
-	function resetCelebrationParticle(mesh, initialSpread) {
-		var angle = Math.random() * Math.PI * 2;
-		var radius = Math.random() * 3.8;
-		var originX = Math.cos(angle) * radius;
-		var originZ = Math.sin(angle) * radius * 0.7 - 0.5;
-
-		mesh.position.set(
-			originX,
-			initialSpread ? (Math.random() * 5.0 - 0.5) : -0.2,
-			originZ
-		);
-
-		mesh.userData.vx = (Math.random() - 0.5) * 4.6;
-		mesh.userData.vy = Math.random() * 8.0 + 5.5; // Explosive upward burst
-		mesh.userData.vz = (Math.random() - 0.5) * 3.2;
-		mesh.userData.rotSpeedX = (Math.random() - 0.5) * 10.0;
-		mesh.userData.rotSpeedY = (Math.random() - 0.5) * 10.0;
-		mesh.userData.rotSpeedZ = (Math.random() - 0.5) * 10.0;
-		mesh.userData.wobblePhase = Math.random() * Math.PI * 2;
-
-		var s = Math.random() * 0.4 + 0.8;
-		mesh.scale.set(s, s, s);
-	}
-
 	function initCelebrationParticles() {
+		// Confetti celebration removed per player request: keeping celebratory spotlight on star fireworks & tray wave
 		if (confettiGroup) {
 			scene.remove(confettiGroup);
-			confettiGroup = null;
-		}
-		confettiGroup = new THREE.Group();
-		scene.add(confettiGroup);
-		celebrationParticles = [];
-
-		var confettiColors = [
-			0xfbbf24, // Gold
-			0x10b981, // Emerald
-			0xef4444, // Crimson
-			0x06b6d4, // Cyan
-			0x8b5cf6, // Violet
-			0xf97316, // Sunset Orange
-			0xec4899, // Hot Pink
-			0xffffff  // Sparkle White
-		];
-
-		// 1. Confetti Flakes (140 pieces)
-		var confettiGeom = new THREE.PlaneGeometry(0.24, 0.36);
-		for (var i = 0; i < 140; i++) {
-			var color = confettiColors[i % confettiColors.length];
-			var mat = new THREE.MeshBasicMaterial({
-				color: color,
-				side: THREE.DoubleSide
+			celebrationParticles.forEach(function (p) {
+				if (p.geometry) p.geometry.dispose();
+				if (p.material) p.material.dispose();
 			});
-			var mesh = new THREE.Mesh(confettiGeom, mat);
-			resetCelebrationParticle(mesh, true);
-			confettiGroup.add(mesh);
-			celebrationParticles.push(mesh);
-		}
-
-		// 2. 3D Golden Stars (35 pieces)
-		var starShape = createStarShape(0.28, 0.13);
-		var starGeom = new THREE.ShapeGeometry(starShape);
-		var starMat = new THREE.MeshStandardMaterial({
-			color: 0xffd700,
-			emissive: 0xffb700,
-			emissiveIntensity: 0.5,
-			roughness: 0.28,
-			metalness: 0.65,
-			side: THREE.DoubleSide
-		});
-
-		for (var s = 0; s < 35; s++) {
-			var starMesh = new THREE.Mesh(starGeom, starMat);
-			resetCelebrationParticle(starMesh, true);
-			confettiGroup.add(starMesh);
-			celebrationParticles.push(starMesh);
+			celebrationParticles = [];
+			confettiGroup = null;
 		}
 	}
 
@@ -4342,7 +5263,7 @@
 			if (!u) continue;
 
 			// One-shot sparkle burst particles from gift unboxing
-			if (typeof u.life !== 'undefined') {
+			if (typeof u.isSparkle !== 'undefined') {
 				u.life -= dt * 1.25;
 				u.vy -= 9.8 * dt;
 				p.position.x += u.vx * dt;
@@ -4350,8 +5271,8 @@
 				p.position.z += u.vz * dt;
 				p.rotation.x += u.rotSpeedX * dt;
 				p.rotation.y += u.rotSpeedY * dt;
-				var s = Math.max(0.001, u.life);
-				p.scale.set(s, s, s);
+				var sc = Math.max(0.001, u.life);
+				p.scale.set(sc, sc, sc);
 
 				if (u.life <= 0) {
 					confettiGroup.remove(p);
@@ -4360,34 +5281,18 @@
 				}
 				continue;
 			}
-
-			// Continuous win celebration confetti
-			if (!isCelebratingWin) continue;
-
-			// Gravity & aerodynamic turbulence
-			u.vy -= 10.5 * dt;
-			p.position.x += u.vx * dt + Math.sin(now * 0.004 + u.wobblePhase) * 0.025;
-			p.position.y += u.vy * dt;
-			p.position.z += u.vz * dt;
-
-			// 3D tumbling rotation
-			p.rotation.x += u.rotSpeedX * dt;
-			p.rotation.y += u.rotSpeedY * dt;
-			p.rotation.z += u.rotSpeedZ * dt;
-
-			// Recycle falling particles into the fountain
-			if (p.position.y < -3.8) {
-				resetCelebrationParticle(p, false);
-			}
 		}
 	}
 
-	function spawnVictoryTiles() {
-		// Pick random celebratory message from GameSalad SpawnMessages
-		var pair = WIN_MESSAGES[Math.floor(Math.random() * WIN_MESSAGES.length)];
-		var words = [pair.r1, pair.r2];
-
-		// Clear previous victory tiles
+	function spawnCongratulatoryTrays() {
+		// Clear any previous victory trays and tiles
+		if (victoryTrayGroup) {
+			victoryTrayGroup.traverse(function (obj) {
+				if (obj.geometry) obj.geometry.dispose();
+			});
+			scene.remove(victoryTrayGroup);
+			victoryTrayGroup = null;
+		}
 		victoryMessageTiles.forEach(function (t) {
 			scene.remove(t.mesh);
 			var idx = allTiles.indexOf(t);
@@ -4396,70 +5301,265 @@
 		});
 		victoryMessageTiles = [];
 
-		var spacingX = 1.16;
-		var rowZPositions = [4.7, 6.1];
+		var pair = WIN_MESSAGES[Math.floor(Math.random() * WIN_MESSAGES.length)];
+		if (winCelebrationState) winCelebrationState.victoryMessage = pair;
 
-		words.forEach(function (word, rIdx) {
+		victoryTrayGroup = new THREE.Group();
+		scene.add(victoryTrayGroup);
+
+		// Calculate center screen Z position dynamically based on aspect & layout
+		var aspect = window.innerWidth / window.innerHeight;
+		var verticalOffset = (aspect < 0.75) ? 0.95 : -0.15;
+		var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
+		var layout = getBoardLayout(numRows);
+		var centerZ = (layout.startZ + layout.stagingZ) * 0.5 + verticalOffset;
+
+		var slotWidth = 1.15;
+		var rackDepth = 1.30;
+		var rackHeight = 0.34;
+		var trayZSpacing = 1.55;
+
+		function buildSingleTray(word, trayZ, initialX) {
 			var wordLen = word.length;
-			var startX = -((wordLen - 1) * spacingX) * 0.5;
-			var targetZ = rowZPositions[rIdx];
+			var rackWidth = wordLen * slotWidth + 0.50;
+			var trayGroup = new THREE.Group();
+			trayGroup.position.set(initialX, 0, trayZ);
+
+			// Main wooden beam (Active illuminated tray hardwood)
+			var beamGeom = new THREE.BoxGeometry(rackWidth, rackHeight, rackDepth);
+			var beam = new THREE.Mesh(beamGeom, materials.yellowTrayActive || materials.yellowTray);
+			beam.position.y = rackHeight * 0.5;
+			trayGroup.add(beam);
+
+			// Front retaining lip (Distinct champagne brass / active lip)
+			var lipGeom = new THREE.BoxGeometry(rackWidth + 0.04, 0.15, 0.15);
+			var lip = new THREE.Mesh(lipGeom, materials.feederTrayLip || materials.yellowTrayActive);
+			lip.position.set(0, rackHeight + 0.075, rackDepth * 0.5 - 0.075);
+			trayGroup.add(lip);
+
+			// Brushed brass side end-caps
+			var endCapGeom = new THREE.BoxGeometry(0.08, rackHeight + 0.04, rackDepth + 0.02);
+			var leftCap = new THREE.Mesh(endCapGeom, materials.brassBracket);
+			leftCap.position.set(-rackWidth * 0.5 - 0.04, (rackHeight + 0.04) * 0.5, 0);
+			trayGroup.add(leftCap);
+
+			var rightCap = new THREE.Mesh(endCapGeom, materials.brassBracket);
+			rightCap.position.set(rackWidth * 0.5 + 0.04, (rackHeight + 0.04) * 0.5, 0);
+			trayGroup.add(rightCap);
+
+			// Slot felt beds and letter blocks
+			var startX = -((wordLen - 1) * slotWidth) * 0.5;
+			var rowTiles = [];
 
 			for (var c = 0; c < wordLen; c++) {
+				var sx = startX + c * slotWidth;
+
+				// Felt lining
+				var sMesh = new THREE.Mesh(
+					new THREE.PlaneGeometry(1.06, 1.06),
+					materials.slotFelt
+				);
+				sMesh.rotation.x = -Math.PI * 0.5;
+				sMesh.position.set(sx, rackHeight + 0.01, 0);
+				trayGroup.add(sMesh);
+
+				// Locked Golden Victory Tile block sitting on the tray!
 				var letter = word[c];
-				var tile = new Tile(letter, true); // Golden locked victory tile
+				var tile = new Tile(letter, true);
+				var tileX = sx;
+				var tileY = rackHeight + 0.14;
 
-				var targetX = startX + c * spacingX;
-				var targetY = 0.35;
-
-				// Spawn high in the sky and drop in with bouncy spring landing!
-				tile.mesh.position.set(targetX, 4.8 + (rIdx * 4 + c) * 0.3, targetZ);
-				tile.targetPosition.set(targetX, targetY, targetZ);
-
-				// Start with Domino wave jump
-				tile.startWave((rIdx * 4 + c) * 0.08);
+				tile.mesh.position.set(tileX + initialX, tileY, trayZ);
+				tile.targetPosition.set(tileX + initialX, tileY, trayZ);
+				tile.targetRotation.set(0, 0, 0);
+				tile.baseX = tileX;
+				tile.col = c;
 
 				scene.add(tile.mesh);
 				victoryMessageTiles.push(tile);
 				allTiles.push(tile);
+				rowTiles.push(tile);
 			}
-		});
 
-		showToast(pair.r1 + ' ' + pair.r2 + '!');
+			victoryTrayGroup.add(trayGroup);
+
+			return {
+				tray: trayGroup,
+				tiles: rowTiles
+			};
+		}
+
+		var tray1Data = buildSingleTray(pair.r1, centerZ - trayZSpacing * 0.5, -16.0);
+		var tray2Data = buildSingleTray(pair.r2, centerZ + trayZSpacing * 0.5, 16.0);
+
+		if (winCelebrationState) {
+			winCelebrationState.congratulatoryData = {
+				tray1: tray1Data.tray,
+				tiles1: tray1Data.tiles,
+				tray2: tray2Data.tray,
+				tiles2: tray2Data.tiles
+			};
+		}
 	}
 
-	function triggerMexicanWavePass() {
-		// Sequential cascade across every row and every column of the whole board
-		for (var r = 0; r < chainRowData.length; r++) {
+	function updateWinCelebrationAnimation(now, dt) {
+		if (!winCelebrationState || !winCelebrationState.active) return;
+		var elapsed = (now - winCelebrationState.startTime) * 0.001;
+		var numRows = winCelebrationState.numRows;
+
+		// 1. Process each level row: wave letters first, then slide tray + letters away
+		for (var r = 0; r < numRows; r++) {
 			var rowInfo = chainRowData[r];
-			for (var c = 0; c < rowInfo.slots.length; c++) {
-				var slot = rowInfo.slots[c];
-				if (slot && slot.tile) {
-					var delay = r * 0.12 + c * 0.055;
-					slot.tile.startWave(delay);
+			if (!rowInfo) continue;
+
+			var rWaveStart = r * winCelebrationState.rowInterval;
+			var rSlideStart = rWaveStart + winCelebrationState.waveDelayBeforeSlide;
+
+			// Trigger letter wave jump across the word
+			if (elapsed >= rWaveStart && !winCelebrationState.rowsWaved[r]) {
+				winCelebrationState.rowsWaved[r] = true;
+				if (rowInfo.slots) {
+					for (var c = 0; c < rowInfo.slots.length; c++) {
+						var slot = rowInfo.slots[c];
+						if (slot && slot.tile && typeof slot.tile.startWave === 'function') {
+							slot.tile.startWave(c * 0.05);
+						}
+					}
+				}
+				AudioManager.play('tilehit', 0.7);
+			}
+
+			// Animate tray and its letters sliding away off-screen
+			if (elapsed >= rSlideStart) {
+				var u = (elapsed - rSlideStart) / winCelebrationState.slideDuration;
+				var slideDir = (r % 2 === 0) ? -1 : 1; // Alternating left and right!
+				var maxDist = 18.0;
+
+				if (u < 1.0) {
+					// Snappy accelerating swoosh
+					var ease = u * u * (3 - 2 * u);
+					var dx = slideDir * (ease * maxDist);
+
+					if (rowInfo.rowGroup) {
+						rowInfo.rowGroup.position.x = dx;
+					}
+					if (rowInfo.slots) {
+						for (var sc = 0; sc < rowInfo.slots.length; sc++) {
+							var s = rowInfo.slots[sc];
+							if (s && s.tile && s.tile.mesh) {
+								s.tile.mesh.position.x = s.worldPos.x + dx;
+								s.tile.targetPosition.x = s.worldPos.x + dx;
+							}
+						}
+					}
+				} else if (!winCelebrationState.rowsSlid[r]) {
+					winCelebrationState.rowsSlid[r] = true;
+					if (rowInfo.rowGroup) {
+						rowInfo.rowGroup.visible = false;
+						rowInfo.rowGroup.position.x = slideDir * 25.0;
+					}
+					if (rowInfo.slots) {
+						for (var sc2 = 0; sc2 < rowInfo.slots.length; sc2++) {
+							var s2 = rowInfo.slots[sc2];
+							if (s2 && s2.tile && s2.tile.mesh) {
+								s2.tile.mesh.visible = false;
+							}
+						}
+					}
 				}
 			}
 		}
 
-		// Victory message tiles wave in unison
-		victoryMessageTiles.forEach(function (tile, idx) {
-			tile.startWave(chainRowData.length * 0.12 + idx * 0.07);
-		});
-	}
+		// 2. Once all level trays have slid away, spawn congratulatory message CENTER SCREEN ON TRAYS!
+		var allRowsSlidTime = (numRows - 1) * winCelebrationState.rowInterval + winCelebrationState.waveDelayBeforeSlide + winCelebrationState.slideDuration;
 
-	function startMexicanWave() {
-		triggerMexicanWavePass();
+		if (elapsed >= allRowsSlidTime + 0.10 && !winCelebrationState.victorySpawned) {
+			winCelebrationState.victorySpawned = true;
+			winCelebrationState.victorySpawnTime = elapsed;
+			spawnCongratulatoryTrays();
+		}
 
-		if (mexicanWaveInterval) clearInterval(mexicanWaveInterval);
-		mexicanWaveInterval = setInterval(function () {
-			if (isCelebratingWin) {
-				triggerMexicanWavePass();
+		// 3. Animate the congratulatory trays and tiles sliding in to center screen
+		if (winCelebrationState.victorySpawned && winCelebrationState.congratulatoryData) {
+			var cData = winCelebrationState.congratulatoryData;
+			var vElapsed = elapsed - winCelebrationState.victorySpawnTime;
+			var vDuration = 0.44; // 440ms snappy spring slide-in
+
+			if (vElapsed < vDuration) {
+				var progress = vElapsed / vDuration;
+				// Back ease out: overshoot slightly and settle with magnetic snap
+				var s1 = 1.5;
+				var t = progress - 1;
+				var easeOutBack = t * t * ((s1 + 1) * t + s1) + 1;
+
+				// Tray 1 slides in from left (-16 -> 0)
+				var x1 = -16.0 * (1 - easeOutBack);
+				if (cData.tray1) cData.tray1.position.x = x1;
+				cData.tiles1.forEach(function (tileObj) {
+					if (tileObj && tileObj.mesh) {
+						tileObj.mesh.position.x = tileObj.baseX + x1;
+						tileObj.targetPosition.x = tileObj.baseX + x1;
+					}
+				});
+
+				// Tray 2 slides in from right (+16 -> 0)
+				var x2 = 16.0 * (1 - easeOutBack);
+				if (cData.tray2) cData.tray2.position.x = x2;
+				cData.tiles2.forEach(function (tileObj) {
+					if (tileObj && tileObj.mesh) {
+						tileObj.mesh.position.x = tileObj.baseX + x2;
+						tileObj.targetPosition.x = tileObj.baseX + x2;
+					}
+				});
+			} else if (!winCelebrationState.victoryLanded) {
+				winCelebrationState.victoryLanded = true;
+				if (cData.tray1) cData.tray1.position.x = 0;
+				if (cData.tray2) cData.tray2.position.x = 0;
+				cData.tiles1.forEach(function (tileObj) {
+					if (tileObj && tileObj.mesh) {
+						tileObj.mesh.position.x = tileObj.baseX;
+						tileObj.targetPosition.x = tileObj.baseX;
+						tileObj.startWave(tileObj.col * 0.08); // Domino wave across row 1
+					}
+				});
+				cData.tiles2.forEach(function (tileObj) {
+					if (tileObj && tileObj.mesh) {
+						tileObj.mesh.position.x = tileObj.baseX;
+						tileObj.targetPosition.x = tileObj.baseX;
+						tileObj.startWave(tileObj.col * 0.08 + 0.12); // Domino wave across row 2
+					}
+				});
+
+				AudioManager.playSnap(1.4);
+				AudioManager.haptic(45);
+
+				// Show celebratory toast
+				if (winCelebrationState.victoryMessage) {
+					showToast(winCelebrationState.victoryMessage.r1 + ' ' + winCelebrationState.victoryMessage.r2 + '!');
+				}
+
+				// Reveal the NEXT button at the bottom of the screen!
+				var btnNext = document.getElementById('btn-floating-next');
+				if (btnNext) {
+					btnNext.classList.add('show');
+				}
 			} else {
-				clearInterval(mexicanWaveInterval);
+				// Gentle periodic domino wave on the congratulatory blocks while waiting for NEXT
+				if (!winCelebrationState.lastPeriodicWave || (now - winCelebrationState.lastPeriodicWave > 2400)) {
+					winCelebrationState.lastPeriodicWave = now;
+					cData.tiles1.forEach(function (t) {
+						if (t && typeof t.startWave === 'function') t.startWave(t.col * 0.06);
+					});
+					cData.tiles2.forEach(function (t) {
+						if (t && typeof t.startWave === 'function') t.startWave(t.col * 0.06 + 0.10);
+					});
+				}
 			}
-		}, 2400);
+		}
 	}
 
 	var winCelebrationTimeout = null;
+	var winCelebrationStartTime = 0;
 
 	function triggerWinCelebration() {
 		isCelebratingWin = true;
@@ -4471,8 +5571,9 @@
 			winCelebrationTimeout = null;
 		}
 
-		// Hide active row chevrons, staging tray, and bottom buttons during celebration
+		// Hide active row chevrons, 3D phrase coupler, staging tray, and bottom buttons during celebration
 		if (activeRowIndicatorGroup) activeRowIndicatorGroup.visible = false;
+		if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
 		if (stagingTrayGroup) stagingTrayGroup.visible = false;
 		stagingSlots.forEach(function (s) {
 			if (s.tile) s.tile.mesh.visible = false;
@@ -4481,106 +5582,69 @@
 		var hudBottom = document.getElementById('hud-bottom');
 		if (hudBottom) hudBottom.style.display = 'none';
 
-		// 1. Spurt Confetti & 3D Stars
-		initCelebrationParticles();
+		// Clean up any previous celebration particles or victory trays
+		if (confettiGroup) {
+			scene.remove(confettiGroup);
+			celebrationParticles = [];
+			confettiGroup = null;
+		}
+		if (victoryTrayGroup) {
+			victoryTrayGroup.traverse(function (obj) {
+				if (obj.geometry) obj.geometry.dispose();
+			});
+			scene.remove(victoryTrayGroup);
+			victoryTrayGroup = null;
+		}
+		victoryMessageTiles.forEach(function (t) {
+			scene.remove(t.mesh);
+			var idx = allTiles.indexOf(t);
+			if (idx !== -1) allTiles.splice(idx, 1);
+			if (t.mesh.geometry) t.mesh.geometry.dispose();
+		});
+		victoryMessageTiles = [];
 
-		// 2. Spawn GameSalad Victory Message written in homely tiles
-		spawnVictoryTiles();
-
-		// 3. Start Board Mexican Wave
-		startMexicanWave();
-
-		// 4. Play grand completion sound & celebratory haptics
-		AudioManager.play('greatJob', 1.0);
-		AudioManager.haptic(50);
-		setTimeout(function () { AudioManager.haptic(35); }, 200);
-
-		// 5. Hide duplicate floating next button to prevent UI clutter
 		var btnNext = document.getElementById('btn-floating-next');
 		if (btnNext) btnNext.classList.remove('show');
 
-		// 6. Pre-render celebratory card contents so it is 100% prepared
-		var celebCard = document.getElementById('win-celebration-card');
-		if (celebCard && typeof SpeedometerManager !== 'undefined') {
-			var celebTitleEl = document.getElementById('win-celeb-level-title');
-			if (celebTitleEl) {
-				celebTitleEl.textContent = 'LVL ' + (currentLevelIndex + 1) + ' • ' + getLevelName(currentLevelIndex);
-			}
+		winCelebrationStartTime = performance.now();
 
-			var recBadge = document.getElementById('win-celeb-record-badge');
-			if (recBadge) {
-				var isNewRec = (typeof SpeedometerManager !== 'undefined' && SpeedometerManager.isLastRunNewRecord);
-				recBadge.style.display = isNewRec ? 'inline-block' : 'none';
-			}
+		// Configure Tray Wave & Slide-Away Choreography
+		winCelebrationState = {
+			active: true,
+			startTime: performance.now(),
+			numRows: chainRowData.length,
+			rowInterval: 0.24,          // 240ms stagger between consecutive row waves
+			waveDelayBeforeSlide: 0.30, // 300ms after wave begins, row starts sliding off
+			slideDuration: 0.38,        // 380ms smooth off-screen swoosh
+			rowsWaved: {},
+			rowsSlid: {},
+			victorySpawned: false,
+			victorySpawnTime: 0,
+			victoryLanded: false,
+			victoryMessage: null,
+			lastPeriodicWave: performance.now()
+		};
 
-			var rec = (SpeedometerManager.records.levels && SpeedometerManager.records.levels[currentLevelIndex]) || {};
-			var stars = rec.lastStars || SpeedometerManager.calculateStarsForWpm(rec.lastWpm || rec.bestWpm || 20);
-			var wpm = rec.lastWpm || rec.bestWpm || 0;
-
-			var starsContainer = document.getElementById('win-celeb-stars');
-			if (starsContainer) {
-				starsContainer.innerHTML = '';
-				for (var s = 1; s <= 3; s++) {
-					var starEl = document.createElement('span');
-					starEl.className = 'win-celeb-star' + (s <= stars ? ' earned' : ' empty');
-					starEl.textContent = (s <= stars ? '⭐' : '★');
-					starEl.style.animationDelay = (s * 0.18) + 's';
-					starsContainer.appendChild(starEl);
-				}
-			}
-
-			var wpmEl = document.getElementById('win-celeb-wpm');
-			if (wpmEl) wpmEl.textContent = '⚡ ' + wpm + ' WPM';
-
-			var tierEl = document.getElementById('win-celeb-tier');
-			if (tierEl) {
-				if (stars >= 3) {
-					tierEl.textContent = '⭐⭐⭐ LIGHTNING FAST!';
-					tierEl.style.color = '#ffd700';
-				} else if (stars === 2) {
-					tierEl.textContent = '⭐⭐ SWIFT SOLVER!';
-					tierEl.style.color = '#38bdf8';
-				} else {
-					tierEl.textContent = '⭐ STEADY SOLVER!';
-					tierEl.style.color = '#94a3b8';
-				}
-			}
-
-			// End-of-game dialog popup appears smoothly after completion fanfare
-			// so only the level report and congratulations remain
-			winCelebrationTimeout = setTimeout(function () {
-				if (isCelebratingWin && celebCard) {
-					// Hide the 3D board, racks, tiles, and message tiles so only the level report and congratulations remain
-					if (chainRacksGroup) chainRacksGroup.visible = false;
-					if (stagingTrayGroup) stagingTrayGroup.visible = false;
-					if (activeRowIndicatorGroup) activeRowIndicatorGroup.visible = false;
-					allTiles.forEach(function (tile) {
-						if (tile && tile.mesh) tile.mesh.visible = false;
-					});
-					chainSlots.forEach(function (s) {
-						if (s.tile && s.tile.mesh) s.tile.mesh.visible = false;
-					});
-					victoryMessageTiles.forEach(function (t) {
-						if (t && t.mesh) t.mesh.visible = false;
-					});
-					activeGiftBoxes.forEach(function (gb) {
-						if (gb && gb.group) gb.group.visible = false;
-					});
-
-					// Hide top HUD header so screen remains clean and focused exclusively on the level report
-					var hudHeader = document.getElementById('hud-header');
-					if (hudHeader) hudHeader.style.display = 'none';
-
-					celebCard.classList.add('show');
-					AudioManager.play('tilehit', 0.9);
-					AudioManager.haptic(30);
-				}
-			}, 1500);
+		// Keep stars lit and continue star fireworks periodically from the speedometer
+		if (typeof SpeedometerManager !== 'undefined' && SpeedometerManager.startPeriodicStarFireworks) {
+			var earnedStars = (SpeedometerManager.lastCompletionResult && SpeedometerManager.lastCompletionResult.starsEarned)
+				|| SpeedometerManager.peakStarsAchieved
+				|| SpeedometerManager.lastStarsLit
+				|| 3;
+			SpeedometerManager.startPeriodicStarFireworks(earnedStars);
 		}
+
+		// Play celebratory fanfare sound & haptics
+		AudioManager.play('greatJob', 1.0);
+		AudioManager.haptic(50);
+		setTimeout(function () { AudioManager.haptic(35); }, 200);
 	}
 
 	function stopWinCelebration() {
 		isCelebratingWin = false;
+		if (typeof SpeedometerManager !== 'undefined' && SpeedometerManager.stopPeriodicStarFireworks) {
+			SpeedometerManager.stopPeriodicStarFireworks();
+		}
 		if (winCelebrationTimeout) {
 			clearTimeout(winCelebrationTimeout);
 			winCelebrationTimeout = null;
@@ -4589,6 +5653,8 @@
 			clearInterval(mexicanWaveInterval);
 			mexicanWaveInterval = null;
 		}
+
+		winCelebrationState = null;
 
 		var btnNext = document.getElementById('btn-floating-next');
 		if (btnNext) btnNext.classList.remove('show');
@@ -4599,14 +5665,54 @@
 		var winSpeedCard = document.getElementById('win-speed-card');
 		if (winSpeedCard) winSpeedCard.classList.remove('show');
 
-		// Restore 3D board and controls for normal gameplay
-		if (chainRacksGroup) chainRacksGroup.visible = true;
-		if (stagingTrayGroup) stagingTrayGroup.visible = true;
+		// Clean up congratulatory trays and tiles
+		if (victoryTrayGroup) {
+			victoryTrayGroup.traverse(function (obj) {
+				if (obj.geometry) obj.geometry.dispose();
+			});
+			scene.remove(victoryTrayGroup);
+			victoryTrayGroup = null;
+		}
+		victoryMessageTiles.forEach(function (t) {
+			scene.remove(t.mesh);
+			var idx = allTiles.indexOf(t);
+			if (idx !== -1) allTiles.splice(idx, 1);
+			if (t.mesh.geometry) t.mesh.geometry.dispose();
+		});
+		victoryMessageTiles = [];
+
+		// Restore 3D board rows and controls for normal gameplay
+		if (chainRacksGroup) {
+			chainRacksGroup.visible = true;
+			for (var r = 0; r < chainRowData.length; r++) {
+				var rowInfo = chainRowData[r];
+				if (rowInfo && rowInfo.rowGroup) {
+					rowInfo.rowGroup.visible = true;
+					rowInfo.rowGroup.position.set(0, rowInfo.rowY || 0, rowInfo.rz);
+				}
+				if (rowInfo && rowInfo.slots) {
+					for (var c = 0; c < rowInfo.slots.length; c++) {
+						var s = rowInfo.slots[c];
+						if (s && s.tile && s.tile.mesh) {
+							s.tile.mesh.visible = true;
+							s.tile.mesh.position.set(s.worldPos.x, s.worldPos.y, s.worldPos.z);
+							s.tile.targetPosition.set(s.worldPos.x, s.worldPos.y, s.worldPos.z);
+						}
+					}
+				}
+			}
+		}
+
+		if (stagingTrayGroup) {
+			stagingTrayGroup.visible = true;
+			stagingTrayGroup.position.x = 0;
+		}
+
 		allTiles.forEach(function (tile) {
 			if (tile && tile.mesh) tile.mesh.visible = true;
 		});
 		stagingSlots.forEach(function (s) {
-			if (s.tile) s.tile.mesh.visible = true;
+			if (s.tile && s.tile.mesh) s.tile.mesh.visible = true;
 		});
 
 		var hudHeader = document.getElementById('hud-header');
@@ -4624,14 +5730,6 @@
 			celebrationParticles = [];
 			confettiGroup = null;
 		}
-
-		victoryMessageTiles.forEach(function (t) {
-			scene.remove(t.mesh);
-			var idx = allTiles.indexOf(t);
-			if (idx !== -1) allTiles.splice(idx, 1);
-			if (t.mesh.geometry) t.mesh.geometry.dispose();
-		});
-		victoryMessageTiles = [];
 	}
 
 	function showWinModal() {
@@ -4652,9 +5750,10 @@
 		camera.aspect = aspect;
 
 		var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
-		var stagingZ = (numRows >= 8) ? 4.8 : (numRows === 7 ? 4.3 : 3.6);
-		var startZ = (numRows >= 8) ? -5.8 : (numRows === 7 ? -5.0 : -4.2);
-		// In mobile portrait mode (aspect < 0.75), shift board downward to cover the bottom fence petals and balance the vertical canvas
+		var layout = getBoardLayout(numRows);
+		var stagingZ = layout.stagingZ;
+		var startZ = layout.startZ;
+		// In mobile portrait mode (aspect < 0.75), shift board downward to balance the vertical canvas
 		var verticalOffset = (aspect < 0.75) ? 0.95 : -0.15;
 		var centerZ = (startZ + stagingZ) * 0.5 + verticalOffset;
 
@@ -4664,7 +5763,7 @@
 
 		// Board width & vertical rack span
 		var reqWidth = (numRows >= 8) ? 11.2 : ((numRows === 7) ? 10.9 : 10.6);
-		var reqHeight = (stagingZ - startZ) + 4.5;
+		var reqHeight = (stagingZ - startZ) + 4.6;
 
 		var camY_by_width = (reqWidth / aspect) / (2 * halfFovTan);
 		var camY_by_height = reqHeight / (2 * halfFovTan);
@@ -4802,22 +5901,136 @@
 			updateLevelEntrance(now);
 		}
 
+		// Animate win celebration tray wave, slide-away, and congratulatory message on trays
+		if (winCelebrationState && winCelebrationState.active) {
+			updateWinCelebrationAnimation(now, dt);
+		}
+
 		// Animate 3D Active Row Indicator Chevrons
 		if (activeRowIndicatorGroup && activeRowIndicatorGroup.visible && chainRowData[currentWordIndex]) {
 			var activeRowData = chainRowData[currentWordIndex];
 			var bob = Math.sin(now * 0.005) * 0.08;
 			// Left Chevron bobbing towards rack ▶
 			if (chevronMesh) {
-				var baseChevronX = -activeRowData.rackWidth * 0.5 - 0.36;
+				var baseChevronX = -activeRowData.rackWidth * 0.5 - 0.85;
 				chevronMesh.position.x = baseChevronX + bob;
 			}
 			// Right Chevron bobbing towards rack ◀
 			if (chevronRightMesh) {
-				var baseRightChevronX = activeRowData.rackWidth * 0.5 + 0.36;
+				var baseRightChevronX = activeRowData.rackWidth * 0.5 + 0.85;
 				chevronRightMesh.position.x = baseRightChevronX - bob;
 			}
 			if (materials.chevron) {
 				materials.chevron.emissiveIntensity = 0.55 + Math.sin(now * 0.006) * 0.35;
+			}
+		}
+
+		// Animate 3D Phrase Coupler connecting the two solvable trays
+		if (phraseCouplerGroup && phraseCouplerGroup.visible) {
+			var couplerPulse = Math.sin(now * 0.005);
+
+			// Intense golden radiance glow
+			if (materials.goldChainLink) {
+				materials.goldChainLink.emissiveIntensity = 0.85 + couplerPulse * 0.35;
+			}
+			if (materials.brassBracket) {
+				materials.brassBracket.emissiveIntensity = 0.45 + couplerPulse * 0.20;
+			}
+			if (materials.couplerGlowBeam) {
+				materials.couplerGlowBeam.opacity = 0.65 + couplerPulse * 0.25;
+			}
+
+			// Physical Swing and Snap Animation when advancing to subsequent tray
+			if (chainSwingState && chainSwingState.active) {
+				var swingElapsed = (now - chainSwingState.startTime) * 0.001;
+				var swingProgress = Math.min(1.0, swingElapsed / chainSwingState.duration);
+
+				if (swingProgress < 0.70) {
+					// 1. PENDULUM SWING PHASE: Lower ends of chains lift up in a dynamic parabolic arc and swing forward
+					var pSwing = swingProgress / 0.70;
+					var swingLiftY = Math.sin(pSwing * Math.PI) * 0.95;
+					var swingTiltX = -Math.sin(pSwing * Math.PI) * 0.52;
+
+					if (leftMountLower) {
+						leftMountLower.position.y = (leftMountLower.userData.targetY || 0.46) + swingLiftY;
+						leftMountLower.rotation.x = swingTiltX;
+					}
+					if (rightMountLower) {
+						rightMountLower.position.y = (rightMountLower.userData.targetY || 0.46) + swingLiftY;
+						rightMountLower.rotation.x = swingTiltX;
+					}
+
+					for (var li = 0; li < leftLinks.length; li++) {
+						var tL = (li + 1) / (leftLinks.length + 1);
+						var linkLiftY = swingLiftY * tL;
+						leftLinks[li].position.y = (leftLinks[li].userData.targetY || 0.46) + linkLiftY;
+						leftLinks[li].rotation.x = (leftLinks[li].userData.baseRotX || 0) + swingTiltX * tL;
+					}
+					for (var ri = 0; ri < rightLinks.length; ri++) {
+						var tR = (ri + 1) / (rightLinks.length + 1);
+						var rLinkLiftY = swingLiftY * tR;
+						rightLinks[ri].position.y = (rightLinks[ri].userData.targetY || 0.46) + rLinkLiftY;
+						rightLinks[ri].rotation.x = (rightLinks[ri].userData.baseRotX || 0) + swingTiltX * tR;
+					}
+
+					if (centerChainGroup) {
+						centerChainGroup.position.y = (centerChainGroup.userData.targetY || 0.48) + swingLiftY * 0.75;
+						centerChainGroup.rotation.x = swingTiltX * 0.65;
+					}
+				} else {
+					// 2. MECHANICAL SNAP & OVERSHOOT IMPACT PHASE:
+					if (!chainSwingState.hasSnapped) {
+						chainSwingState.hasSnapped = true;
+						AudioManager.playSnap(1.55);
+						AudioManager.haptic(35);
+						if (leftMountLower) triggerChainSnapSparks(leftMountLower.position.x, leftMountLower.position.y, leftMountLower.position.z);
+						if (rightMountLower) triggerChainSnapSparks(rightMountLower.position.x, rightMountLower.position.y, rightMountLower.position.z);
+					}
+
+					// Damped physical spring wobble on landing
+					var pSnap = (swingProgress - 0.70) / 0.30;
+					var springVibe = Math.sin(pSnap * Math.PI * 4.5) * Math.exp(-pSnap * 7.5) * 0.12;
+
+					if (leftMountLower) {
+						leftMountLower.position.y = (leftMountLower.userData.targetY || 0.46) + springVibe;
+						leftMountLower.rotation.x = 0;
+					}
+					if (rightMountLower) {
+						rightMountLower.position.y = (rightMountLower.userData.targetY || 0.46) + springVibe;
+						rightMountLower.rotation.x = 0;
+					}
+
+					for (var li = 0; li < leftLinks.length; li++) {
+						leftLinks[li].position.y = (leftLinks[li].userData.targetY || 0.46) + springVibe * 0.7;
+						leftLinks[li].rotation.x = (leftLinks[li].userData.baseRotX || 0);
+					}
+					for (var ri = 0; ri < rightLinks.length; ri++) {
+						rightLinks[ri].position.y = (rightLinks[ri].userData.targetY || 0.46) + springVibe * 0.7;
+						rightLinks[ri].rotation.x = (rightLinks[ri].userData.baseRotX || 0);
+					}
+					if (centerChainGroup) {
+						centerChainGroup.position.y = (centerChainGroup.userData.targetY || 0.48) + springVibe * 0.75;
+						centerChainGroup.rotation.x = 0;
+					}
+
+					if (swingProgress >= 1.0) {
+						chainSwingState.active = false;
+					}
+				}
+			} else {
+				// Gentle resting hover breathing for flank chain links
+				var gentleHover = Math.sin(now * 0.004) * 0.025;
+				for (var li = 0; li < leftLinks.length; li++) {
+					leftLinks[li].position.y = (leftLinks[li].userData.targetY || 0.46) + gentleHover;
+				}
+				for (var ri = 0; ri < rightLinks.length; ri++) {
+					rightLinks[ri].position.y = (rightLinks[ri].userData.targetY || 0.46) + gentleHover;
+				}
+				if (centerChainGroup) {
+					centerChainGroup.rotation.y = couplerPulse * 0.12;
+					var baseCY = centerChainGroup.userData.targetY || 0.48;
+					centerChainGroup.position.y = baseCY + gentleHover;
+				}
 			}
 		}
 
@@ -4852,9 +6065,8 @@
 		if (titleScreenEl && !titleScreenEl.classList.contains('hide') && camera) {
 			camera.position.x = Math.sin(now * 0.0006) * 0.22;
 			var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
-			var sZ = (numRows >= 8) ? 4.8 : (numRows === 7 ? 4.3 : 3.6);
-			var stZ = (numRows >= 8) ? -5.8 : (numRows === 7 ? -5.0 : -4.2);
-			var cZ = (stZ + sZ) * 0.5 - 0.15;
+			var layout = getBoardLayout(numRows);
+			var cZ = (layout.startZ + layout.stagingZ) * 0.5 - 0.15;
 			camera.lookAt(0, 0, cZ);
 		}
 
@@ -5248,13 +6460,27 @@
 		// Floating 3D NEXT Button (Right Edge)
 		var btnFloatingNext = document.getElementById('btn-floating-next');
 		if (btnFloatingNext) {
-			btnFloatingNext.addEventListener('click', function () {
+			btnFloatingNext.addEventListener('click', function (e) {
+				if (e) e.stopPropagation();
 				AudioManager.play('tilehit', 1.0);
 				AudioManager.haptic(35);
 				stopWinCelebration();
 				loadLevel(currentLevelIndex + 1);
 			});
 		}
+
+		// Tap anywhere during win celebration (once congratulatory trays have landed) to advance level
+		window.addEventListener('click', function (e) {
+			if (isCelebratingWin && winCelebrationState && winCelebrationState.victoryLanded) {
+				if (e.target && e.target.closest && e.target.closest('#btn-open-settings, .btn-settings, #settings-modal, #level-select-modal')) {
+					return;
+				}
+				AudioManager.play('tilehit', 1.0);
+				AudioManager.haptic(35);
+				stopWinCelebration();
+				loadLevel(currentLevelIndex + 1);
+			}
+		}, true);
 
 		// Win Celebration Replay Buttons
 		var btnWinReplay = document.getElementById('btn-win-replay');

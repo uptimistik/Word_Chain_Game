@@ -848,7 +848,7 @@ html, body {
 }
 
 /* ==============================================================================
-   In-Game HUD Speedometer Dial (Tesla Windshield Heads-Up Display Aesthetic)
+   In-Game HUD Speedometer Dial (Glass Tube Curve & Etched Lines Floating on HUD)
    ============================================================================== */
 .hud-speedometer {
 	pointer-events: auto;
@@ -856,26 +856,30 @@ html, body {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	background: rgba(12, 16, 24, 0.24);
-	backdrop-filter: blur(12px) saturate(150%);
-	-webkit-backdrop-filter: blur(12px) saturate(150%);
-	border: 1px solid rgba(255, 255, 255, 0.18);
-	border-radius: 20px;
-	padding: 4px 12px 5px 12px;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.18);
-	transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28), border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+	background: transparent !important;
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+	border: none !important;
+	border-radius: 0 !important;
+	padding: 2px 4px 4px 4px;
+	box-shadow: none !important;
+	transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28), filter 0.3s ease;
 	position: relative;
 	cursor: pointer;
 	user-select: none;
-	overflow: hidden;
+	overflow: visible;
 }
 
-/* Subtle Energy Glow radiating behind the gauge */
+/* Subtle Energy Glow radiating behind the glass gauge */
 .speedo-magical-aura {
 	position: absolute;
-	inset: -2px;
-	border-radius: 18px;
-	filter: blur(8px);
+	top: -2px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 86px;
+	height: 48px;
+	border-radius: 50% 50% 0 0;
+	filter: blur(12px);
 	opacity: 0.45;
 	z-index: -1;
 	pointer-events: none;
@@ -884,7 +888,7 @@ html, body {
 
 /* Tier 1: CRUISE (<15 WPM) */
 .hud-speedometer.tier-cruise {
-	border-color: rgba(0, 229, 255, 0.45);
+	border: none !important;
 }
 .speedo-magical-aura.tier-cruise {
 	background: radial-gradient(circle, rgba(0, 229, 255, 0.35) 0%, transparent 70%);
@@ -892,7 +896,7 @@ html, body {
 
 /* Tier 2: SWIFT (15-24 WPM) - Emerald */
 .hud-speedometer.tier-swift {
-	border-color: #10b981;
+	border: none !important;
 }
 .speedo-magical-aura.tier-swift {
 	background: radial-gradient(circle, rgba(16, 185, 129, 0.45) 0%, transparent 75%);
@@ -900,7 +904,7 @@ html, body {
 
 /* Tier 3: TURBO (25-34 WPM) - Amber */
 .hud-speedometer.tier-turbo {
-	border-color: #f59e0b;
+	border: none !important;
 }
 .speedo-magical-aura.tier-turbo {
 	background: radial-gradient(circle, rgba(245, 158, 11, 0.5) 0%, transparent 75%);
@@ -908,7 +912,7 @@ html, body {
 
 /* Tier 4: LIGHTNING (35-44 WPM) - Pink */
 .hud-speedometer.tier-lightning {
-	border-color: #ec4899;
+	border: none !important;
 }
 .speedo-magical-aura.tier-lightning {
 	background: radial-gradient(circle, rgba(236, 72, 153, 0.55) 0%, transparent 80%);
@@ -916,7 +920,7 @@ html, body {
 
 /* Tier 5: GODSPEED (45+ WPM) - Gold */
 .hud-speedometer.tier-godspeed {
-	border-color: #ffd700;
+	border: none !important;
 }
 .speedo-magical-aura.tier-godspeed {
 	background: radial-gradient(circle, rgba(255, 215, 0, 0.6) 0%, transparent 80%);
@@ -924,22 +928,50 @@ html, body {
 
 /* Pulse on Snap/Solve */
 .hud-speedometer.speedo-pulse {
-	transform: scale(1.08) !important;
+	transform: scale(1.1) !important;
+}
+
+/* Hard Brake Penalty on Wrong Entry */
+.hud-speedometer.speedo-brake {
+	animation: speedoBrakeShudder 0.45s ease-out !important;
+}
+
+@keyframes speedoBrakeShudder {
+	0% {
+		transform: scale(1);
+		filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.95));
+	}
+	20% {
+		transform: translateY(3px) scale(0.90);
+		filter: drop-shadow(0 0 24px rgba(239, 68, 68, 1));
+	}
+	45% {
+		transform: translateY(-2px) scale(0.94);
+		filter: drop-shadow(0 0 18px rgba(239, 68, 68, 0.9));
+	}
+	70% {
+		transform: translateY(1px) scale(0.98);
+		filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.6));
+	}
+	100% {
+		transform: scale(1);
+		filter: none;
+	}
 }
 
 .speedo-dial {
 	position: relative;
 	width: 84px;
-	height: 46px;
+	height: 48px;
 	display: flex;
 	justify-content: center;
-	overflow: hidden;
+	overflow: visible;
 }
 
 .speedo-svg {
 	width: 100%;
 	height: 100%;
-	overflow: hidden;
+	overflow: visible;
 	display: block;
 }
 
@@ -966,32 +998,321 @@ html, body {
 }
 
 .speedo-number {
-	font-size: 15px;
-	font-weight: 900;
+	font-family: 'Orbitron', 'Share Tech Mono', 'SF Pro Display', ui-monospace, 'Menlo', 'Monaco', 'Courier New', monospace;
+	font-size: 16px;
+	font-weight: 800;
 	color: #ffffff;
 	line-height: 1;
-	font-variant-numeric: tabular-nums;
-	text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
+	font-variant-numeric: tabular-nums lining-nums;
+	letter-spacing: 0.5px;
+	text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 229, 255, 0.35);
 }
 
 .speedo-unit {
-	font-size: 8px;
-	font-weight: 800;
+	font-family: 'Orbitron', 'Share Tech Mono', sans-serif;
+	font-size: 7.5px;
+	font-weight: 700;
 	color: #ffd700;
-	letter-spacing: 0.5px;
+	letter-spacing: 1px;
+	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 .speedo-sub-badge {
+	font-family: 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: 8px;
-	font-weight: 900;
-	letter-spacing: 1px;
+	font-weight: 800;
+	letter-spacing: 1.5px;
 	color: #00e5ff;
 	text-transform: uppercase;
 	margin-top: 2px;
-	text-shadow: 0 0 6px currentColor;
+	text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 6px currentColor;
 	z-index: 8;
 	height: 12px;
 	line-height: 12px;
+}
+
+/* Dynamic Speed Milestone Star Gauge (Directly Below Speedometer, Above Board) */
+.hud-star-track {
+	position: relative;
+	width: 140px;
+	height: 32px;
+	margin-top: 4px;
+	display: block;
+	pointer-events: none;
+	user-select: none;
+	overflow: visible;
+}
+
+.star-track-bar {
+	position: absolute;
+	left: 14px;
+	right: 14px;
+	top: 50%;
+	transform: translateY(-50%);
+	height: 3px;
+	pointer-events: none;
+	z-index: 1;
+}
+
+.star-track-line-bg {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	background: rgba(255, 255, 255, 0.45);
+	border-radius: 999px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+}
+
+.star-track-line-fill {
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	background: linear-gradient(90deg, #ffc107 0%, #ff9800 100%);
+	border-radius: 999px;
+	box-shadow: 0 0 8px #ffb700, 0 0 14px rgba(255, 183, 0, 0.7);
+	width: 0%;
+	transition: width 0.15s ease-out;
+}
+
+.star-track-node {
+	position: absolute;
+	top: 50%;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transform: translate(-50%, -50%);
+	transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+	z-index: 2;
+}
+
+.star-track-node::before {
+	content: '';
+	position: absolute;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: #141722;
+	z-index: -1;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+
+.star-track-node.node-star-1 {
+	left: 14px;
+}
+
+.star-track-node.node-star-2 {
+	left: 50%;
+}
+
+.star-track-node.node-star-3 {
+	left: calc(100% - 14px);
+}
+
+.star-track-svg {
+	width: 28px;
+	height: 28px;
+	display: block;
+	overflow: visible;
+}
+
+.star-track-svg polygon {
+	fill: rgba(18, 22, 34, 0.55);
+	stroke: rgba(255, 255, 255, 0.60);
+	stroke-width: 1.4px;
+	stroke-linejoin: round;
+	filter: drop-shadow(0 1.5px 3px rgba(0, 0, 0, 0.85));
+	transition: fill 0.25s ease, stroke 0.25s ease, filter 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+	transform-origin: 12px 12px;
+}
+
+/* Lit state (Dynamic gold star matching user reference image - DOUBLED SIZE) */
+.star-track-node.lit .star-track-svg polygon {
+	fill: #ffb700;
+	stroke: #ffffff;
+	stroke-width: 1.1px;
+	filter: drop-shadow(0 0 8px #ffb700) drop-shadow(0 0 16px rgba(255, 183, 0, 0.85)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+	transform: scale(1.18);
+}
+
+/* Dim state - DOUBLED SIZE */
+.star-track-node.dim .star-track-svg polygon {
+	fill: rgba(18, 22, 34, 0.55);
+	stroke: rgba(255, 255, 255, 0.55);
+	stroke-width: 1.5px;
+	filter: drop-shadow(0 1.5px 3px rgba(0, 0, 0, 0.85));
+	transform: scale(0.9);
+}
+
+/* End-of-Level Celebration FX */
+.hud-star-track.celebrate-3 .star-track-line-fill {
+	box-shadow: 0 0 16px #ffd700, 0 0 30px #ff9500;
+	animation: trackBlazePulse 1.2s ease-in-out infinite alternate;
+}
+
+.hud-star-track.celebrate-3 .node-star-1 .star-track-svg polygon {
+	animation: grandStarBurst 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	animation-delay: 0.05s;
+}
+
+.hud-star-track.celebrate-3 .node-star-2 .star-track-svg polygon {
+	animation: grandStarBurst 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	animation-delay: 0.22s;
+}
+
+.hud-star-track.celebrate-3 .node-star-3 .star-track-svg polygon {
+	animation: grandStarBurst 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	animation-delay: 0.39s;
+}
+
+.hud-star-track.celebrate-2 .node-star-1 .star-track-svg polygon {
+	animation: moderateStarBurst 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	animation-delay: 0.05s;
+}
+
+.hud-star-track.celebrate-2 .node-star-2 .star-track-svg polygon {
+	animation: moderateStarBurst 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	animation-delay: 0.22s;
+}
+
+.hud-star-track.celebrate-1 .node-star-1 .star-track-svg polygon {
+	animation: gentleStarBurst 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	animation-delay: 0.05s;
+}
+
+@keyframes grandStarBurst {
+	0% { transform: scale(1.18); }
+	35% { transform: scale(1.65); filter: drop-shadow(0 0 16px #ffd700) drop-shadow(0 0 32px #ff9500); }
+	70% { transform: scale(1.3); }
+	100% { transform: scale(1.35); filter: drop-shadow(0 0 10px #ffd700) drop-shadow(0 0 22px rgba(255, 183, 0, 0.85)); }
+}
+
+@keyframes moderateStarBurst {
+	0% { transform: scale(1.18); }
+	40% { transform: scale(1.45); filter: drop-shadow(0 0 12px #ffd700) drop-shadow(0 0 22px #ff9500); }
+	100% { transform: scale(1.25); filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 16px rgba(255, 183, 0, 0.75)); }
+}
+
+@keyframes gentleStarBurst {
+	0% { transform: scale(1.18); }
+	45% { transform: scale(1.35); filter: drop-shadow(0 0 10px #ffd700); }
+	100% { transform: scale(1.2); filter: drop-shadow(0 0 6px #ffd700); }
+}
+
+@keyframes trackBlazePulse {
+	0% { box-shadow: 0 0 8px #ffd700, 0 0 14px rgba(255, 183, 0, 0.7); }
+	100% { box-shadow: 0 0 18px #ffd700, 0 0 35px #ff9500; }
+}
+
+/* Golden Sparkles radiating from celebratory stars */
+.star-sparkle-dot {
+	position: absolute;
+	border-radius: 50%;
+	background: radial-gradient(circle, #ffffff 10%, #ffd700 60%, #ff9500 100%);
+	box-shadow: 0 0 6px #ffd700, 0 0 10px #ffffff;
+	pointer-events: none;
+	animation: sparkleBurst 0.75s ease-out forwards;
+	z-index: 10;
+}
+
+@keyframes sparkleBurst {
+	0% {
+		transform: translate(-50%, -50%) translate(0, 0) scale(1);
+		opacity: 1;
+	}
+	80% {
+		opacity: 0.85;
+	}
+	100% {
+		transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0);
+		opacity: 0;
+	}
+}
+
+/* Star Fireworks Particles bursting from lit stars */
+.star-firework-particle {
+	position: fixed !important;
+	border-radius: 50% !important;
+	pointer-events: none !important;
+	z-index: 99999 !important;
+	transform: translate(-50%, -50%) translate(0, 0) scale(1);
+	box-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+	animation: starFireworkBurst 0.9s cubic-bezier(0.12, 0.85, 0.35, 1) forwards !important;
+}
+
+.star-firework-flash {
+	position: fixed !important;
+	width: 36px !important;
+	height: 36px !important;
+	border-radius: 50% !important;
+	pointer-events: none !important;
+	z-index: 99998 !important;
+	background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 215, 0, 0.6) 45%, transparent 70%);
+	transform: translate(-50%, -50%) scale(0.6);
+	animation: starFlashPulse 0.45s ease-out forwards !important;
+}
+
+@keyframes starFireworkBurst {
+	0% {
+		transform: translate(-50%, -50%) translate(0, 0) scale(1.2);
+		opacity: 1;
+		filter: brightness(2.2);
+	}
+	40% {
+		opacity: 1;
+		filter: brightness(1.8);
+	}
+	100% {
+		transform: translate(-50%, -50%) translate(var(--fx), var(--fy)) scale(0);
+		opacity: 0;
+		filter: brightness(1);
+	}
+}
+
+@keyframes starFlashPulse {
+	0% {
+		transform: translate(-50%, -50%) scale(0.6);
+		opacity: 1;
+	}
+	100% {
+		transform: translate(-50%, -50%) scale(2.2);
+		opacity: 0;
+	}
+}
+
+@keyframes starFireworkPulse {
+	0% {
+		transform: scale(1.18);
+	}
+	35% {
+		transform: scale(1.52);
+		filter: drop-shadow(0 0 14px #ffd700) drop-shadow(0 0 28px #ff9500);
+	}
+	70% {
+		transform: scale(1.25);
+	}
+	100% {
+		transform: scale(1.18);
+		filter: drop-shadow(0 0 8px #ffb700) drop-shadow(0 0 16px rgba(255, 183, 0, 0.85));
+	}
+}
+
+@keyframes sparkleBurst {
+	0% {
+		transform: translate(-50%, -50%) translate(0, 0) scale(1);
+		opacity: 1;
+	}
+	80% {
+		opacity: 0.85;
+	}
+	100% {
+		transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0);
+		opacity: 0;
+	}
 }
 
 /* Level Select Speed Record in Settings */
@@ -1443,31 +1764,32 @@ html, body {
 }
 
 /* ==============================================================================
-   3D Tactile Floating NEXT Arrow Button (Right Side Win Celebration)
+   3D Tactile Floating NEXT Arrow Button (Centered Bottom Win Celebration)
    ============================================================================== */
 .tactile-next-btn {
 	position: absolute;
-	right: 18px;
-	right: max(18px, env(safe-area-inset-right));
-	top: 50%;
-	transform: translateY(-50%) scale(0);
+	left: 50%;
+	bottom: 24px;
+	bottom: max(24px, env(safe-area-inset-bottom));
+	transform: translateX(-50%) scale(0);
 	opacity: 0;
 	pointer-events: none;
-	width: 68px;
-	height: 86px;
-	border-radius: 34px;
+	min-width: 190px;
+	height: 58px;
+	padding: 0 28px;
+	border-radius: 29px;
 	border: 2px solid #fffbeb;
 	background: linear-gradient(180deg, #fef08a 0%, #f59e0b 50%, #d97706 100%);
 	box-shadow: 
 		0 6px 0 #92400e,
-		0 12px 24px rgba(0, 0, 0, 0.45),
-		0 0 25px rgba(251, 191, 36, 0.65);
+		0 12px 28px rgba(0, 0, 0, 0.55),
+		0 0 30px rgba(251, 191, 36, 0.75);
 	cursor: pointer;
-	z-index: 50;
+	z-index: 60;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, box-shadow 0.15s ease;
+	transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, box-shadow 0.15s ease;
 	-webkit-tap-highlight-color: transparent;
 	outline: none;
 }
@@ -1475,50 +1797,50 @@ html, body {
 .tactile-next-btn.show {
 	opacity: 1;
 	pointer-events: auto;
-	transform: translateY(-50%) scale(1);
+	transform: translateX(-50%) scale(1);
 	animation: nextBtnPulse 1.8s ease-in-out infinite alternate;
 }
 
 @keyframes nextBtnPulse {
 	0% {
-		transform: translateY(-50%) scale(1);
-		box-shadow: 0 6px 0 #92400e, 0 12px 24px rgba(0, 0, 0, 0.45), 0 0 20px rgba(251, 191, 36, 0.5);
+		transform: translateX(-50%) scale(1);
+		box-shadow: 0 6px 0 #92400e, 0 12px 28px rgba(0, 0, 0, 0.55), 0 0 25px rgba(251, 191, 36, 0.55);
 	}
 	100% {
-		transform: translateY(-50%) scale(1.08);
-		box-shadow: 0 6px 0 #92400e, 0 16px 30px rgba(0, 0, 0, 0.5), 0 0 35px rgba(251, 191, 36, 0.85);
+		transform: translateX(-50%) scale(1.06);
+		box-shadow: 0 6px 0 #92400e, 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 42px rgba(251, 191, 36, 0.95);
 	}
 }
 
 .tactile-next-btn:active {
-	transform: translateY(calc(-50% + 4px)) scale(0.94) !important;
-	box-shadow: 0 2px 0 #92400e, 0 6px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(251, 191, 36, 0.4) !important;
+	transform: translateX(-50%) translateY(4px) scale(0.96) !important;
+	box-shadow: 0 2px 0 #92400e, 0 6px 14px rgba(0, 0, 0, 0.45), 0 0 18px rgba(251, 191, 36, 0.4) !important;
 	animation: none;
 }
 
 .next-btn-inner {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
 	align-items: center;
 	justify-content: center;
-	gap: 2px;
+	gap: 12px;
 	pointer-events: none;
 }
 
 .next-arrow-icon {
-	font-size: 28px;
+	font-size: 20px;
 	line-height: 1;
 	color: #ffffff;
 	text-shadow: 0 2px 4px rgba(146, 64, 14, 0.8), 0 0 8px rgba(255, 255, 255, 0.6);
-	transform: translateX(2px);
+	transform: translateX(1px);
 }
 
 .next-label {
-	font-size: 11px;
+	font-size: 18px;
 	font-weight: 900;
-	letter-spacing: 1.2px;
-	color: #451a03;
-	text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6);
+	letter-spacing: 2.4px;
+	color: #ffffff;
+	text-shadow: 0 2px 4px rgba(146, 64, 14, 0.8), 0 0 8px rgba(255, 255, 255, 0.4);
 }
 
 /* Level Win Modal */
@@ -1864,17 +2186,19 @@ html, body {
 	}
 
 	.hud-speedometer {
-		padding: 3px 10px 4px 10px;
-		border-radius: 18px;
+		padding: 2px 4px;
+		border: none !important;
+		background: transparent !important;
+		box-shadow: none !important;
 	}
 
 	.speedo-dial {
 		width: 76px;
-		height: 42px;
+		height: 44px;
 	}
 
 	.speedo-number {
-		font-size: 14px;
+		font-size: 15px;
 	}
 
 	.chain-dot {
@@ -1911,19 +2235,22 @@ html, body {
 	}
 
 	.tactile-next-btn {
-		right: 12px;
-		right: max(12px, env(safe-area-inset-right));
-		width: 60px;
-		height: 76px;
-		border-radius: 30px;
+		left: 50%;
+		bottom: 20px;
+		bottom: max(20px, env(safe-area-inset-bottom));
+		min-width: 164px;
+		height: 52px;
+		padding: 0 22px;
+		border-radius: 26px;
 	}
 
 	.next-arrow-icon {
-		font-size: 24px;
+		font-size: 18px;
 	}
 
 	.next-label {
-		font-size: 10px;
+		font-size: 16px;
+		letter-spacing: 2px;
 	}
 }
 
@@ -2838,8 +3165,8 @@ html, body {
 	box-shadow: 0 6px 18px rgba(255, 215, 0, 0.6);
 }
 
-/* Hide duplicate floating next button and redundant speedo banner to prevent overcluttered UI */
-#btn-floating-next, .tactile-next-btn, .hud-win-speed-banner {
+/* Redundant speedo banner and win celebration card report popup suppressed per user request */
+.hud-win-speed-banner, #win-celebration-card, .win-celebration-card {
 	display: none !important;
 }
 

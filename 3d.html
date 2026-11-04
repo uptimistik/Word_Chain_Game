@@ -9,7 +9,11 @@
 	<title>Scruffle 3D Chain</title>
 	<link rel="icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
 	<link rel="shortcut icon" type="image/png" href="OriginalTileImages/SCRUFFLEMark.png">
-	<link rel="stylesheet" href="css/word-chain-3d.css?v=7.0">
+	<!-- Digital HUD Fonts for Speedometer -->
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="css/word-chain-3d.css?v=9.0">
 	<style>
 		/* Title Screen: Semi-transparent background with sleek blur */
 		#title-screen {
@@ -362,40 +366,87 @@
 
 		#hud-speedometer {
 			position: relative;
-			transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease, border-color 0.3s ease;
-			background: rgba(12, 16, 26, 0.22);
-			backdrop-filter: blur(12px) saturate(150%);
-			-webkit-backdrop-filter: blur(12px) saturate(150%);
-			border: 1px solid rgba(255, 255, 255, 0.18);
-			border-radius: 20px;
-			padding: 4px 12px 5px;
+			transition: transform 0.3s ease, filter 0.3s ease;
+			background: transparent !important;
+			backdrop-filter: none !important;
+			-webkit-backdrop-filter: none !important;
+			border: none !important;
+			border-radius: 0 !important;
+			padding: 2px 4px 4px 4px;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
-			overflow: hidden;
-			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.20);
+			overflow: visible;
+			box-shadow: none !important;
+			pointer-events: auto;
+			cursor: pointer;
+			user-select: none;
 		}
 
 		#hud-speedometer.win-highlight {
-			transform: scale(1.08);
-			box-shadow: 0 0 22px rgba(255, 215, 0, 0.75), 0 0 40px rgba(0, 229, 255, 0.45);
-			border-radius: 16px;
+			transform: scale(1.12);
+			filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.85));
+			border: none !important;
+			box-shadow: none !important;
+		}
+
+		/* Hard Brake Penalty on Wrong Entry */
+		#hud-speedometer.speedo-brake {
+			animation: speedoBrakeShudder 0.45s ease-out !important;
+		}
+
+		@keyframes speedoBrakeShudder {
+			0% {
+				transform: scale(1);
+				filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.95));
+			}
+			20% {
+				transform: translateY(3px) scale(0.90);
+				filter: drop-shadow(0 0 24px rgba(239, 68, 68, 1));
+			}
+			45% {
+				transform: translateY(-2px) scale(0.94);
+				filter: drop-shadow(0 0 18px rgba(239, 68, 68, 0.9));
+			}
+			70% {
+				transform: translateY(1px) scale(0.98);
+				filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.6));
+			}
+			100% {
+				transform: scale(1);
+				filter: none;
+			}
+		}
+
+		.speedo-magical-aura {
+			position: absolute;
+			top: -2px;
+			left: 50%;
+			transform: translateX(-50%);
+			width: 86px;
+			height: 48px;
+			border-radius: 50% 50% 0 0;
+			filter: blur(12px);
+			opacity: 0.45;
+			z-index: -1;
+			pointer-events: none;
+			transition: all 0.35s ease;
 		}
 
 		.speedo-dial {
 			position: relative;
 			width: 84px;
-			height: 46px;
+			height: 48px;
 			display: flex;
 			justify-content: center;
-			overflow: hidden;
+			overflow: visible;
 		}
 
 		.speedo-svg {
 			width: 100%;
 			height: 100%;
-			overflow: hidden;
+			overflow: visible;
 			display: block;
 		}
 
@@ -422,32 +473,312 @@
 		}
 
 		.speedo-number {
-			font-size: 15px;
-			font-weight: 900;
+			font-family: 'Orbitron', 'Share Tech Mono', 'SF Pro Display', ui-monospace, 'Menlo', 'Monaco', 'Courier New', monospace;
+			font-size: 16px;
+			font-weight: 800;
 			color: #ffffff;
 			line-height: 1;
-			font-variant-numeric: tabular-nums;
-			text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
+			font-variant-numeric: tabular-nums lining-nums;
+			letter-spacing: 0.5px;
+			text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 229, 255, 0.35);
 		}
 
 		.speedo-unit {
-			font-size: 8px;
-			font-weight: 800;
+			font-family: 'Orbitron', 'Share Tech Mono', sans-serif;
+			font-size: 7.5px;
+			font-weight: 700;
 			color: #ffd700;
-			letter-spacing: 0.5px;
+			letter-spacing: 1px;
+			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 		}
 
 		.speedo-sub-badge {
+			font-family: 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
 			font-size: 8px;
-			font-weight: 900;
-			letter-spacing: 1px;
+			font-weight: 800;
+			letter-spacing: 1.5px;
 			color: #00e5ff;
 			text-transform: uppercase;
 			margin-top: 2px;
-			text-shadow: 0 0 6px currentColor;
+			text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 6px currentColor;
 			z-index: 8;
 			height: 12px;
 			line-height: 12px;
+		}
+
+		/* Dynamic Speed Milestone Star Gauge (Directly Below Speedometer, Above Board) */
+		.hud-star-track {
+			position: relative;
+			width: 140px;
+			height: 32px;
+			margin-top: 4px;
+			display: block;
+			pointer-events: none;
+			user-select: none;
+			overflow: visible;
+		}
+
+		.star-track-bar {
+			position: absolute;
+			left: 14px;
+			right: 14px;
+			top: 50%;
+			transform: translateY(-50%);
+			height: 3px;
+			pointer-events: none;
+			z-index: 1;
+		}
+
+		.star-track-line-bg {
+			position: absolute;
+			left: 0;
+			right: 0;
+			top: 0;
+			bottom: 0;
+			background: rgba(255, 255, 255, 0.45);
+			border-radius: 999px;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+		}
+
+		.star-track-line-fill {
+			position: absolute;
+			left: 0;
+			top: 0;
+			bottom: 0;
+			background: linear-gradient(90deg, #ffc107 0%, #ff9800 100%);
+			border-radius: 999px;
+			box-shadow: 0 0 8px #ffb700, 0 0 14px rgba(255, 183, 0, 0.7);
+			width: 0%;
+			transition: width 0.15s ease-out;
+		}
+
+		.star-track-node {
+			position: absolute;
+			top: 50%;
+			width: 32px;
+			height: 32px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transform: translate(-50%, -50%);
+			transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+			z-index: 2;
+		}
+
+		.star-track-node::before {
+			content: '';
+			position: absolute;
+			width: 22px;
+			height: 22px;
+			border-radius: 50%;
+			background: #141722;
+			z-index: -1;
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+		}
+
+		.star-track-node.node-star-1 {
+			left: 14px;
+		}
+
+		.star-track-node.node-star-2 {
+			left: 50%;
+		}
+
+		.star-track-node.node-star-3 {
+			left: calc(100% - 14px);
+		}
+
+		.star-track-svg {
+			width: 28px;
+			height: 28px;
+			display: block;
+			overflow: visible;
+		}
+
+		.star-track-svg polygon {
+			fill: rgba(18, 22, 34, 0.55);
+			stroke: rgba(255, 255, 255, 0.60);
+			stroke-width: 1.4px;
+			stroke-linejoin: round;
+			filter: drop-shadow(0 1.5px 3px rgba(0, 0, 0, 0.85));
+			transition: fill 0.25s ease, stroke 0.25s ease, filter 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+			transform-origin: 12px 12px;
+		}
+
+		/* Lit state (Dynamic gold star matching user reference image - DOUBLED SIZE) */
+		.star-track-node.lit .star-track-svg polygon {
+			fill: #ffb700;
+			stroke: #ffffff;
+			stroke-width: 1.1px;
+			filter: drop-shadow(0 0 8px #ffb700) drop-shadow(0 0 16px rgba(255, 183, 0, 0.85)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+			transform: scale(1.18);
+		}
+
+		/* Dim state - DOUBLED SIZE */
+		.star-track-node.dim .star-track-svg polygon {
+			fill: rgba(18, 22, 34, 0.55);
+			stroke: rgba(255, 255, 255, 0.55);
+			stroke-width: 1.5px;
+			filter: drop-shadow(0 1.5px 3px rgba(0, 0, 0, 0.85));
+			transform: scale(0.9);
+		}
+
+		/* End-of-Level Celebration FX */
+		.hud-star-track.celebrate-3 .star-track-line-fill {
+			box-shadow: 0 0 16px #ffd700, 0 0 30px #ff9500;
+			animation: trackBlazePulse 1.2s ease-in-out infinite alternate;
+		}
+
+		.hud-star-track.celebrate-3 .node-star-1 .star-track-svg polygon {
+			animation: grandStarBurst 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+			animation-delay: 0.05s;
+		}
+
+		.hud-star-track.celebrate-3 .node-star-2 .star-track-svg polygon {
+			animation: grandStarBurst 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+			animation-delay: 0.22s;
+		}
+
+		.hud-star-track.celebrate-3 .node-star-3 .star-track-svg polygon {
+			animation: grandStarBurst 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+			animation-delay: 0.39s;
+		}
+
+		.hud-star-track.celebrate-2 .node-star-1 .star-track-svg polygon {
+			animation: moderateStarBurst 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+			animation-delay: 0.05s;
+		}
+
+		.hud-star-track.celebrate-2 .node-star-2 .star-track-svg polygon {
+			animation: moderateStarBurst 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+			animation-delay: 0.22s;
+		}
+
+		.hud-star-track.celebrate-1 .node-star-1 .star-track-svg polygon {
+			animation: gentleStarBurst 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+			animation-delay: 0.05s;
+		}
+
+		@keyframes grandStarBurst {
+			0% { transform: scale(1.18); }
+			35% { transform: scale(1.65); filter: drop-shadow(0 0 16px #ffd700) drop-shadow(0 0 32px #ff9500); }
+			70% { transform: scale(1.3); }
+			100% { transform: scale(1.35); filter: drop-shadow(0 0 10px #ffd700) drop-shadow(0 0 22px rgba(255, 183, 0, 0.85)); }
+		}
+
+		@keyframes moderateStarBurst {
+			0% { transform: scale(1.18); }
+			40% { transform: scale(1.45); filter: drop-shadow(0 0 12px #ffd700) drop-shadow(0 0 22px #ff9500); }
+			100% { transform: scale(1.25); filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 16px rgba(255, 183, 0, 0.75)); }
+		}
+
+		@keyframes gentleStarBurst {
+			0% { transform: scale(1.18); }
+			45% { transform: scale(1.35); filter: drop-shadow(0 0 10px #ffd700); }
+			100% { transform: scale(1.2); filter: drop-shadow(0 0 6px #ffd700); }
+		}
+
+		@keyframes trackBlazePulse {
+			0% { box-shadow: 0 0 8px #ffd700, 0 0 14px rgba(255, 183, 0, 0.7); }
+			100% { box-shadow: 0 0 18px #ffd700, 0 0 35px #ff9500; }
+		}
+
+		/* Golden Sparkles radiating from celebratory stars */
+		.star-sparkle-dot {
+			position: absolute;
+			border-radius: 50%;
+			background: radial-gradient(circle, #ffffff 10%, #ffd700 60%, #ff9500 100%);
+			box-shadow: 0 0 6px #ffd700, 0 0 10px #ffffff;
+			pointer-events: none;
+			animation: sparkleBurst 0.75s ease-out forwards;
+			z-index: 10;
+		}
+
+		@keyframes sparkleBurst {
+			0% {
+				transform: translate(-50%, -50%) translate(0, 0) scale(1);
+				opacity: 1;
+			}
+			80% {
+				opacity: 0.85;
+			}
+			100% {
+				transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0);
+				opacity: 0;
+			}
+		}
+
+		/* Star Fireworks Particles bursting from lit stars */
+		.star-firework-particle {
+			position: fixed !important;
+			border-radius: 50% !important;
+			pointer-events: none !important;
+			z-index: 99999 !important;
+			transform: translate(-50%, -50%) translate(0, 0) scale(1);
+			box-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+			animation: starFireworkBurst 0.9s cubic-bezier(0.12, 0.85, 0.35, 1) forwards !important;
+		}
+
+		.star-firework-flash {
+			position: fixed !important;
+			width: 36px !important;
+			height: 36px !important;
+			border-radius: 50% !important;
+			pointer-events: none !important;
+			z-index: 99998 !important;
+			background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 215, 0, 0.6) 45%, transparent 70%);
+			transform: translate(-50%, -50%) scale(0.6);
+			animation: starFlashPulse 0.45s ease-out forwards !important;
+		}
+
+		@keyframes starFireworkBurst {
+			0% {
+				transform: translate(-50%, -50%) translate(0, 0) scale(1.2);
+				opacity: 1;
+				filter: brightness(2.2);
+			}
+			40% {
+				opacity: 1;
+				filter: brightness(1.8);
+			}
+			100% {
+				transform: translate(-50%, -50%) translate(var(--fx), var(--fy)) scale(0);
+				opacity: 0;
+				filter: brightness(1);
+			}
+		}
+
+		@keyframes starFlashPulse {
+			0% {
+				transform: translate(-50%, -50%) scale(0.6);
+				opacity: 1;
+			}
+			100% {
+				transform: translate(-50%, -50%) scale(2.2);
+				opacity: 0;
+			}
+		}
+
+		@keyframes starFireworkPulse {
+			0% {
+				transform: scale(1.18);
+			}
+			35% {
+				transform: scale(1.52);
+				filter: drop-shadow(0 0 14px #ffd700) drop-shadow(0 0 28px #ff9500);
+			}
+			70% {
+				transform: scale(1.25);
+			}
+			100% {
+				transform: scale(1.18);
+				filter: drop-shadow(0 0 8px #ffb700) drop-shadow(0 0 16px rgba(255, 183, 0, 0.85));
+			}
+		}
+
+		/* Explicitly suppress win celebration card report popup */
+		#win-celebration-card, .win-celebration-card {
+			display: none !important;
 		}
 
 		/* Bottom HUD Action Controls (Simplistic Title-Screen Style) */
@@ -798,34 +1129,56 @@
 								<stop offset="85%" stop-color="#f97316" />
 								<stop offset="100%" stop-color="#ec4899" />
 							</linearGradient>
-							<filter id="gaugeGlow" x="-20%" y="-20%" width="140%" height="140%">
-								<feGaussianBlur stdDeviation="2" result="blur" />
+							<!-- Glass curve crest specular gloss gradient -->
+							<linearGradient id="speedoGlassRidge" x1="0%" y1="0%" x2="100%" y2="0%">
+								<stop offset="0%" stop-color="rgba(255, 255, 255, 0.25)" />
+								<stop offset="30%" stop-color="rgba(255, 255, 255, 0.85)" />
+								<stop offset="50%" stop-color="rgba(255, 255, 255, 0.95)" />
+								<stop offset="70%" stop-color="rgba(255, 255, 255, 0.85)" />
+								<stop offset="100%" stop-color="rgba(255, 255, 255, 0.25)" />
+							</linearGradient>
+							<!-- Glass drop-shadow filter for the curve and lines -->
+							<filter id="speedoGlassShadow" x="-30%" y="-30%" width="160%" height="180%">
+								<feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.65" />
+								<feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.45" />
+							</filter>
+							<filter id="gaugeGlow" x="-30%" y="-30%" width="160%" height="160%">
+								<feGaussianBlur stdDeviation="2.2" result="blur" />
 								<feMerge>
 									<feMergeNode in="blur" />
 									<feMergeNode in="SourceGraphic" />
 								</feMerge>
 							</filter>
 						</defs>
-						<!-- Gauge background track -->
-						<path class="speedo-track" d="M 13.4 50 A 36.6 36.6 0 0 1 86.6 50" fill="none"
-							stroke="rgba(255,255,255,0.15)" stroke-width="5" stroke-linecap="round" />
-						<!-- Gauge active colored fill -->
+						<!-- Glass Curve Track (sculpted glass tube with ambient glass shadow, frosted body & specular sheen) -->
+						<g class="speedo-glass-track" filter="url(#speedoGlassShadow)">
+							<!-- 1. Dark translucent glass under-core (depth and refraction) -->
+							<path class="speedo-track-glass-bg" d="M 13.4 50 A 36.6 36.6 0 0 1 86.6 50" fill="none"
+								stroke="rgba(10, 16, 28, 0.45)" stroke-width="6.5" stroke-linecap="round" />
+							<!-- 2. Frosted glass body -->
+							<path class="speedo-track" d="M 13.4 50 A 36.6 36.6 0 0 1 86.6 50" fill="none"
+								stroke="rgba(255, 255, 255, 0.20)" stroke-width="5" stroke-linecap="round" />
+							<!-- 3. Glass crest reflection / specular ridge highlight -->
+							<path class="speedo-track-ridge" d="M 13.4 50 A 36.6 36.6 0 0 1 86.6 50" fill="none"
+								stroke="url(#speedoGlassRidge)" stroke-width="1.2" stroke-linecap="round" />
+						</g>
+						<!-- Gauge active colored fill (glows within the glass tube) -->
 						<path class="speedo-fill" id="speedo-fill" d="M 13.4 50 A 36.6 36.6 0 0 1 86.6 50" fill="none"
-							stroke="url(#speedoGrad)" stroke-width="5" stroke-linecap="round" stroke-dasharray="115"
+							stroke="url(#speedoGrad)" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="115"
 							stroke-dashoffset="115" filter="url(#gaugeGlow)" />
-						<!-- Tachometer Tick Divisions (subtle, clean) -->
-						<g class="speedo-ticks" stroke="rgba(255,255,255,0.30)" stroke-width="1.2"
-							stroke-linecap="round">
+						<!-- Tachometer Tick Divisions (laser-etched glass markings with shadows) -->
+						<g class="speedo-ticks" stroke="rgba(255,255,255,0.75)" stroke-width="1.4"
+							stroke-linecap="round" filter="drop-shadow(0 1.5px 2px rgba(0, 0, 0, 0.85))">
 							<line x1="16" y1="46" x2="20" y2="44" />
 							<line x1="28" y1="28" x2="32" y2="30" />
 							<line x1="50" y1="18" x2="50" y2="22" />
 							<line x1="72" y1="28" x2="68" y2="30" />
 							<line x1="84" y1="46" x2="80" y2="44" />
 						</g>
-						<!-- Glowing needle jewel bead (calibrated to glide cleanly along track) -->
-						<g id="speedo-needle-group" transform="rotate(-90 50 50)">
-							<circle cx="50" cy="13.4" r="3.2" fill="#ffffff" filter="url(#gaugeGlow)" />
-							<circle cx="50" cy="13.4" r="1.6" fill="#ffd700" />
+						<!-- Glowing needle jewel bead (calibrated to glide cleanly along glass track) -->
+						<g id="speedo-needle-group" transform="rotate(-90 50 50)" filter="drop-shadow(0 2px 4px rgba(0, 0, 0, 0.85))">
+							<circle cx="50" cy="13.4" r="3.4" fill="#ffffff" filter="url(#gaugeGlow)" />
+							<circle cx="50" cy="13.4" r="1.8" fill="#ffd700" />
 						</g>
 					</svg>
 					<div class="speedo-center-readout">
@@ -834,6 +1187,23 @@
 					</div>
 				</div>
 				<div class="speedo-sub-badge" id="speedo-sub-badge">CRUISE</div>
+
+				<!-- Dynamic Speed Milestone Stars (Directly Below Speedometer, Above 3D Board) -->
+				<div class="hud-star-track" id="hud-star-track" title="Solving Speed Stars (8 / 18 / 28 WPM)">
+					<div class="star-track-bar">
+						<div class="star-track-line-bg"></div>
+						<div class="star-track-line-fill" id="star-track-line-fill"></div>
+					</div>
+					<div class="star-track-node node-star-1 dim" id="star-node-1" data-star="1">
+						<svg class="star-track-svg" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" /></svg>
+					</div>
+					<div class="star-track-node node-star-2 dim" id="star-node-2" data-star="2">
+						<svg class="star-track-svg" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" /></svg>
+					</div>
+					<div class="star-track-node node-star-3 dim" id="star-node-3" data-star="3">
+						<svg class="star-track-svg" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" /></svg>
+					</div>
+				</div>
 
 				<!-- Top-Anchored End-of-Round Speed Highlight (Kept hidden to prevent clutter) -->
 				<div class="hud-win-speed-banner" id="hud-win-speed-banner" style="display: none !important;">
@@ -1077,8 +1447,8 @@
 		</div>
 	</div>
 
-	<!-- 3D Celebratory Win Star Card -->
-	<div id="win-celebration-card" class="win-celebration-card">
+	<!-- 3D Celebratory Win Star Card (Report popup suppressed per user request) -->
+	<div id="win-celebration-card" class="win-celebration-card" style="display: none !important;">
 		<div class="win-celeb-banner">CHAIN COMPLETED!</div>
 		<div class="win-celeb-level-title" id="win-celeb-level-title">LEVEL 1 • TENNIS</div>
 		<div class="win-celeb-record-badge" id="win-celeb-record-badge" style="display: none;">🏆 NEW RECORD!</div>
@@ -1101,11 +1471,11 @@
 	<!-- Legacy floating win-speed-card kept hidden for DOM ID compatibility -->
 	<div id="win-speed-card" class="win-speed-card" style="display: none !important;"></div>
 
-	<!-- Legacy floating NEXT button kept hidden to prevent duplicated buttons -->
-	<button id="btn-floating-next" class="tactile-next-btn" title="Next Level" style="display: none !important;">
+	<!-- 3D Tactile Floating NEXT Arrow Button (Smoothly pops up at bottom during win celebration to advance level) -->
+	<button id="btn-floating-next" class="tactile-next-btn" title="Next Level">
 		<div class="next-btn-inner">
-			<span class="next-arrow-icon">▶</span>
 			<span class="next-label">NEXT</span>
+			<span class="next-arrow-icon">▶</span>
 		</div>
 	</button>
 
@@ -1215,8 +1585,8 @@
 	<!-- Scripts -->
 	<script src="js/three.min.js"></script>
 	<script src="js/levels.js"></script>
-	<script src="js/wordscapes-scenery.js?v=16.0"></script>
-	<script src="js/word-chain-3d.js?v=8.0"></script>
+	<script src="js/wordscapes-scenery.js?v=17.0"></script>
+	<script src="js/word-chain-3d.js?v=12.0"></script>
 
 	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
 	<script>
