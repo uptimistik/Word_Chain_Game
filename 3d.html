@@ -567,9 +567,9 @@
 		/* Dynamic Speed Milestone Star Gauge (Directly Below Speedometer, Above Board) */
 		.hud-star-track {
 			position: relative;
-			width: 144px;
-			height: 34px;
-			margin-top: 4px;
+			width: 196px;
+			height: 44px;
+			margin-top: 5px;
 			display: block;
 			pointer-events: none;
 			user-select: none;
@@ -578,11 +578,11 @@
 
 		.star-track-bar {
 			position: absolute;
-			left: 14px;
-			right: 14px;
+			left: 18px;
+			right: 18px;
 			top: 50%;
 			transform: translateY(-50%);
-			height: 3px;
+			height: 4.5px;
 			pointer-events: none;
 			z-index: 1;
 		}
@@ -613,10 +613,10 @@
 		/* Pure 3D Three.js Star Canvas with Lighting & Glow */
 		.hud-star-3d-canvas {
 			position: absolute;
-			left: -20px;
-			top: -14px;
-			width: calc(100% + 40px);
-			height: calc(100% + 28px);
+			left: -34px;
+			top: -22px;
+			width: calc(100% + 68px);
+			height: calc(100% + 44px);
 			pointer-events: none;
 			z-index: 4;
 			overflow: visible;
@@ -625,8 +625,8 @@
 		.star-track-node {
 			position: absolute;
 			top: 50%;
-			width: 32px;
-			height: 32px;
+			width: 38px;
+			height: 38px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
@@ -637,7 +637,7 @@
 		}
 
 		.star-track-node.node-star-1 {
-			left: 14px;
+			left: 18px;
 		}
 
 		.star-track-node.node-star-2 {
@@ -645,7 +645,7 @@
 		}
 
 		.star-track-node.node-star-3 {
-			left: calc(100% - 14px);
+			left: calc(100% - 18px);
 		}
 
 		/* Ambient backing glow on lit nodes to complement Three.js lighting */
@@ -1650,8 +1650,8 @@
 	<!-- Scripts -->
 	<script src="js/three.min.js"></script>
 	<script src="js/levels.js"></script>
-	<script src="js/wordscapes-scenery.js?v=18.0"></script>
-	<script src="js/word-chain-3d.js?v=17.0"></script>
+	<script src="js/wordscapes-scenery.js?v=19.0"></script>
+	<script src="js/word-chain-3d.js?v=18.0"></script>
 
 	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
 	<script>

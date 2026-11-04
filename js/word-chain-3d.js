@@ -1703,12 +1703,49 @@
 		ambientLight: null,
 		sunLight: null,
 		rimLight: null,
+		topFillLight: null,
+		boardStarLight: null,
+		envTexture: null,
 		glowTexture: null,
 		flareTexture: null,
+		haloRingTexture: null,
 		trackEl: null,
-		canvasWidth: 184,
-		canvasHeight: 58,
+		canvasWidth: 264,
+		canvasHeight: 88,
 		dpr: 1,
+
+		createStudioEnvTexture: function () {
+			if (this.envTexture) return this.envTexture;
+			var c = document.createElement('canvas');
+			c.width = 256;
+			c.height = 128;
+			var ctx = c.getContext('2d');
+
+			// Base studio gradient from bright sky reflection to warm gold horizon & dark floor
+			var bg = ctx.createLinearGradient(0, 0, 0, 128);
+			bg.addColorStop(0.00, '#ffffff');
+			bg.addColorStop(0.18, '#fff4cc');
+			bg.addColorStop(0.42, '#fbbf24');
+			bg.addColorStop(0.50, '#1e293b');
+			bg.addColorStop(0.65, '#f59e0b');
+			bg.addColorStop(0.85, '#38bdf8');
+			bg.addColorStop(1.00, '#0f172a');
+			ctx.fillStyle = bg;
+			ctx.fillRect(0, 0, 256, 128);
+
+			// High-intensity specular studio softbox strips for crisp 3D facet reflections
+			ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+			ctx.fillRect(24, 10, 72, 22);
+			ctx.fillRect(148, 14, 84, 20);
+			ctx.fillStyle = 'rgba(255, 235, 150, 0.90)';
+			ctx.fillRect(40, 68, 95, 16);
+
+			var tex = new THREE.CanvasTexture(c);
+			tex.mapping = THREE.EquirectangularReflectionMapping;
+			tex.needsUpdate = true;
+			this.envTexture = tex;
+			return tex;
+		},
 
 		createFacetedStarGeometry: function (outerR, innerR, frontZ, backZ) {
 			var geom = new THREE.BufferGeometry();
@@ -1766,13 +1803,12 @@
 			c.width = 128;
 			c.height = 128;
 			var ctx = c.getContext('2d');
-			var grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-			grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
-			grad.addColorStop(0.18, 'rgba(255, 230, 110, 0.95)');
-			grad.addColorStop(0.38, 'rgba(255, 185, 10, 0.70)');
-			grad.addColorStop(0.60, 'rgba(255, 120, 0, 0.35)');
-			grad.addColorStop(0.82, 'rgba(255, 70, 0, 0.12)');
-			grad.addColorStop(1.0, 'rgba(255, 50, 0, 0.0)');
+			// Warm amber-gold backlight aura (never pure white so it never washes out the 5-pointed star silhouette)
+			var grad = ctx.createRadialGradient(64, 64, 6, 64, 64, 60);
+			grad.addColorStop(0.0, 'rgba(255, 195, 25, 0.72)');
+			grad.addColorStop(0.35, 'rgba(255, 155, 10, 0.45)');
+			grad.addColorStop(0.68, 'rgba(245, 110, 0, 0.18)');
+			grad.addColorStop(1.0, 'rgba(220, 75, 0, 0.0)');
 			ctx.fillStyle = grad;
 			ctx.fillRect(0, 0, 128, 128);
 			this.glowTexture = new THREE.CanvasTexture(c);
@@ -1790,40 +1826,27 @@
 			var ctx = c.getContext('2d');
 			var cx = 64, cy = 64;
 
-			var radGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 46);
-			radGrad.addColorStop(0.0, 'rgba(255, 255, 230, 0.9)');
-			radGrad.addColorStop(0.3, 'rgba(255, 200, 30, 0.5)');
-			radGrad.addColorStop(1.0, 'rgba(255, 140, 0, 0.0)');
-			ctx.fillStyle = radGrad;
-			ctx.beginPath();
-			ctx.arc(cx, cy, 46, 0, Math.PI * 2);
-			ctx.fill();
-
-			var hGrad = ctx.createLinearGradient(0, cy, 128, cy);
-			hGrad.addColorStop(0, 'rgba(255, 210, 50, 0)');
-			hGrad.addColorStop(0.5, 'rgba(255, 255, 240, 0.85)');
-			hGrad.addColorStop(1, 'rgba(255, 210, 50, 0)');
-			ctx.fillStyle = hGrad;
-			ctx.beginPath();
-			ctx.moveTo(0, cy);
-			ctx.lineTo(cx, cy - 3.5);
-			ctx.lineTo(128, cy);
-			ctx.lineTo(cx, cy + 3.5);
-			ctx.closePath();
-			ctx.fill();
-
-			var vGrad = ctx.createLinearGradient(cx, 0, cx, 128);
-			vGrad.addColorStop(0, 'rgba(255, 210, 50, 0)');
-			vGrad.addColorStop(0.5, 'rgba(255, 255, 240, 0.85)');
-			vGrad.addColorStop(1, 'rgba(255, 210, 50, 0)');
-			ctx.fillStyle = vGrad;
-			ctx.beginPath();
-			ctx.moveTo(cx, 0);
-			ctx.lineTo(cx - 3.5, cy);
-			ctx.lineTo(cx, 128);
-			ctx.lineTo(cx + 3.5, cy);
-			ctx.closePath();
-			ctx.fill();
+			// Subtle golden rays extending behind the star tips
+			for (var r = 0; r < 4; r++) {
+				ctx.save();
+				ctx.translate(cx, cy);
+				ctx.rotate((r * Math.PI) / 4);
+				var rayLen = (r % 2 === 0) ? 58 : 40;
+				var rayThick = (r % 2 === 0) ? 2.8 : 1.8;
+				var rGrad = ctx.createLinearGradient(-rayLen, 0, rayLen, 0);
+				rGrad.addColorStop(0, 'rgba(255, 185, 20, 0)');
+				rGrad.addColorStop(0.5, 'rgba(255, 215, 70, 0.65)');
+				rGrad.addColorStop(1, 'rgba(255, 185, 20, 0)');
+				ctx.fillStyle = rGrad;
+				ctx.beginPath();
+				ctx.moveTo(-rayLen, 0);
+				ctx.lineTo(0, -rayThick);
+				ctx.lineTo(rayLen, 0);
+				ctx.lineTo(0, rayThick);
+				ctx.closePath();
+				ctx.fill();
+				ctx.restore();
+			}
 
 			this.flareTexture = new THREE.CanvasTexture(c);
 			this.flareTexture.generateMipmaps = false;
@@ -1840,8 +1863,8 @@
 
 			try {
 				var rect = this.canvas.getBoundingClientRect();
-				this.canvasWidth = Math.max(160, rect.width || 184);
-				this.canvasHeight = Math.max(48, rect.height || 58);
+				this.canvasWidth = Math.max(220, rect.width || 264);
+				this.canvasHeight = Math.max(68, rect.height || 88);
 				this.dpr = Math.min(window.devicePixelRatio || 1, 2);
 
 				this.renderer = new THREE.WebGLRenderer({
@@ -1857,60 +1880,64 @@
 				this.renderer.outputEncoding = THREE.sRGBEncoding;
 
 				this.scene = new THREE.Scene();
+				var envTex = this.createStudioEnvTexture();
+				this.scene.environment = envTex;
 
-				var fov = 40;
+				// Telephoto FOV (15 deg) eliminates wide-angle edge distortion on left/right 3D stars
+				var fov = 15;
 				var fovRad = THREE.MathUtils.degToRad(fov);
 				var camZ = (this.canvasHeight / 2) / Math.tan(fovRad / 2);
-				this.camera = new THREE.PerspectiveCamera(fov, this.canvasWidth / this.canvasHeight, 0.1, 1000);
+				this.camera = new THREE.PerspectiveCamera(fov, this.canvasWidth / this.canvasHeight, 1, 2000);
 				this.camera.position.set(0, 0, camZ);
 				this.camera.lookAt(0, 0, 0);
 
-				// 1. Ambient Light
-				this.ambientLight = new THREE.AmbientLight(0xffffff, 0.42);
+				// 1. Balanced Ambient Light (preserves deep shadow facets on the 3D star)
+				this.ambientLight = new THREE.AmbientLight(0xffffff, 0.36);
 				this.scene.add(this.ambientLight);
 
-				// 2. Key Sun Directional Light (angled from top-left to highlight 3D facets)
-				this.sunLight = new THREE.DirectionalLight(0xfffaea, 1.35);
-				this.sunLight.position.set(-25, 45, 50);
+				// 2. Key Sun Directional Light (angled from top-left for sharp 10-facet contrast)
+				this.sunLight = new THREE.DirectionalLight(0xfff4d0, 1.15);
+				this.sunLight.position.set(-42, 52, 50);
 				this.scene.add(this.sunLight);
 
-				// 3. Cool Rim Directional Light
-				this.rimLight = new THREE.DirectionalLight(0x60a5fa, 0.38);
-				this.rimLight.position.set(30, -20, -15);
+				// 3. Warm Bronze Rim Light (bottom-right facet definition without washing out)
+				this.rimLight = new THREE.DirectionalLight(0xd97706, 0.45);
+				this.rimLight.position.set(38, -32, 20);
 				this.scene.add(this.rimLight);
 
-				// 4. Build 3D Stars, PointLights, and Light Glows
-				var starGeom = this.createFacetedStarGeometry(12.0, 5.4, 4.8, 3.2);
+				// 4. Build Crisp 5-Pointed 3D Stars + Dark Bronze Bevel Rim + Subtle Backlight Glow
+				var starGeom = this.createFacetedStarGeometry(13.0, 5.5, 6.2, 4.0);
+				var rimGeom = this.createFacetedStarGeometry(14.8, 6.4, 2.2, 2.2);
+
 				var glowTex = this.createGlowTexture();
 				var flareTex = this.createFlareTexture();
 
-				var glowGeom = new THREE.PlaneGeometry(44, 44);
-				var flareGeom = new THREE.PlaneGeometry(50, 50);
+				var glowGeom = new THREE.PlaneGeometry(42, 42);
+				var flareGeom = new THREE.PlaneGeometry(46, 46);
 
-				var defaultOffsets = [-58, 0, 58];
+				var defaultOffsets = [-80, 0, 80];
 
 				this.stars = [];
 				for (var i = 0; i < 3; i++) {
 					var baseX = defaultOffsets[i];
 
-					// Group for star + glow
 					var starGroup = new THREE.Group();
 					starGroup.position.set(baseX, 0, 0);
 
-					// Glowing halo quad
+					// A. Subtle Warm Golden Back-Aura strictly BEHIND the opaque 3D star (z = -6)
 					var glowMat = new THREE.MeshBasicMaterial({
 						map: glowTex,
 						transparent: true,
 						opacity: 0,
-						blending: THREE.AdditiveBlending,
+						blending: THREE.NormalBlending,
 						depthWrite: false
 					});
 					var glowMesh = new THREE.Mesh(glowGeom, glowMat);
-					glowMesh.position.set(0, 0, -1.8);
+					glowMesh.position.set(0, 0, -6.0);
 					glowMesh.scale.set(0.1, 0.1, 0.1);
 					starGroup.add(glowMesh);
 
-					// Celestial 4-pointed radiant ray flare
+					// B. Subtle Golden Starburst Rays strictly BEHIND the opaque 3D star (z = -5.5)
 					var flareMat = new THREE.MeshBasicMaterial({
 						map: flareTex,
 						transparent: true,
@@ -1919,33 +1946,55 @@
 						depthWrite: false
 					});
 					var flareMesh = new THREE.Mesh(flareGeom, flareMat);
-					flareMesh.position.set(0, 0, -1.5);
+					flareMesh.position.set(0, 0, -5.5);
 					flareMesh.scale.set(0.1, 0.1, 0.1);
 					starGroup.add(flareMesh);
 
-					// 3D Faceted Star Mesh
+					// C. Crisp 5-Pointed 3D Star Assembly (Dark Bevel Rim + 10-Facet 3D Star Body)
+					var bodyPivot = new THREE.Group();
+					starGroup.add(bodyPivot);
+
+					// Outer 5-pointed dark bevel border so the star silhouette is razor-sharp against any sky/snow!
+					var rimMat = new THREE.MeshStandardMaterial({
+						color: 0x1e293b,
+						roughness: 0.42,
+						metalness: 0.35,
+						envMap: envTex,
+						envMapIntensity: 0.5,
+						emissive: 0x000000,
+						emissiveIntensity: 0.0,
+						flatShading: true
+					});
+					var rimMesh = new THREE.Mesh(rimGeom, rimMat);
+					rimMesh.position.set(0, 0, -1.4);
+					bodyPivot.add(rimMesh);
+
+					// 10-Facet 3D Star Body (never clips to white; keeps distinct sunlit & shadowed 3D facets)
 					var starMat = new THREE.MeshStandardMaterial({
-						color: 0x222a38,
-						roughness: 0.45,
-						metalness: 0.80,
+						color: 0x64748b,
+						roughness: 0.34,
+						metalness: 0.36,
+						envMap: envTex,
+						envMapIntensity: 0.65,
 						emissive: 0x000000,
 						emissiveIntensity: 0.0,
 						flatShading: true
 					});
 					var starMesh = new THREE.Mesh(starGeom, starMat);
-					starMesh.scale.set(0.95, 0.95, 0.95);
-					starGroup.add(starMesh);
+					bodyPivot.add(starMesh);
 
-					// THREE.JS PointLight for this star (activated when milestone achieved)
-					var pLight = new THREE.PointLight(0xffbe1a, 0.0, 60, 1.4);
-					pLight.position.set(0, 0, 15);
+					// D. Controlled Warm Golden Three.js PointLight (highlights upper-left facets when activated)
+					var pLight = new THREE.PointLight(0xffb703, 0.0, 55, 1.6);
+					pLight.position.set(-8, 10, 18);
 					starGroup.add(pLight);
 
 					this.scene.add(starGroup);
 
 					this.stars.push({
 						group: starGroup,
+						bodyPivot: bodyPivot,
 						mesh: starMesh,
+						rimMesh: rimMesh,
 						light: pLight,
 						glowMesh: glowMesh,
 						flareMesh: flareMesh,
@@ -1954,9 +2003,16 @@
 						targetLit: 0.0,
 						isLit: false,
 						spinVelocity: 0.0,
-						popScale: 0.95,
+						popScale: 0.96,
 						pulseTimer: 0.0
 					});
+				}
+
+				// Attach a golden star point light to the main 3D game board scene
+				if (scene && !this.boardStarLight) {
+					this.boardStarLight = new THREE.PointLight(0xffcf40, 0.0, 22, 1.5);
+					this.boardStarLight.position.set(0, 4.5, -5.5);
+					scene.add(this.boardStarLight);
 				}
 
 				this.updatePositions();
@@ -1988,14 +2044,14 @@
 		onResize: function () {
 			if (!this.initialized || !this.canvas || !this.renderer) return;
 			var rect = this.canvas.getBoundingClientRect();
-			this.canvasWidth = Math.max(160, rect.width || 184);
-			this.canvasHeight = Math.max(48, rect.height || 58);
+			this.canvasWidth = Math.max(220, rect.width || 264);
+			this.canvasHeight = Math.max(68, rect.height || 88);
 			this.dpr = Math.min(window.devicePixelRatio || 1, 2);
 
 			this.renderer.setPixelRatio(this.dpr);
 			this.renderer.setSize(this.canvasWidth, this.canvasHeight, false);
 
-			var fov = 40;
+			var fov = 15;
 			var fovRad = THREE.MathUtils.degToRad(fov);
 			var camZ = (this.canvasHeight / 2) / Math.tan(fovRad / 2);
 			this.camera.aspect = this.canvasWidth / this.canvasHeight;
@@ -2013,18 +2069,23 @@
 				s.targetLit = 0.0;
 				s.litAmount = 0.0;
 				s.spinVelocity = 0.0;
-				s.popScale = 0.95;
+				s.popScale = 0.96;
 				s.pulseTimer = 0.0;
 				s.light.intensity = 0.0;
-				s.mesh.material.color.setHex(0x222a38);
+				s.mesh.material.color.setHex(0x64748b);
 				s.mesh.material.emissive.setHex(0x000000);
 				s.mesh.material.emissiveIntensity = 0.0;
-				s.mesh.material.roughness = 0.45;
-				s.mesh.material.metalness = 0.80;
+				s.mesh.material.roughness = 0.34;
+				s.mesh.material.metalness = 0.36;
+				s.rimMesh.material.color.setHex(0x1e293b);
+				s.rimMesh.material.emissiveIntensity = 0.0;
 				s.glowMesh.material.opacity = 0;
 				s.glowMesh.scale.set(0.1, 0.1, 0.1);
 				s.flareMesh.material.opacity = 0;
 				s.flareMesh.scale.set(0.1, 0.1, 0.1);
+			}
+			if (this.boardStarLight) {
+				this.boardStarLight.intensity = 0.0;
 			}
 		},
 
@@ -2039,13 +2100,13 @@
 				if (shouldBeLit && !s.isLit) {
 					s.isLit = true;
 					s.targetLit = 1.0;
-					// Ignition burst: 3D spin, scale pop, Three.js point light flash & glow bloom
+					// Crisp 3D spin & pop while preserving the 5-pointed star silhouette
 					s.spinVelocity = 14.0;
-					s.popScale = 1.45;
-					s.light.intensity = 5.2;
-					s.pulseTimer = 1.0;
-					s.glowMesh.scale.set(1.65, 1.65, 1.65);
-					s.flareMesh.scale.set(1.5, 1.5, 1.5);
+					s.popScale = 1.36;
+					s.light.intensity = 1.65;
+					s.pulseTimer = 0.85;
+					s.glowMesh.scale.set(1.25, 1.25, 1.25);
+					s.flareMesh.scale.set(1.2, 1.2, 1.2);
 				} else if (!shouldBeLit && s.isLit) {
 					s.isLit = false;
 					s.targetLit = 0.0;
@@ -2064,11 +2125,11 @@
 						if (!self.stars[idx]) return;
 						var s = self.stars[idx];
 						s.spinVelocity = 16.0;
-						s.popScale = 1.55;
-						s.light.intensity = 5.5;
-						s.pulseTimer = 1.2;
-						s.glowMesh.scale.set(1.8, 1.8, 1.8);
-						s.flareMesh.scale.set(1.6, 1.6, 1.6);
+						s.popScale = 1.42;
+						s.light.intensity = 1.85;
+						s.pulseTimer = 1.0;
+						s.glowMesh.scale.set(1.35, 1.35, 1.35);
+						s.flareMesh.scale.set(1.3, 1.3, 1.3);
 					}, idx * 190);
 				})(i);
 			}
@@ -2078,90 +2139,106 @@
 			if (!this.initialized) return;
 			var s = this.stars[starIndex];
 			if (!s) return;
-			s.spinVelocity = 9.0;
-			s.popScale = 1.35;
-			s.light.intensity = 4.8;
-			s.pulseTimer = 0.85;
-			s.glowMesh.scale.set(1.5, 1.5, 1.5);
-			s.flareMesh.scale.set(1.4, 1.4, 1.4);
+			s.spinVelocity = 9.5;
+			s.popScale = 1.28;
+			s.light.intensity = 1.6;
+			s.pulseTimer = 0.7;
+			s.glowMesh.scale.set(1.2, 1.2, 1.2);
+			s.flareMesh.scale.set(1.18, 1.18, 1.18);
 		},
 
 		render: function (now, dt) {
+			if (!this.initialized) this.init();
 			if (!this.initialized) return;
 			dt = Math.min(dt || 0.016, 0.05);
 
-			var dimColor = new THREE.Color(0x222a38);
-			var litColor = new THREE.Color(0xffd700);
+			var dimColor = new THREE.Color(0x64748b);
+			var litColor = new THREE.Color(0xffb700); // Rich 24K Gold (never washes out to white)
+			var dimRim = new THREE.Color(0x1e293b);
+			var litRim = new THREE.Color(0x6b2f02);   // Deep burnished bronze rim to keep 5-pointed star outline razor-sharp
+
+			var totalLitAmount = 0;
 
 			for (var i = 0; i < this.stars.length; i++) {
 				var s = this.stars[i];
 
 				// 1. Smooth interpolation of lit state
-				s.litAmount += (s.targetLit - s.litAmount) * Math.min(1.0, dt * 7.5);
+				s.litAmount += (s.targetLit - s.litAmount) * Math.min(1.0, dt * 8.0);
+				totalLitAmount += s.litAmount;
 
-				// 2. Dynamic 3D Material interpolation (metalness, roughness, emissive glow)
+				var breath = Math.sin(now * 0.004 + i * 1.5) * 0.06;
+
+				// 2. Dynamic 3D Material interpolation (preserving sharp 10-facet contrast!)
 				s.mesh.material.color.copy(dimColor).lerp(litColor, s.litAmount);
-				s.mesh.material.roughness = 0.45 - 0.29 * s.litAmount;
-				s.mesh.material.metalness = 0.80 + 0.12 * s.litAmount;
-				s.mesh.material.emissive.setHex(0xff8c00);
+				s.mesh.material.roughness = 0.34 - 0.08 * s.litAmount;
+				s.mesh.material.metalness = 0.36 - 0.04 * s.litAmount;
+				s.mesh.material.envMapIntensity = 0.65 + 0.15 * s.litAmount;
+				s.mesh.material.emissive.setHex(0x8a3800);
+				s.mesh.material.emissiveIntensity = Math.max(0, (0.18 + breath) * s.litAmount + s.pulseTimer * 0.25);
 
-				var breath = Math.sin(now * 0.0045 + i * 1.5) * 0.22;
-				s.mesh.material.emissiveIntensity = Math.max(0, (0.75 + breath) * s.litAmount + s.pulseTimer * 1.4);
+				s.rimMesh.material.color.copy(dimRim).lerp(litRim, s.litAmount);
+				s.rimMesh.material.emissive.setHex(0x3d1800);
+				s.rimMesh.material.emissiveIntensity = 0.12 * s.litAmount;
 
-				// 3. Three.js PointLight lighting when activated
+				// 3. Controlled Three.js PointLight when activated (highlights facets without clipping to white)
 				if (s.litAmount < 0.02) {
 					s.light.intensity = 0.0;
 				} else {
-					var targetLightInt = (2.5 + breath * 1.1) * s.litAmount;
-					s.light.intensity += (targetLightInt - s.light.intensity) * Math.min(1.0, dt * 5.0);
-					s.light.position.x = Math.sin(now * 0.003 + i * 1.4) * 3.5;
-					s.light.position.y = Math.cos(now * 0.0035 + i * 1.4) * 2.5;
-					s.light.position.z = 14.0 + Math.sin(now * 0.0025 + i) * 2.0;
+					var targetLightInt = (1.10 + breath * 0.8) * s.litAmount + s.pulseTimer * 0.6;
+					s.light.intensity += (targetLightInt - s.light.intensity) * Math.min(1.0, dt * 6.0);
+					s.light.position.x = -7.0 + Math.sin(now * 0.003 + i * 1.4) * 4.0;
+					s.light.position.y = 8.0 + Math.cos(now * 0.0035 + i * 1.4) * 3.0;
+					s.light.position.z = 18.0;
 				}
 
-				// 4. Radiant Light Glow (Additive Halo & Flare)
-				var glowBreath = Math.sin(now * 0.004 + i * 1.4) * 0.15;
-				s.glowMesh.material.opacity = Math.max(0, (0.80 + glowBreath) * s.litAmount + s.pulseTimer * 0.4);
-				var targetGlowScale = (1.0 + Math.sin(now * 0.0035 + i * 1.4) * 0.08) * (s.litAmount > 0.1 ? 1.0 : 0.1);
-				s.glowMesh.scale.x += (targetGlowScale - s.glowMesh.scale.x) * Math.min(1.0, dt * 6.0);
+				// 4. Subtle Warm Golden Back-Glow strictly behind the star
+				var glowBreath = Math.sin(now * 0.004 + i * 1.4) * 0.08;
+				s.glowMesh.material.opacity = Math.max(0, (0.48 + glowBreath) * s.litAmount + s.pulseTimer * 0.22);
+				var targetGlowScale = (0.98 + Math.sin(now * 0.0035 + i * 1.4) * 0.05) * (s.litAmount > 0.08 ? 1.0 : 0.1);
+				s.glowMesh.scale.x += (targetGlowScale - s.glowMesh.scale.x) * Math.min(1.0, dt * 6.5);
 				s.glowMesh.scale.y = s.glowMesh.scale.x;
 
-				s.flareMesh.rotation.z += (0.006 + s.spinVelocity * 0.04);
-				s.flareMesh.material.opacity = Math.max(0, 0.45 * s.litAmount + s.pulseTimer * 0.45);
-				var targetFlareScale = (1.0 + Math.sin(now * 0.003 + i) * 0.06) * (s.litAmount > 0.1 ? 1.0 : 0.1);
-				s.flareMesh.scale.x += (targetFlareScale - s.flareMesh.scale.x) * Math.min(1.0, dt * 6.0);
+				s.flareMesh.rotation.z += (0.005 + s.spinVelocity * 0.03);
+				s.flareMesh.material.opacity = Math.max(0, (0.32 + glowBreath * 0.4) * s.litAmount + s.pulseTimer * 0.25);
+				var targetFlareScale = (0.95 + Math.sin(now * 0.003 + i) * 0.05) * (s.litAmount > 0.08 ? 1.0 : 0.1);
+				s.flareMesh.scale.x += (targetFlareScale - s.flareMesh.scale.x) * Math.min(1.0, dt * 6.5);
 				s.flareMesh.scale.y = s.flareMesh.scale.x;
 
 				// 5. 3D Rotation, Tilt & Floating Physics
-				s.mesh.rotation.y += s.spinVelocity * dt;
-				s.spinVelocity = Math.max(0, s.spinVelocity - s.spinVelocity * 4.5 * dt);
+				s.bodyPivot.rotation.y += s.spinVelocity * dt;
+				s.spinVelocity = Math.max(0, s.spinVelocity - s.spinVelocity * 4.2 * dt);
 
-				var idleTiltY = Math.sin(now * 0.0022 + i * 1.8) * 0.20;
-				var idleTiltX = Math.cos(now * 0.0028 + i * 1.8) * 0.14;
-				var idleBobY = Math.sin(now * 0.0032 + i * 1.8) * 1.1;
+				var idleTiltY = Math.sin(now * 0.0024 + i * 1.8) * 0.24;
+				var idleTiltX = Math.cos(now * 0.0029 + i * 1.8) * 0.15;
+				var idleBobY = Math.sin(now * 0.0032 + i * 1.8) * 1.0;
 
 				if (s.litAmount < 0.1) {
-					idleTiltY *= 0.25;
-					idleTiltX = 0.08;
-					idleBobY = 0;
+					idleTiltY *= 0.45;
+					idleTiltX = 0.10 + Math.cos(now * 0.002 + i) * 0.05;
+					idleBobY *= 0.2;
 				}
 
-				s.mesh.rotation.x = idleTiltX;
+				s.bodyPivot.rotation.x = idleTiltX;
 				if (s.spinVelocity < 0.05) {
-					var curY = s.mesh.rotation.y % (Math.PI * 2);
-					s.mesh.rotation.y += (idleTiltY - curY) * Math.min(1.0, dt * 4.0);
+					var curY = s.bodyPivot.rotation.y % (Math.PI * 2);
+					s.bodyPivot.rotation.y += (idleTiltY - curY) * Math.min(1.0, dt * 4.5);
 				}
-				s.mesh.position.y = idleBobY;
+				s.bodyPivot.position.y = idleBobY;
 				s.glowMesh.position.y = idleBobY;
 				s.flareMesh.position.y = idleBobY;
 
 				// 6. Scale Pop decay
-				var targetScale = (s.litAmount > 0.5 ? 1.18 : 0.95);
+				var targetScale = (s.litAmount > 0.5 ? 1.15 : 0.96);
 				s.popScale += (targetScale - s.popScale) * Math.min(1.0, dt * 7.0);
-				s.mesh.scale.set(s.popScale, s.popScale, s.popScale);
+				s.bodyPivot.scale.set(s.popScale, s.popScale, s.popScale);
 
 				// 7. Pulse timer decay
-				s.pulseTimer = Math.max(0, s.pulseTimer - dt * 2.5);
+				s.pulseTimer = Math.max(0, s.pulseTimer - dt * 2.4);
+			}
+
+			// Illuminate top of main 3D game board when stars are activated
+			if (this.boardStarLight) {
+				this.boardStarLight.intensity = (totalLitAmount / 3.0) * 1.25;
 			}
 
 			this.renderer.render(this.scene, this.camera);

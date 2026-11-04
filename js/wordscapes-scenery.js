@@ -149,8 +149,9 @@
 	//   - soft cloud shadows drift over the hills and grass
 	//   - slowly rotating sun rays + gentle exposure "breathing"
 	// Rendered at <=30fps and capped resolution to stay cool on phones.
-	// All 5 photographic scenes enabled for HD live ambient animation:
-	var LIVE_SCENES = { sakura: true, volcano: true, snowtown: true, peaks: true, ocean: true };
+	// All photographic scenes enabled for HD live ambient animation except 'peaks',
+	// which renders as a true real-time Three.js 3D Alpine Ski Resort scene!
+	var LIVE_SCENES = { sakura: true, volcano: true, snowtown: true, peaks: false, ocean: true };
 
 	var live = {
 		supported: null,
@@ -466,114 +467,15 @@
 		'uniform vec2 uRes;',
 		'uniform vec2 uImg;',
 		'uniform float uTime;',
-		'uniform vec4 uSkiers[3];',
-		'uniform vec4 uSkierProps[3];',
 		'varying vec2 vUv;',
 		'',
 		'void main() {',
-		'  float t = uTime;',
 		'  float ca = uRes.x / uRes.y; float ia = uImg.x / uImg.y;',
 		'  vec2 s = vec2(1.0);',
 		'  if (ca > ia) { s.y = ia / ca; } else { s.x = ca / ia; }',
 		'  vec2 p = vec2(vUv.x, 1.0 - vUv.y);',
 		'  p = (p - 0.5) * s + 0.5;',
-		'',
 		'  vec3 col = texture2D(uTex, p).rgb;',
-		'',
-		'  // 1. High Alpine Wind & Ridge Spindrift (crystalline snow dust blowing across summit cols)',
-		'  float ridgeZone = smoothstep(0.18, 0.28, p.y) * (1.0 - smoothstep(0.38, 0.46, p.y));',
-		'  if (ridgeZone > 0.001) {',
-		'    float drift1 = 0.5 + 0.5 * sin(p.x * 22.0 - t * 0.45 + sin(p.y * 18.0));',
-		'    float drift2 = 0.5 + 0.5 * cos((p.x + p.y * 0.5) * 35.0 - t * 0.65);',
-		'    float spindrift = ridgeZone * pow(drift1 * drift2, 1.8) * 0.16;',
-		'    vec3 snowHaze = vec3(0.92, 0.95, 1.0);',
-		'    col = mix(col, snowHaze, spindrift);',
-		'  }',
-		'',
-		'  // 2. Dynamic Alpine Skiers carving down the pistes with powder spray plumes',
-		'  for (int i = 0; i < 3; i++) {',
-		'    vec4 sData = uSkiers[i];',
-		'    vec4 sProp = uSkierProps[i];',
-		'    float sActive = sProp.x;',
-		'    if (sActive > 0.01) {',
-		'      vec2 sPos = sData.xy;',
-		'      vec2 sDir = sData.zw;',
-		'      vec2 toPixel = p - sPos;',
-		'      float d = length(toPixel);',
-		'      float pScale = sProp.z;',
-		'      float colorId = sProp.y;',
-		'      float carveFactor = sProp.w;',
-		'',
-		'      // Normalized skier coordinate frame: forward along velocity & lateral',
-		'      vec2 fwd = normalize(sDir + vec2(1e-5, 0.0));',
-		'      vec2 lat = vec2(-fwd.y, fwd.x);',
-		'      float distFwd = dot(toPixel, fwd);',
-		'      float distLat = dot(toPixel, lat);',
-		'',
-		'      // A. Powder Snow Spray Plume behind & outside the carve',
-		'      vec2 sprayCenter = -fwd * (0.006 * pScale) + lat * (carveFactor * 0.005 * pScale);',
-		'      float sprayDist = length(toPixel - sprayCenter);',
-		'      float sprayRadius = 0.018 * pScale;',
-		'      if (sprayDist < sprayRadius && distFwd < 0.002) {',
-		'        float sprayDensity = exp(-sprayDist * sprayDist / max(1e-6, 2.0 * pow(0.007 * pScale, 2.0))) * abs(carveFactor) * sActive * 0.75;',
-		'        col = mix(col, vec3(0.98, 0.99, 1.0), clamp(sprayDensity, 0.0, 0.85));',
-		'      }',
-		'',
-		'      // B. Skier Shadow (cast onto snow just behind skier)',
-		'      vec2 shadowOffset = vec2(0.002, 0.003) * pScale;',
-		'      float dShadow = length(toPixel - shadowOffset);',
-		'      float shadowRadius = 0.0045 * pScale;',
-		'      if (dShadow < shadowRadius) {',
-		'        float shadow = smoothstep(shadowRadius, shadowRadius * 0.2, dShadow) * sActive * 0.42;',
-		'        col *= (1.0 - shadow);',
-		'      }',
-		'',
-		'      // C. Skis (dark parallel slats aligned with carve direction)',
-		'      float skiLen = 0.009 * pScale;',
-		'      float skiWidth = 0.0018 * pScale;',
-		'      if (abs(distFwd) < skiLen * 0.5 && abs(distLat) < skiWidth * 1.5) {',
-		'        col = mix(col, vec3(0.12, 0.15, 0.20), sActive * 0.85);',
-		'      }',
-		'',
-		'      // D. Skier Body / High-Visibility Alpine Jacket',
-		'      float bodyRadius = 0.0040 * pScale;',
-		'      float dBody = length(toPixel + fwd * 0.001 * pScale);',
-		'      if (dBody < bodyRadius) {',
-		'        vec3 jacketCol = vec3(0.96, 0.18, 0.14);',
-		'        if (colorId > 0.5 && colorId < 1.5) jacketCol = vec3(0.10, 0.50, 0.98);',
-		'        else if (colorId >= 1.5) jacketCol = vec3(1.0, 0.76, 0.08);',
-		'        float bodyShade = smoothstep(bodyRadius, bodyRadius * 0.2, dBody) * sActive;',
-		'        col = mix(col, jacketCol, bodyShade);',
-		'      }',
-		'',
-		'      // E. Skier Helmet (high-contrast white/black dome)',
-		'      float headRadius = 0.0022 * pScale;',
-		'      float dHead = length(toPixel - fwd * 0.0025 * pScale);',
-		'      if (dHead < headRadius) {',
-		'        col = mix(col, vec3(0.95, 0.95, 0.98), sActive);',
-		'      }',
-		'    }',
-		'  }',
-		'',
-		'  // 3. Delicate Alpine Crystalline Powder Sparkles on sunlit slopes',
-		'  if (p.y > 0.35 && p.y < 0.82) {',
-		'    float snowLum = dot(col, vec3(0.299, 0.587, 0.114));',
-		'    if (snowLum > 0.72) {',
-		'      float sparkle = pow(max(0.0, sin(t * 3.0 + p.x * 55.0 + p.y * 65.0)), 24.0) * 0.22;',
-		'      col += vec3(sparkle * (snowLum - 0.72) * 3.5);',
-		'    }',
-		'  }',
-		'',
-		'  // 4. Subtle Alpine Atmospheric Depth (recessed shadow cols have soft cool mountain haze)',
-		'  float depthCol = smoothstep(0.40, 0.75, p.y);',
-		'  vec3 coolHaze = vec3(0.74, 0.82, 0.94);',
-		'  col = mix(col, col * coolHaze, (1.0 - col.r) * depthCol * 0.12);',
-		'',
-		'  // Rich contrast & deep night-sky saturation',
-		'  float sLuma = dot(col, vec3(0.299, 0.587, 0.114));',
-		'  col = mix(vec3(sLuma), col, 1.18);',
-		'  col = pow(max(vec3(0.0), col), vec3(1.04));',
-		'',
 		'  gl_FragColor = vec4(col, 1.0);',
 		'}'
 	].join('\n');
@@ -1260,8 +1162,877 @@
 	}
 
 	if (typeof window !== 'undefined' && window.addEventListener) {
-		window.addEventListener('resize', liveResize);
-		window.addEventListener('orientationchange', function () { setTimeout(liveResize, 250); });
+		window.addEventListener('resize', function () {
+			liveResize();
+			peaks3DResize();
+		});
+		window.addEventListener('orientationchange', function () {
+			setTimeout(function () {
+				liveResize();
+				peaks3DResize();
+			}, 250);
+		});
+	}
+
+	// --------------------------------------------------------------------------
+	// REAL-TIME THREE.JS 3D ALPINE CHAIRLIFT OVER SEA OF CLOUDS (MOBILE PORTRAIT)
+	// Inspired by High-Mountain Golden-Hour Vista Over a Sea of Valley Clouds:
+	// - Framed specifically for 9:16 Mobile Portrait (with responsive frustum scaling)
+	// - Saturated azure sky & warm golden afternoon sunlight
+	// - Undulating, slowly drifting 3D Sea of Clouds filling the upper-mid valley
+	// - Deep cobalt-shadowed left forested ridge & warm sunlit right powder bowl
+	// - Diagonal 3D Quad Chairlift (bottom-left steel lattice tower to top-right sky)
+	//   with 4 seated colorful 3D skiers ascending & empty chairs descending
+	// --------------------------------------------------------------------------
+	var peaks3D = {
+		initialized: false,
+		active: false,
+		canvas: null,
+		renderer: null,
+		scene: null,
+		camera: null,
+		width: 0,
+		height: 0,
+		startTime: 0,
+		liftGroup: null,
+		upChairs: [],
+		downChairs: [],
+		sheaveWheels: [],
+		cloudRows: [],
+		trees: [],
+		skiers: [],
+		snowSystem: null
+	};
+
+	function peaksValleyHeightAt(x, z) {
+		var depthProgress = Math.max(0, Math.min(1.2, (16.0 - z) / 62.0));
+		var valleyFloor = 13.0 - depthProgress * 10.5;
+		var leftShoulder = Math.max(0, (-x + 2.0) / 14.0);
+		var leftRidge = Math.pow(leftShoulder, 1.25) * (9.5 - depthProgress * 2.5);
+		var rightBowl = Math.max(0, (x - 0.5) / 14.0) * 3.8 + Math.exp(-Math.pow((x - 4.2) / 5.5, 2)) * 2.4;
+		var undulation =
+			Math.sin(x * 0.24 + z * 0.16) * 0.65 +
+			Math.cos(x * 0.38 - z * 0.22) * 0.35;
+		return valleyFloor + leftRidge + rightBowl + undulation;
+	}
+
+	var PORTRAIT_LIFT_CABLE = {
+		x0: -6.2, y0: 3.4, z0: -28.0,
+		x1: -3.85, y1: 9.85, z1: -15.5,
+		x2: 2.35, y2: 27.6, z2: 10.5
+	};
+
+	function getPortraitLiftPoint(s, cableSide) {
+		s = Math.max(0, Math.min(1, s));
+		var c = PORTRAIT_LIFT_CABLE;
+		var towerS = 0.32;
+		var bx, by, bz, sag;
+
+		if (s <= towerS) {
+			var u0 = s / towerS;
+			bx = c.x0 + (c.x1 - c.x0) * u0;
+			by = c.y0 + (c.y1 - c.y0) * u0;
+			bz = c.z0 + (c.z1 - c.z0) * u0;
+			sag = Math.sin(u0 * Math.PI) * 0.28;
+		} else {
+			var u1 = (s - towerS) / (1.0 - towerS);
+			bx = c.x1 + (c.x2 - c.x1) * u1;
+			by = c.y1 + (c.y2 - c.y1) * u1;
+			bz = c.z1 + (c.z2 - c.z1) * u1;
+			sag = Math.sin(u1 * Math.PI) * 0.62;
+		}
+
+		var isDown = (cableSide > 0);
+		var xOff = isDown ? 1.18 : 0.0;
+		var yOff = isDown ? -0.92 : 0.0;
+		var zOff = isDown ? -0.35 : 0.0;
+
+		return {
+			x: bx + xOff,
+			y: by - sag + yOff,
+			z: bz + zOff
+		};
+	}
+
+	function createGoldenAlpineSkyTexture() {
+		var c = document.createElement('canvas');
+		c.width = 32;
+		c.height = 256;
+		var ctx = c.getContext('2d');
+		var grad = ctx.createLinearGradient(0, 0, 0, 256);
+		grad.addColorStop(0.00, '#1658c8');
+		grad.addColorStop(0.22, '#2b7de9');
+		grad.addColorStop(0.42, '#62aef9');
+		grad.addColorStop(0.56, '#b8dfff');
+		grad.addColorStop(0.68, '#ffe9c2');
+		grad.addColorStop(1.00, '#ffdca3');
+		ctx.fillStyle = grad;
+		ctx.fillRect(0, 0, 32, 256);
+		var tex = new THREE.CanvasTexture(c);
+		tex.generateMipmaps = false;
+		tex.minFilter = THREE.LinearFilter;
+		tex.magFilter = THREE.LinearFilter;
+		return tex;
+	}
+
+	function buildSnowyConiferTree(scale, isShadowSide, isGoldenAspen) {
+		var group = new THREE.Group();
+		var s = scale || 1.0;
+
+		var trunkMat = new THREE.MeshLambertMaterial({ color: 0x3d2817, flatShading: true });
+		var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09 * s, 0.16 * s, 0.75 * s, 5), trunkMat);
+		trunk.position.y = 0.37 * s;
+		group.add(trunk);
+
+		if (isGoldenAspen) {
+			var aspenMat = new THREE.MeshLambertMaterial({ color: 0xd9a05b, flatShading: true });
+			var crown = new THREE.Mesh(new THREE.ConeGeometry(0.62 * s, 2.2 * s, 6), aspenMat);
+			crown.position.y = 1.45 * s;
+			group.add(crown);
+			return group;
+		}
+
+		var pineColor = isShadowSide ? 0x1a3352 : 0x1e4a38;
+		var snowColor = isShadowSide ? 0x8fb3de : 0xfff5e4;
+		var foliageMat = new THREE.MeshLambertMaterial({ color: pineColor, flatShading: true });
+		var snowMat = new THREE.MeshLambertMaterial({ color: snowColor, flatShading: true });
+
+		var tiers = [
+			{ r: 0.85 * s, h: 1.25 * s, y: 1.05 * s },
+			{ r: 0.68 * s, h: 1.10 * s, y: 1.72 * s },
+			{ r: 0.48 * s, h: 0.95 * s, y: 2.32 * s },
+			{ r: 0.30 * s, h: 0.75 * s, y: 2.82 * s }
+		];
+		for (var i = 0; i < tiers.length; i++) {
+			var t = tiers[i];
+			var bough = new THREE.Mesh(new THREE.ConeGeometry(t.r, t.h, 6), foliageMat);
+			bough.position.y = t.y;
+			group.add(bough);
+
+			var frost = new THREE.Mesh(new THREE.ConeGeometry(t.r * 0.93, t.h * 0.56, 6), snowMat);
+			frost.position.y = t.y + t.h * 0.22;
+			frost.rotation.y = 0.35;
+			group.add(frost);
+		}
+		return group;
+	}
+
+	function buildQuadChairliftCarrier(hasPassengers, variantIdx) {
+		var root = new THREE.Group();
+
+		var galvSteelMat = new THREE.MeshStandardMaterial({
+			color: 0xcbd5e1,
+			roughness: 0.35,
+			metalness: 0.72,
+			flatShading: true
+		});
+		var darkSteelMat = new THREE.MeshStandardMaterial({
+			color: 0x334155,
+			roughness: 0.45,
+			metalness: 0.6,
+			flatShading: true
+		});
+		var seatPadMat = new THREE.MeshLambertMaterial({ color: 0x1e293b, flatShading: true });
+
+		// 1. Cable Grip & Roller Clamp Assembly at top (y = 0)
+		var gripBody = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.16, 0.38), galvSteelMat);
+		root.add(gripBody);
+		var gripWheelL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 8), darkSteelMat);
+		gripWheelL.rotation.z = Math.PI / 2;
+		gripWheelL.position.set(0, 0.05, -0.16);
+		root.add(gripWheelL);
+		var gripWheelR = gripWheelL.clone();
+		gripWheelR.position.set(0, 0.05, 0.16);
+		root.add(gripWheelR);
+
+		// 2. Curved Gooseneck Hanger Arm
+		var neckUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.88, 6), galvSteelMat);
+		neckUpper.position.set(0, -0.44, 0);
+		root.add(neckUpper);
+
+		var neckCurve = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.07, 0.07), galvSteelMat);
+		neckCurve.position.set(0, -0.88, 0);
+		root.add(neckCurve);
+
+		// 3. Quad Chair Bail Frame (wide enough for 4 skiers side-by-side)
+		var chairW = 1.92;
+		var topBail = new THREE.Mesh(new THREE.BoxGeometry(chairW, 0.065, 0.065), galvSteelMat);
+		topBail.position.set(0, -0.92, 0);
+		root.add(topBail);
+
+		var sideStrutGeom = new THREE.CylinderGeometry(0.032, 0.032, 1.05, 6);
+		var strutL = new THREE.Mesh(sideStrutGeom, galvSteelMat);
+		strutL.position.set(-chairW * 0.5, -1.44, 0);
+		root.add(strutL);
+
+		var strutR = new THREE.Mesh(sideStrutGeom, galvSteelMat);
+		strutR.position.set(chairW * 0.5, -1.44, 0);
+		root.add(strutR);
+
+		// Safety bar & armrests
+		var safetyBar = new THREE.Mesh(new THREE.BoxGeometry(chairW * 0.98, 0.04, 0.04), galvSteelMat);
+		safetyBar.position.set(0, -1.08, 0.14);
+		root.add(safetyBar);
+
+		// Seat bench & slatted backrest
+		var seatBench = new THREE.Mesh(new THREE.BoxGeometry(chairW * 0.96, 0.10, 0.44), seatPadMat);
+		seatBench.position.set(0, -1.94, 0.10);
+		root.add(seatBench);
+
+		var backFrame = new THREE.Mesh(new THREE.BoxGeometry(chairW * 0.96, 0.42, 0.06), galvSteelMat);
+		backFrame.position.set(0, -1.58, -0.10);
+		root.add(backFrame);
+
+		var seatUnderFrame = new THREE.Mesh(new THREE.BoxGeometry(chairW * 0.96, 0.06, 0.46), galvSteelMat);
+		seatUnderFrame.position.set(0, -2.01, 0.10);
+		root.add(seatUnderFrame);
+
+		// 4. If Ascending Chair: Add 4 Seated Colorful 3D Skiers Side-by-Side (matching reference image!)
+		if (hasPassengers) {
+			var outfits = [
+				{ jacket: 0x1b6ca8, pants: 0xb08942, helmet: 0x1e293b, goggles: 0x38bdf8, ski: 0xf43f5e, skiYaw: 0.06 },
+				{ jacket: 0xe85d2a, pants: 0x1e293b, helmet: 0x1e293b, goggles: 0xfbbf24, ski: 0x6366f1, skiYaw: -0.18 },
+				{ jacket: 0x6b2138, pants: 0x0f172a, helmet: 0x2563eb, goggles: 0xf472b6, ski: 0x0ea5e9, skiYaw: 0.22 },
+				{ jacket: 0x283822, pants: 0xc26d2d, helmet: 0x1e293b, goggles: 0xf97316, ski: 0x10b981, skiYaw: -0.05 }
+			];
+
+			for (var p = 0; p < 4; p++) {
+				var o = outfits[(p + (variantIdx || 0)) % outfits.length];
+				var px = -0.66 + p * 0.44;
+				var pGroup = new THREE.Group();
+				pGroup.position.set(px, -1.90, 0.08);
+
+				var jacketMat = new THREE.MeshLambertMaterial({ color: o.jacket, flatShading: true });
+				var pantMat = new THREE.MeshLambertMaterial({ color: o.pants, flatShading: true });
+				var helmetMat = new THREE.MeshLambertMaterial({ color: o.helmet, flatShading: true });
+				var goggleMat = new THREE.MeshLambertMaterial({ color: o.goggles });
+				var bootMat = new THREE.MeshLambertMaterial({ color: 0x0f172a });
+				var skiMat = new THREE.MeshLambertMaterial({ color: o.ski });
+
+				// Torso
+				var torso = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.46, 0.24), jacketMat);
+				torso.position.set(0, 0.26, -0.02);
+				pGroup.add(torso);
+
+				// Outstretched wave arm on leftmost skier (matching reference photo!)
+				if (p === 0) {
+					var waveArm = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.11), jacketMat);
+					waveArm.position.set(-0.32, 0.42, 0.02);
+					waveArm.rotation.z = 0.12;
+					pGroup.add(waveArm);
+				}
+
+				// Seated thighs & dangling lower legs
+				var thighL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.32), pantMat);
+				thighL.position.set(-0.09, 0.04, 0.12);
+				pGroup.add(thighL);
+				var thighR = thighL.clone();
+				thighR.position.set(0.09, 0.04, 0.12);
+				pGroup.add(thighR);
+
+				var shinL = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.36, 0.13), pantMat);
+				shinL.position.set(-0.09, -0.18, 0.24);
+				pGroup.add(shinL);
+				var shinR = shinL.clone();
+				shinR.position.set(0.09, -0.18, 0.24);
+				pGroup.add(shinR);
+
+				// Ski boots
+				var bootL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.22), bootMat);
+				bootL.position.set(-0.09, -0.38, 0.26);
+				pGroup.add(bootL);
+				var bootR = bootL.clone();
+				bootR.position.set(0.09, -0.38, 0.26);
+				pGroup.add(bootR);
+
+				// Angled twin 3D skis attached to boots
+				var skiGeom = new THREE.BoxGeometry(0.11, 0.035, 1.15);
+				var skiL = new THREE.Mesh(skiGeom, skiMat);
+				skiL.position.set(-0.10, -0.45, 0.30);
+				skiL.rotation.x = 0.16;
+				skiL.rotation.y = o.skiYaw;
+				pGroup.add(skiL);
+
+				var skiR = new THREE.Mesh(skiGeom, skiMat);
+				skiR.position.set(0.10, -0.45, 0.30);
+				skiR.rotation.x = 0.22;
+				skiR.rotation.y = -o.skiYaw * 0.8;
+				pGroup.add(skiR);
+
+				// Helmet & bright ski goggles
+				var helmet = new THREE.Mesh(new THREE.SphereGeometry(0.145, 8, 8), helmetMat);
+				helmet.position.set(0, 0.60, 0.0);
+				pGroup.add(helmet);
+
+				var goggles = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.075, 0.10), goggleMat);
+				goggles.position.set(0, 0.59, 0.11);
+				pGroup.add(goggles);
+
+				root.add(pGroup);
+			}
+		}
+
+		return root;
+	}
+
+	function build3DLatticeLiftTower() {
+		var towerGroup = new THREE.Group();
+		var galvMat = new THREE.MeshStandardMaterial({
+			color: 0xd8e2ef,
+			roughness: 0.35,
+			metalness: 0.72,
+			flatShading: true
+		});
+		var darkWheelMat = new THREE.MeshStandardMaterial({
+			color: 0x1e293b,
+			roughness: 0.4,
+			metalness: 0.6,
+			flatShading: true
+		});
+
+		// 1. Tapered 4-Legged Steel Lattice Tower Mast (from y = 0 down to y = -6.2)
+		var towerH = 6.2;
+		var legOffsets = [
+			[-1, -1], [1, -1], [-1, 1], [1, 1]
+		];
+		for (var l = 0; l < 4; l++) {
+			var lx = legOffsets[l][0];
+			var lz = legOffsets[l][1];
+			var leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, towerH, 6), galvMat);
+			leg.position.set(lx * 0.28, -towerH * 0.5, lz * 0.24);
+			leg.rotation.z = lx * 0.045;
+			leg.rotation.x = -lz * 0.035;
+			towerGroup.add(leg);
+		}
+
+		// Horizontal & diagonal X-bracing rungs along the lattice tower
+		var levels = 8;
+		for (var lv = 0; lv < levels; lv++) {
+			var ly = -0.35 - lv * 0.72;
+			var w = 0.44 + lv * 0.045;
+			var rungF = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, 0.04), galvMat);
+			rungF.position.set(0, ly, 0.22);
+			towerGroup.add(rungF);
+
+			var rungB = rungF.clone();
+			rungB.position.set(0, ly, -0.22);
+			towerGroup.add(rungB);
+
+			var diag = new THREE.Mesh(new THREE.BoxGeometry(w * 1.25, 0.035, 0.035), galvMat);
+			diag.position.set(0, ly - 0.34, 0.22);
+			diag.rotation.z = (lv % 2 === 0) ? 0.58 : -0.58;
+			towerGroup.add(diag);
+		}
+
+		// Maintenance ladder on tower side
+		var ladderRail = new THREE.Mesh(new THREE.BoxGeometry(0.03, towerH, 0.18), galvMat);
+		ladderRail.position.set(-0.36, -towerH * 0.5, 0);
+		towerGroup.add(ladderRail);
+
+		// 2. Top Cross-Arm Truss Bridge & Catwalk Railings
+		var crossArmW = 2.65;
+		var mainBeam = new THREE.Mesh(new THREE.BoxGeometry(crossArmW, 0.14, 0.26), galvMat);
+		mainBeam.position.set(0.55, 0.0, 0);
+		towerGroup.add(mainBeam);
+
+		var upperTrussBar = new THREE.Mesh(new THREE.BoxGeometry(crossArmW * 0.92, 0.08, 0.18), galvMat);
+		upperTrussBar.position.set(0.55, 0.48, 0);
+		towerGroup.add(upperTrussBar);
+
+		for (var st = -2; st <= 2; st++) {
+			var post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.50, 0.06), galvMat);
+			post.position.set(0.55 + st * 0.52, 0.24, 0);
+			towerGroup.add(post);
+		}
+
+		// 3. Multi-Wheel Sheave Assemblies (Left Uphill & Right Downhill Roller Trains)
+		var sheaveWheels = [];
+		var sides = [0.0, 1.18];
+		for (var sIdx = 0; sIdx < sides.length; sIdx++) {
+			var sx = sides[sIdx];
+			var sy = (sIdx === 0) ? 0.0 : -0.88;
+			var beam = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 1.65), galvMat);
+			beam.position.set(sx, sy, 0);
+			beam.rotation.x = -0.52;
+			towerGroup.add(beam);
+
+			for (var wIdx = -2; wIdx <= 2; wIdx++) {
+				var wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.08, 10), darkWheelMat);
+				wheel.rotation.z = Math.PI / 2;
+				wheel.position.set(sx, sy - wIdx * 0.15, wIdx * 0.26);
+				towerGroup.add(wheel);
+				sheaveWheels.push(wheel);
+			}
+		}
+
+		towerGroup.userData.sheaveWheels = sheaveWheels;
+		return towerGroup;
+	}
+
+	function peaks3DInit() {
+		if (peaks3D.initialized) return true;
+		if (typeof THREE === 'undefined') return false;
+		var container = document.getElementById('scenery-container');
+		if (!container) return false;
+
+		try {
+			var canvas = document.createElement('canvas');
+			canvas.id = 'scenery-peaks-3d-canvas';
+			canvas.className = 'scenery-peaks-3d-canvas';
+			var vignette = document.getElementById('scenery-vignette');
+			container.insertBefore(canvas, vignette || null);
+
+			var renderer = new THREE.WebGLRenderer({
+				canvas: canvas,
+				antialias: true,
+				alpha: false,
+				powerPreference: 'high-performance'
+			});
+			renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+			renderer.setClearColor(0x52a2f7, 1);
+			renderer.outputEncoding = THREE.sRGBEncoding;
+			if (typeof THREE.ACESFilmicToneMapping !== 'undefined') {
+				renderer.toneMapping = THREE.ACESFilmicToneMapping;
+				renderer.toneMappingExposure = 1.12;
+			}
+
+			var scene = new THREE.Scene();
+			scene.fog = new THREE.FogExp2(0xffe8c2, 0.0024);
+
+			var camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.5, 450);
+
+			peaks3D.canvas = canvas;
+			peaks3D.renderer = renderer;
+			peaks3D.scene = scene;
+			peaks3D.camera = camera;
+			peaks3D.startTime = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+			// 1. Saturated Golden-Hour Alpine Sky Dome
+			var skyDome = new THREE.Mesh(
+				new THREE.SphereGeometry(280, 24, 16),
+				new THREE.MeshBasicMaterial({
+					map: createGoldenAlpineSkyTexture(),
+					side: THREE.BackSide,
+					fog: false,
+					depthWrite: false
+				})
+			);
+			skyDome.position.set(0, 14, -40);
+			scene.add(skyDome);
+
+			// 2. Warm Golden-Hour Sunlight & Deep Cobalt Alpine Shadow Fill
+			var hemiLight = new THREE.HemisphereLight(0xfff4dc, 0x2b4c7e, 0.88);
+			scene.add(hemiLight);
+
+			var dirSun = new THREE.DirectionalLight(0xffdf9e, 1.48);
+			dirSun.position.set(48, 36, -15);
+			scene.add(dirSun);
+
+			var cobaltFill = new THREE.DirectionalLight(0x4f86d6, 0.52);
+			cobaltFill.position.set(-42, 22, 18);
+			scene.add(cobaltFill);
+
+			// 3. Expansive 3D Sea of Valley Clouds (Upper-Middle of Mobile Portrait: y ~ 13.5, z = -38 to -165)
+			peaks3D.cloudRows = [];
+			var cloudPuffGeom = new THREE.IcosahedronGeometry(1.0, 2);
+			var cloudDeckMat = new THREE.MeshLambertMaterial({
+				color: 0xfff6e6,
+				emissive: 0x3b4d70,
+				emissiveIntensity: 0.25,
+				flatShading: true
+			});
+			var cloudShadowMat = new THREE.MeshLambertMaterial({
+				color: 0x9cb8e3,
+				emissive: 0x253859,
+				emissiveIntensity: 0.22,
+				flatShading: true
+			});
+
+			// Base cloud sea floor so there are no gaps in the cloud ocean
+			var seaBase = new THREE.Mesh(
+				new THREE.PlaneGeometry(240, 140, 28, 18),
+				cloudDeckMat
+			);
+			seaBase.rotation.x = -Math.PI / 2;
+			seaBase.position.set(0, 12.8, -102);
+			scene.add(seaBase);
+
+			for (var row = 0; row < 8; row++) {
+				var rowGroup = new THREE.Group();
+				var rz = -39.0 - row * 15.5;
+				var ry = 13.0 + row * 0.22;
+				var puffsInRow = 14 + (row % 3) * 2;
+				for (var cp = 0; cp < puffsInRow; cp++) {
+					var cx = -56.0 + (cp / (puffsInRow - 1)) * 112.0 + Math.sin(row * 2.3 + cp) * 3.2;
+					var cy = Math.cos(cp * 1.4 + row) * 0.45;
+					var cz = Math.sin(cp * 1.9 - row) * 2.8;
+					var radX = 5.5 + (cp % 3) * 1.8 + row * 0.35;
+					var radY = 1.25 + (cp % 2) * 0.45;
+					var radZ = 4.2 + (row % 2) * 1.4;
+
+					var puff = new THREE.Mesh(
+						cloudPuffGeom,
+						(cp + row) % 3 === 0 ? cloudShadowMat : cloudDeckMat
+					);
+					puff.position.set(cx, cy, cz);
+					puff.scale.set(radX, radY, radZ);
+					rowGroup.add(puff);
+				}
+				rowGroup.position.set(0, ry, rz);
+				scene.add(rowGroup);
+				peaks3D.cloudRows.push({
+					group: rowGroup,
+					baseY: ry,
+					speed: (row % 2 === 0 ? 1 : -1) * (0.28 + (row % 3) * 0.12),
+					phase: row * 1.1
+				});
+			}
+
+			// Distant snow-capped horizon range barely peeking above the sea of clouds (top horizon)
+			var horizonGeom = new THREE.PlaneGeometry(260, 18, 64, 4);
+			var hPos = horizonGeom.getAttribute('position');
+			for (var hi = 0; hi < hPos.count; hi++) {
+				var hx = hPos.getX(hi);
+				var hy = hPos.getY(hi);
+				if (hy > 0) {
+					var ridgeH = 1.8 + Math.sin(hx * 0.08) * 1.4 + Math.cos(hx * 0.19) * 0.9 + Math.abs(Math.sin(hx * 0.35)) * 1.1;
+					hPos.setY(hi, ridgeH);
+				}
+			}
+			horizonGeom.computeVertexNormals();
+			var horizonMat = new THREE.MeshLambertMaterial({ color: 0xfff0d4, flatShading: true });
+			var horizonMesh = new THREE.Mesh(horizonGeom, horizonMat);
+			horizonMesh.position.set(0, 16.2, -168);
+			scene.add(horizonMesh);
+
+			// 4. Sculpted 3D Mountain Ridges & Sunlit Ski Bowl (Lower Half of Mobile Portrait)
+			var valleyGeom = new THREE.PlaneGeometry(68, 60, 68, 56);
+			valleyGeom.rotateX(-Math.PI / 2);
+			var vPos = valleyGeom.getAttribute('position');
+			var vCols = new Float32Array(vPos.count * 3);
+
+			var colWarmSnow = new THREE.Color(0xfff3db);
+			var colGoldenSlope = new THREE.Color(0xfce0b0);
+			var colPeriwinkleTrack = new THREE.Color(0x6e92c9);
+			var colDeepCobaltShadow = new THREE.Color(0x213a63);
+			var tmpColor = new THREE.Color();
+
+			for (var vi = 0; vi < vPos.count; vi++) {
+				var vx = vPos.getX(vi);
+				var vz = vPos.getZ(vi) - 14.0; // spans from z = +16 back to z = -44
+				var vy = peaksValleyHeightAt(vx, vz);
+				vPos.setXYZ(vi, vx, vy, vz);
+
+				// Dramatic diagonal shadow boundary casting deep cobalt shadow across the left ridge
+				// and warm golden afternoon snow light across the right slope (matching sample image!)
+				var shadowBoundaryX = -1.2 + (vz + 20.0) * 0.14 + Math.sin(vz * 0.25) * 1.1;
+				if (vx < shadowBoundaryX) {
+					var sBlend = Math.min(1.0, (shadowBoundaryX - vx) / 4.5);
+					tmpColor.copy(colPeriwinkleTrack).lerp(colDeepCobaltShadow, sBlend * 0.85);
+				} else if (vz > 2.0 && vx < 1.8) {
+					// Blue-shadowed groomer catwalk track at bottom-left foreground
+					tmpColor.copy(colPeriwinkleTrack).lerp(colWarmSnow, 0.35);
+				} else {
+					var sunWave = 0.5 + 0.5 * Math.sin(vx * 0.32 + vz * 0.22);
+					tmpColor.copy(colWarmSnow).lerp(colGoldenSlope, sunWave * 0.55);
+				}
+
+				vCols[vi * 3] = tmpColor.r;
+				vCols[vi * 3 + 1] = tmpColor.g;
+				vCols[vi * 3 + 2] = tmpColor.b;
+			}
+			valleyGeom.setAttribute('color', new THREE.BufferAttribute(vCols, 3));
+			valleyGeom.computeVertexNormals();
+
+			var valleyMesh = new THREE.Mesh(
+				valleyGeom,
+				new THREE.MeshStandardMaterial({
+					vertexColors: true,
+					roughness: 0.65,
+					metalness: 0.04,
+					flatShading: true
+				})
+			);
+			scene.add(valleyMesh);
+
+			// 5. Dense Snow-Frosted 3D Conifer Forest, Golden Aspens & Foreground Right Snow Pines
+			peaks3D.trees = [];
+			for (var tIdx = 0; tIdx < 115; tIdx++) {
+				var s1 = Math.sin(tIdx * 12.9898 + 0.7) * 43758.5453;
+				var r1 = s1 - Math.floor(s1);
+				var s2 = Math.sin(tIdx * 78.233 + 2.1) * 43758.5453;
+				var r2 = s2 - Math.floor(s2);
+
+				var tx, tz, tScale, isShadow, isAspen = false;
+				if (tIdx < 62) {
+					// Dense snow-frosted forest covering the shadowed left ridge & valley
+					tx = -1.8 - r1 * 16.5;
+					tz = 6.0 - r2 * 44.0;
+					tScale = 0.58 + r1 * 0.45;
+					isShadow = true;
+					if (tIdx > 48 && tz > -16.0 && tx > -7.5) {
+						isAspen = true; // Warm golden-tan aspen grove at the valley base
+					}
+				} else if (tIdx < 102) {
+					// Scattered sunlit snow-frosted trees on the right ski slope glades
+					tx = 0.5 + r1 * 15.5;
+					tz = -4.0 - r2 * 34.0;
+					tScale = 0.52 + r2 * 0.42;
+					isShadow = false;
+				} else {
+					// Prominent heavily snow-frosted 3D conifers in the bottom-right foreground!
+					tx = 1.6 + (tIdx - 102) * 0.85 + (r1 - 0.5) * 0.5;
+					tz = 8.5 + (r2 - 0.5) * 3.8;
+					tScale = 0.95 + (r1 * 0.55);
+					isShadow = (tIdx % 2 === 0);
+				}
+
+				var ty = peaksValleyHeightAt(tx, tz) - 0.12;
+				var treeMesh = buildSnowyConiferTree(tScale, isShadow, isAspen);
+				treeMesh.position.set(tx, ty, tz);
+				treeMesh.rotation.y = r2 * Math.PI * 2;
+				scene.add(treeMesh);
+
+				peaks3D.trees.push({
+					group: treeMesh,
+					phase: tIdx * 0.7,
+					speed: 1.3 + r1 * 0.7,
+					amp: 0.025 + r2 * 0.02
+				});
+			}
+
+			// 6. Hero Moving 3D Element: Diagonal Quad Chairlift (Bottom-Left Tower to Top-Right Sky)
+			var liftGroup = new THREE.Group();
+			scene.add(liftGroup);
+			peaks3D.liftGroup = liftGroup;
+
+			// Foreground-Left 3D Galvanized Steel Lattice Tower
+			var towerMesh = build3DLatticeLiftTower();
+			towerMesh.position.set(
+				PORTRAIT_LIFT_CABLE.x1,
+				PORTRAIT_LIFT_CABLE.y1,
+				PORTRAIT_LIFT_CABLE.z1
+			);
+			towerMesh.rotation.y = Math.atan2(
+				PORTRAIT_LIFT_CABLE.x2 - PORTRAIT_LIFT_CABLE.x0,
+				PORTRAIT_LIFT_CABLE.z2 - PORTRAIT_LIFT_CABLE.z0
+			);
+			liftGroup.add(towerMesh);
+			peaks3D.sheaveWheels = towerMesh.userData.sheaveWheels || [];
+
+			// Crisp Diagonal Uphill (Left) & Downhill (Right) Steel Haul Cables
+			var cableMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+			for (var cSide = 0; cSide <= 1; cSide++) {
+				var cPts = [];
+				for (var cs = 0; cs <= 48; cs++) {
+					var pt = getPortraitLiftPoint(cs / 48.0, cSide);
+					cPts.push(new THREE.Vector3(pt.x, pt.y, pt.z));
+				}
+				var curve = new THREE.CatmullRomCurve3(cPts);
+				var tubeGeom = new THREE.TubeGeometry(curve, 48, 0.026, 6, false);
+				liftGroup.add(new THREE.Mesh(tubeGeom, cableMat));
+			}
+
+			// Ascending Quad Chairs (Left/Upper Cable) with 4 Seated Colorful 3D Skiers
+			peaks3D.upChairs = [];
+			var numUpChairs = 4;
+			for (var uc = 0; uc < numUpChairs; uc++) {
+				var upChairMesh = buildQuadChairliftCarrier(true, uc);
+				liftGroup.add(upChairMesh);
+				peaks3D.upChairs.push({
+					mesh: upChairMesh,
+					offset: uc / numUpChairs,
+					swaySeed: uc * 1.9
+				});
+			}
+
+			// Descending Empty Quad Chairs (Right/Lower Cable)
+			peaks3D.downChairs = [];
+			var numDownChairs = 4;
+			for (var dc = 0; dc < numDownChairs; dc++) {
+				var dnChairMesh = buildQuadChairliftCarrier(false, dc);
+				liftGroup.add(dnChairMesh);
+				peaks3D.downChairs.push({
+					mesh: dnChairMesh,
+					offset: (dc + 0.45) / numDownChairs,
+					swaySeed: dc * 2.3 + 1.0
+				});
+			}
+
+			// 7. Distant Graceful 3D Skiers Carving on the Sunlit Right Powder Bowl
+			peaks3D.skiers = [];
+			var skierColors = [0xe63946, 0x1d3557, 0xf77f00, 0x06d6a0];
+			for (var skIdx = 0; skIdx < 4; skIdx++) {
+				var skGroup = new THREE.Group();
+				var skJacket = new THREE.Mesh(
+					new THREE.BoxGeometry(0.24, 0.34, 0.18),
+					new THREE.MeshLambertMaterial({ color: skierColors[skIdx] })
+				);
+				skJacket.position.y = 0.25;
+				skGroup.add(skJacket);
+
+				var skHead = new THREE.Mesh(
+					new THREE.SphereGeometry(0.10, 6, 6),
+					new THREE.MeshLambertMaterial({ color: 0x1e293b })
+				);
+				skHead.position.y = 0.48;
+				skGroup.add(skHead);
+
+				scene.add(skGroup);
+				peaks3D.skiers.push({
+					mesh: skGroup,
+					progress: skIdx * 0.25,
+					speed: 0.045 + (skIdx % 2) * 0.008,
+					laneX: 2.8 + (skIdx % 2) * 2.4
+				});
+			}
+
+			// 8. Subtle Glistening Golden-Hour Snow Motes in the Air
+			var snowCount = 75;
+			var snowGeom = new THREE.BufferGeometry();
+			var snowPos = new Float32Array(snowCount * 3);
+			for (var sn = 0; sn < snowCount; sn++) {
+				snowPos[sn * 3] = (Math.random() - 0.5) * 28.0;
+				snowPos[sn * 3 + 1] = 8.0 + Math.random() * 22.0;
+				snowPos[sn * 3 + 2] = 14.0 - Math.random() * 42.0;
+			}
+			snowGeom.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+			var snowMat = new THREE.PointsMaterial({
+				color: 0xfff8eb,
+				size: 0.28,
+				map: createParticleTexture('snow'),
+				transparent: true,
+				opacity: 0.65,
+				depthWrite: false
+			});
+			var snowSystem = new THREE.Points(snowGeom, snowMat);
+			scene.add(snowSystem);
+			peaks3D.snowSystem = snowSystem;
+
+			peaks3D.initialized = true;
+			peaks3DResize();
+			return true;
+		} catch (err) {
+			console.warn('[Peaks3D] Failed to initialize 3D Alpine Ski Scene:', err);
+			return false;
+		}
+	}
+
+	function peaks3DResize() {
+		if (!peaks3D.initialized || !peaks3D.renderer || !peaks3D.camera) return;
+		var w = window.innerWidth || 390;
+		var h = window.innerHeight || 844;
+		if (w === peaks3D.width && h === peaks3D.height) return;
+		peaks3D.width = w;
+		peaks3D.height = h;
+		peaks3D.renderer.setSize(w, h, false);
+		var aspect = w / h;
+		peaks3D.camera.aspect = aspect;
+		peaks3D.camera.fov = 48;
+		peaks3D.camera.updateProjectionMatrix();
+
+		// Scale horizontal X span of the diagonal chairlift proportionally if screen is wider than 9:16 portrait
+		if (peaks3D.liftGroup) {
+			var xScale = Math.max(0.95, Math.min(1.65, aspect / 0.52));
+			peaks3D.liftGroup.scale.set(xScale, 1.0, 1.0);
+		}
+	}
+
+	function peaks3DUpdate(dt, now) {
+		if (!peaks3D.active || !peaks3D.initialized) return;
+		var t = ((now - peaks3D.startTime) * 0.001);
+
+		// 1. Elevated High-Mountain Camera Looking Out Over the Sea of Clouds & Diagonal Chairlift
+		var camX = Math.sin(t * 0.22) * 0.35;
+		var camY = 24.0 + Math.cos(t * 0.18) * 0.25;
+		var camZ = 22.0 + Math.sin(t * 0.15) * 0.35;
+		peaks3D.camera.position.set(camX, camY, camZ);
+		peaks3D.camera.lookAt(camX * 0.3, 14.5, -35.0);
+
+		// 2. Spin Tower Sheave Wheels & Move Ascending/Descending 3D Quad Chairs Along Diagonal Cable
+		for (var sw = 0; sw < peaks3D.sheaveWheels.length; sw++) {
+			peaks3D.sheaveWheels[sw].rotation.x = t * 3.2;
+		}
+
+		var liftSpeed = 0.038;
+		// Ascending 4-skier quad chairs (moving from bottom-left valley s=0 up to top-right camera s=1)
+		for (var uc = 0; uc < peaks3D.upChairs.length; uc++) {
+			var uChair = peaks3D.upChairs[uc];
+			var sUp = (t * liftSpeed + uChair.offset) % 1.0;
+			var ptUp = getPortraitLiftPoint(sUp, 0);
+			uChair.mesh.position.set(ptUp.x, ptUp.y, ptUp.z);
+			// Face skiers toward camera/valley vista as they ride up (matching reference photo!)
+			uChair.mesh.rotation.y = -0.18 + Math.sin(t * 1.4 + uChair.swaySeed) * 0.04;
+			uChair.mesh.rotation.z = Math.sin(t * 2.1 + uChair.swaySeed) * 0.045;
+			uChair.mesh.rotation.x = Math.cos(t * 1.7 + uChair.swaySeed) * 0.03;
+		}
+
+		// Descending empty quad chairs (moving from top-right s=1 down to bottom-left s=0)
+		for (var dc = 0; dc < peaks3D.downChairs.length; dc++) {
+			var dChair = peaks3D.downChairs[dc];
+			var sDn = 1.0 - ((t * liftSpeed + dChair.offset) % 1.0);
+			var ptDn = getPortraitLiftPoint(sDn, 1);
+			dChair.mesh.position.set(ptDn.x, ptDn.y, ptDn.z);
+			dChair.mesh.rotation.y = -0.18 + Math.sin(t * 1.5 + dChair.swaySeed) * 0.04;
+			dChair.mesh.rotation.z = Math.sin(t * 2.2 + dChair.swaySeed) * 0.04;
+			dChair.mesh.rotation.x = Math.cos(t * 1.8 + dChair.swaySeed) * 0.025;
+		}
+
+		// 3. Undulate & Drift the 3D Sea of Valley Clouds
+		for (var cr = 0; cr < peaks3D.cloudRows.length; cr++) {
+			var rowObj = peaks3D.cloudRows[cr];
+			rowObj.group.position.x = Math.sin(t * 0.12 + rowObj.phase) * 3.5;
+			rowObj.group.position.y = rowObj.baseY + Math.cos(t * 0.45 + rowObj.phase) * 0.22;
+		}
+
+		// 4. Gentle Alpine Breeze in the Snow-Frosted 3D Conifer Trees
+		for (var ti = 0; ti < peaks3D.trees.length; ti++) {
+			var trObj = peaks3D.trees[ti];
+			trObj.group.rotation.z = Math.sin(t * trObj.speed + trObj.phase) * trObj.amp;
+		}
+
+		// 5. Distant 3D Skiers Carving S-Turns Down the Sunlit Lower-Right Powder Slope
+		for (var si = 0; si < peaks3D.skiers.length; si++) {
+			var sk = peaks3D.skiers[si];
+			sk.progress = (sk.progress + sk.speed * dt) % 1.0;
+			var sz = -26.0 + sk.progress * 32.0;
+			var sx = sk.laneX + Math.sin(sk.progress * Math.PI * 8.0 + si) * 1.35;
+			var sy = peaksValleyHeightAt(sx, sz);
+			sk.mesh.position.set(sx, sy, sz);
+			sk.mesh.rotation.y = Math.cos(sk.progress * Math.PI * 8.0 + si) * 0.55;
+			sk.mesh.rotation.z = -Math.sin(sk.progress * Math.PI * 8.0 + si) * 0.32;
+		}
+
+		// 6. Glistening Golden-Hour Snow Motes
+		if (peaks3D.snowSystem) {
+			var sPosAttr = peaks3D.snowSystem.geometry.getAttribute('position');
+			var sArr = sPosAttr.array;
+			for (var sn = 0; sn < sPosAttr.count; sn++) {
+				var idx = sn * 3;
+				sArr[idx] += Math.sin(t * 0.7 + sn) * 0.35 * dt;
+				sArr[idx + 1] -= (0.65 + (sn % 4) * 0.18) * dt;
+				if (sArr[idx + 1] < 8.0) {
+					sArr[idx + 1] = 29.0;
+				}
+			}
+			sPosAttr.needsUpdate = true;
+		}
+
+		peaks3D.renderer.render(peaks3D.scene, peaks3D.camera);
+	}
+
+	function peaks3DSetActive(isActive) {
+		if (isActive) {
+			if (peaks3DInit()) {
+				peaks3D.active = true;
+				peaks3DResize();
+				if (peaks3D.canvas) peaks3D.canvas.classList.add('active');
+				peaks3DUpdate(0.016, typeof performance !== 'undefined' ? performance.now() : Date.now());
+			}
+		} else {
+			peaks3D.active = false;
+			if (peaks3D.canvas) peaks3D.canvas.classList.remove('active');
+		}
 	}
 
 	// --------------------------------------------------------------------------
@@ -1897,11 +2668,11 @@
 			localStorage.setItem('word_chain_scenery', scId);
 		} catch (e) {}
 
-		// 1. Update DOM Photo Plates (Silky Smooth 1s Cross-Fade)
+		// 1. Update DOM Photo Plates (Silky Smooth 1s Cross-Fade; 'peaks' uses real-time Three.js 3D scene instead of a photo plate)
 		SCENERY_CYCLE_ORDER.forEach(function (key) {
 			var plate = document.getElementById('scenery-plate-' + key);
 			if (plate) {
-				if (key === scId) {
+				if (key === scId && scId !== 'peaks') {
 					plate.classList.add('active');
 				} else {
 					plate.classList.remove('active');
@@ -1915,14 +2686,17 @@
 			vignette.className = 'scenery-vignette ' + SCENERIES[scId].vignetteClass;
 		}
 
-		// 3. Update Ambient Glow (live scenes light themselves inside the shader)
+		// 3. Update Ambient Glow (live scenes and 3D peaks scene light themselves)
 		var glow = document.getElementById('scenery-ambient-glow');
 		if (glow) {
-			glow.className = 'scenery-ambient-glow' + (LIVE_SCENES[scId] ? '' : ' ' + SCENERIES[scId].glowClass);
+			glow.className = 'scenery-ambient-glow' + ((LIVE_SCENES[scId] || scId === 'peaks') ? '' : ' ' + SCENERIES[scId].glowClass);
 		}
 
-		// 3b. Live animated backdrop (WebGL) for supported scenes
+		// 3b. Live animated backdrop (WebGL) for supported 2D shader scenes
 		liveSetScene(scId);
+
+		// 3c. Real-Time Three.js 3D Alpine Ski Resort Scene for 'peaks'
+		peaks3DSetActive(scId === 'peaks');
 
 		// 4. Update Three.js 3D Lighting
 		applyLighting(scId);
@@ -1994,8 +2768,11 @@
 	function update(dt, now) {
 		dt = Math.min(dt || 0.016, 0.05);
 
-		// 0. Living backdrop (self-throttled to ~30fps)
+		// 0. Living backdrop (self-throttled to ~30fps) & Real-Time Three.js 3D Alpine Ski Resort
 		liveUpdate();
+		if (currentScenery === 'peaks') {
+			peaks3DUpdate(dt, now);
+		}
 
 		// 1. Update & Render Background Particles (BEHIND the 3D board)
 		if (PARTICLES_BEHIND_ENABLED) updateAndRenderBackgroundParticles(dt, now);

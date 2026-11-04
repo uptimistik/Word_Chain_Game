@@ -23,8 +23,8 @@ if [ ! -d "$ANDROID_SDK" ]; then
     exit 1
 fi
 
-# Locate latest build-tools
-BUILD_TOOLS_DIR=$(ls -d "$ANDROID_SDK/build-tools/"* 2>/dev/null | sort -V | tail -n 1)
+# Locate build-tools (prefer stable 35/34, fallback to latest)
+BUILD_TOOLS_DIR=$(ls -d "$ANDROID_SDK/build-tools/35."* "$ANDROID_SDK/build-tools/34."* "$ANDROID_SDK/build-tools/"* 2>/dev/null | head -n 1)
 if [ -z "$BUILD_TOOLS_DIR" ] || [ ! -d "$BUILD_TOOLS_DIR" ]; then
     echo "ERROR: No build-tools found in $ANDROID_SDK/build-tools" >&2
     exit 1
@@ -36,8 +36,8 @@ D8="$BUILD_TOOLS_DIR/d8"
 ZIPALIGN="$BUILD_TOOLS_DIR/zipalign"
 APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
 
-# Locate platform android.jar
-PLATFORM_DIR=$(ls -d "$ANDROID_SDK/platforms/android-"* 2>/dev/null | sort -V | tail -n 1)
+# Locate platform android.jar (prefer stable android-35 / android-34)
+PLATFORM_DIR=$(ls -d "$ANDROID_SDK/platforms/android-35" "$ANDROID_SDK/platforms/android-34" "$ANDROID_SDK/platforms/android-"* 2>/dev/null | head -n 1)
 ANDROID_JAR="$PLATFORM_DIR/android.jar"
 if [ ! -f "$ANDROID_JAR" ]; then
     echo "ERROR: android.jar not found at $ANDROID_JAR" >&2
@@ -91,8 +91,11 @@ echo "Compiling Java sources..."
 
 # 7. Convert bytecode to Dalvik (dex)
 echo "Converting bytecode to dex with d8..."
-CLASS_FILES=$(find "$BUILD_DIR/classes" -name "*.class")
-"$D8" --release --min-api 24 --output "$BUILD_DIR/dex" $CLASS_FILES
+CLASS_FILES=()
+while IFS= read -r f; do
+    CLASS_FILES+=("$f")
+done < <(find "$BUILD_DIR/classes" -name "*.class")
+"$D8" --release --min-api 26 --lib "$ANDROID_JAR" --output "$BUILD_DIR/dex" "${CLASS_FILES[@]}"
 
 # 8. Add classes.dex to APK
 echo "Adding classes.dex to APK..."

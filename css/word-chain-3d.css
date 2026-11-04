@@ -79,6 +79,24 @@ html, body {
 	opacity: 1;
 }
 
+/* Real-Time Three.js 3D Alpine Ski Resort Canvas (for 'peaks' scenery) */
+.scenery-peaks-3d-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	display: block;
+	opacity: 0;
+	transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+	pointer-events: none;
+	z-index: 1;
+}
+
+.scenery-peaks-3d-canvas.active {
+	opacity: 1;
+}
+
 /* Background Particle Canvas — Drift BEHIND the 3D playing board (z-index: 3, board is z-index: 1 on #canvas-container with scenery-container at z-index: 0) */
 .scenery-bg-canvas {
 	position: absolute;
@@ -1138,10 +1156,10 @@ html, body {
 /* 3D Three.js Star Canvas with Lighting & Glow */
 .hud-star-3d-canvas {
 	position: absolute;
-	left: -20px;
-	top: -14px;
-	width: calc(100% + 40px);
-	height: calc(100% + 28px);
+	left: -34px;
+	top: -22px;
+	width: calc(100% + 68px);
+	height: calc(100% + 44px);
 	pointer-events: none;
 	z-index: 4;
 	overflow: visible;

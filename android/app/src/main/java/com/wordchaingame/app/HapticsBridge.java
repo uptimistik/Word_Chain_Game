@@ -21,14 +21,24 @@ public class HapticsBridge {
     private final boolean hasAmplitudeControl;
 
     public HapticsBridge(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            VibratorManager vm = (VibratorManager) context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
-            this.vibrator = vm != null ? vm.getDefaultVibrator() : (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
-        } else {
-            this.vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+        Vibrator v = null;
+        boolean amp = false;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                VibratorManager vm = (VibratorManager) context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+                v = vm != null ? vm.getDefaultVibrator() : (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+            } else {
+                v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+            }
+            if (v != null && v.hasVibrator()) {
+                amp = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && v.hasAmplitudeControl());
+            }
+        } catch (Throwable ignored) {
+            v = null;
+            amp = false;
         }
-        this.hasAmplitudeControl = vibrator != null && vibrator.hasVibrator() &&
-                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && vibrator.hasAmplitudeControl());
+        this.vibrator = v;
+        this.hasAmplitudeControl = amp;
     }
 
     @JavascriptInterface
