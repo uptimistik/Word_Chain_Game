@@ -60,10 +60,10 @@
 			glowClass: 'scenery-glow-sakura',
 			particleType: 'petal',
 			lighting: {
-				ambient: { color: 0xfff6ee, intensity: 0.95 },
-				sun: { color: 0xfffaed, intensity: 0.90, pos: [4, 20, 10] },
-				fill: { color: 0xbfe3ff, intensity: 0.35, pos: [-8, 8, -6] },
-				point: { color: 0xfff0dd, intensity: 1.2, pos: [0, 4, -1] }
+				ambient: { color: 0xffefe4, intensity: 0.70 },
+				sun: { color: 0xfffaed, intensity: 1.10, pos: [4, 20, 10] },
+				fill: { color: 0xffd9e8, intensity: 0.40, pos: [-8, 8, -6] },
+				point: { color: 0xffe8cc, intensity: 1.4, pos: [0, 4, -1] }
 			}
 		},
 		volcano: {
@@ -75,10 +75,10 @@
 			glowClass: 'scenery-glow-volcano',
 			particleType: 'ember',
 			lighting: {
-				ambient: { color: 0x24222a, intensity: 0.92 },
-				sun: { color: 0xffcaa0, intensity: 0.75, pos: [2, 22, 8] },
-				fill: { color: 0x181a24, intensity: 0.35, pos: [-8, 8, -6] },
-				point: { color: 0xff8833, intensity: 0.85, pos: [0, 3.5, -3] }
+				ambient: { color: 0x4a1e12, intensity: 0.72 },
+				sun: { color: 0xffaa66, intensity: 1.15, pos: [2, 22, 8] },
+				fill: { color: 0x331008, intensity: 0.40, pos: [-8, 8, -6] },
+				point: { color: 0xff5500, intensity: 2.2, pos: [0, 3.5, -3] }
 			}
 		},
 		snowtown: {
@@ -90,10 +90,10 @@
 			glowClass: 'scenery-glow-snowtown',
 			particleType: 'snow',
 			lighting: {
-				ambient: { color: 0x263752, intensity: 0.88 },
-				sun: { color: 0x7c9ec8, intensity: 0.70, pos: [4, 18, 10] },
-				fill: { color: 0xffa834, intensity: 0.35, pos: [-6, 6, -10] },
-				point: { color: 0xffaa33, intensity: 1.8, pos: [0, 3.2, -2] }
+				ambient: { color: 0x303e5c, intensity: 0.70 },
+				sun: { color: 0x9ec0e6, intensity: 0.85, pos: [4, 18, 10] },
+				fill: { color: 0xffb355, intensity: 0.48, pos: [-6, 6, -10] },
+				point: { color: 0xffbb44, intensity: 2.0, pos: [0, 3.2, -2] }
 			}
 		},
 		peaks: {
@@ -105,10 +105,10 @@
 			glowClass: 'scenery-glow-peaks',
 			particleType: 'crystal',
 			lighting: {
-				ambient: { color: 0xdfefff, intensity: 0.96 },
-				sun: { color: 0xffffff, intensity: 1.05, pos: [5, 22, 8] },
-				fill: { color: 0x8ec2f6, intensity: 0.40, pos: [-8, 8, -6] },
-				point: { color: 0xe8f4ff, intensity: 1.2, pos: [0, 4, -1] }
+				ambient: { color: 0xd8ebfc, intensity: 0.72 },
+				sun: { color: 0xffffff, intensity: 1.15, pos: [5, 22, 8] },
+				fill: { color: 0xa4d4ff, intensity: 0.42, pos: [-8, 8, -6] },
+				point: { color: 0xfffaea, intensity: 1.2, pos: [0, 4, -1] }
 			}
 		},
 		ocean: {
@@ -120,10 +120,10 @@
 			glowClass: 'scenery-glow-ocean',
 			particleType: 'none',
 			lighting: {
-				ambient: { color: 0xfffcf5, intensity: 0.95 },
-				sun: { color: 0xfffaea, intensity: 1.05, pos: [4, 22, 10] },
-				fill: { color: 0xe8f2f8, intensity: 0.28, pos: [-8, 8, -6] },
-				point: { color: 0xfff5e6, intensity: 0.30, pos: [0, 4, -1] }
+				ambient: { color: 0xd6f7f7, intensity: 0.72 },
+				sun: { color: 0xfffbe8, intensity: 1.15, pos: [4, 20, 10] },
+				fill: { color: 0x76dddc, intensity: 0.42, pos: [-8, 8, -6] },
+				point: { color: 0xfff0c8, intensity: 1.3, pos: [0, 4, -1] }
 			}
 		}
 	};
@@ -228,8 +228,16 @@
 		'  vec3 add = sun * (rays * fall * 0.18 + glow);',
 		'  col = 1.0 - (1.0 - col) * (1.0 - add);',
 		'',
-		'  // Natural breathing exposure',
+		'  // Natural breathing exposure & rich vivid color grading',
 		'  col *= 1.0 + 0.025 * sin(t * 0.25);',
+		'  float luma = dot(col, vec3(0.299, 0.587, 0.114));',
+		'  col = mix(vec3(luma), col, 1.20);',
+		'  col = pow(max(vec3(0.0), col), vec3(1.04));',
+		'',
+		'  // Rich contrast & deep night-sky saturation',
+		'  float sLuma = dot(col, vec3(0.299, 0.587, 0.114));',
+		'  col = mix(vec3(sLuma), col, 1.18);',
+		'  col = pow(max(vec3(0.0), col), vec3(1.04));',
 		'',
 		'  gl_FragColor = vec4(col, 1.0);',
 		'}'
@@ -278,6 +286,16 @@
 		'  float lavaMask = smoothstep(0.12, 0.35, col.r - col.b) * smoothstep(0.68, 0.85, p.y);',
 		'  float lavaPulse = 0.18 * sin(t * 2.2 - p.y * 12.0 + p.x * 6.0);',
 		'  col += vec3(0.35, 0.12, 0.0) * lavaMask * (0.7 + lavaPulse);',
+		'',
+		'  // Deep obsidian blacks and rich magma saturation',
+		'  float vLuma = dot(col, vec3(0.299, 0.587, 0.114));',
+		'  col = mix(vec3(vLuma), col, 1.22);',
+		'  col = pow(max(vec3(0.0), col), vec3(1.06));',
+		'',
+		'  // Rich contrast & deep night-sky saturation',
+		'  float sLuma = dot(col, vec3(0.299, 0.587, 0.114));',
+		'  col = mix(vec3(sLuma), col, 1.18);',
+		'  col = pow(max(vec3(0.0), col), vec3(1.04));',
 		'',
 		'  gl_FragColor = vec4(col, 1.0);',
 		'}'
@@ -429,6 +447,11 @@
 		'    }',
 		'  }',
 		'',
+		'  // Rich contrast & deep night-sky saturation',
+		'  float sLuma = dot(col, vec3(0.299, 0.587, 0.114));',
+		'  col = mix(vec3(sLuma), col, 1.18);',
+		'  col = pow(max(vec3(0.0), col), vec3(1.04));',
+		'',
 		'  gl_FragColor = vec4(col, 1.0);',
 		'}'
 	].join('\n');
@@ -492,7 +515,7 @@
 		'      float sprayDist = length(toPixel - sprayCenter);',
 		'      float sprayRadius = 0.018 * pScale;',
 		'      if (sprayDist < sprayRadius && distFwd < 0.002) {',
-		'        float sprayDensity = exp(-sprayDist * sprayDist / (2.0 * pow(0.007 * pScale, 2.0))) * abs(carveFactor) * sActive * 0.75;',
+		'        float sprayDensity = exp(-sprayDist * sprayDist / max(1e-6, 2.0 * pow(0.007 * pScale, 2.0))) * abs(carveFactor) * sActive * 0.75;',
 		'        col = mix(col, vec3(0.98, 0.99, 1.0), clamp(sprayDensity, 0.0, 0.85));',
 		'      }',
 		'',
@@ -545,6 +568,11 @@
 		'  float depthCol = smoothstep(0.40, 0.75, p.y);',
 		'  vec3 coolHaze = vec3(0.74, 0.82, 0.94);',
 		'  col = mix(col, col * coolHaze, (1.0 - col.r) * depthCol * 0.12);',
+		'',
+		'  // Rich contrast & deep night-sky saturation',
+		'  float sLuma = dot(col, vec3(0.299, 0.587, 0.114));',
+		'  col = mix(vec3(sLuma), col, 1.18);',
+		'  col = pow(max(vec3(0.0), col), vec3(1.04));',
 		'',
 		'  gl_FragColor = vec4(col, 1.0);',
 		'}'
@@ -957,7 +985,7 @@
 		var dists = (pisteId === 1) ? peaksPisteDists1 : peaksPisteDists2;
 		var totalLen = (pisteId === 1) ? peaksPisteLen1 : peaksPisteLen2;
 
-		var targetDist = s * totalLen;
+		var targetDist = Math.max(0, Math.min(totalLen - 0.0001, s * totalLen));
 		var posX = wps[0][0], posY = wps[0][1], dirX = 0, dirY = 1;
 		for (var i = 0; i < dists.length - 1; i++) {
 			if (targetDist >= dists[i] && targetDist <= dists[i+1]) {
@@ -1055,6 +1083,7 @@
 		var prog = gl.createProgram();
 		gl.attachShader(prog, vs);
 		gl.attachShader(prog, fs);
+		gl.bindAttribLocation(prog, 0, 'aPos');
 		gl.linkProgram(prog);
 		if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
 			console.warn('[LiveBackdrop] program link failed for ' + scId + ':', gl.getProgramInfoLog(prog));
@@ -1160,8 +1189,8 @@
 		if (!live.canvas) return;
 		var cssW = window.innerWidth;
 		var cssH = window.innerHeight;
-		// Full retina / high-DPI resolution without downscaling
-		var dpr = Math.min(window.devicePixelRatio || 1, 3);
+		// Optimized 1.0 DPR for cool mobile thermals & locked 60FPS app performance
+		var dpr = 1.0;
 		var w = Math.round(cssW * dpr);
 		var h = Math.round(cssH * dpr);
 		if (w !== live.width || h !== live.height) {
@@ -1177,13 +1206,18 @@
 	function liveDraw(force) {
 		if (!live.gl || !live.texReady) return;
 		var now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-		// Locked 60 FPS rendering
-		if (!force && now - live.lastDraw < 14) return;
+		// Smooth 30 FPS background shader pacing to prevent thermal throttling and battery drain
+		if (!force && now - live.lastDraw < 32) return;
 		live.lastDraw = now;
 		var gl = live.gl;
 		var pInfo = liveGetProgram(currentScenery);
 		if (!pInfo) return;
 		gl.useProgram(pInfo.prog);
+		if (live.buf) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, live.buf);
+			gl.enableVertexAttribArray(0);
+			gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+		}
 
 		var t = ((now - live.startTime) * 0.001) % 7200.0;
 		gl.uniform2f(pInfo.uni.res, live.width, live.height);
@@ -1290,7 +1324,7 @@
 		if (!bgCanvas) return;
 		bgWidth = window.innerWidth;
 		bgHeight = window.innerHeight;
-		bgDpr = Math.min(window.devicePixelRatio || 1, 2);
+		bgDpr = 1.0;
 		bgCanvas.width = bgWidth * bgDpr;
 		bgCanvas.height = bgHeight * bgDpr;
 		bgCanvas.style.width = bgWidth + 'px';

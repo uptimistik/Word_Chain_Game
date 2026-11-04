@@ -30,6 +30,8 @@
 		audioBuffers: {},
 		musicTrack: null,
 		audioCtx: null,
+		isAppInBackground: false,
+		wasMusicPlaying: false,
 
 		init: function () {
 			var self = this;
@@ -38,13 +40,18 @@
 				try { self.audioCtx = new AudioContext(); } catch (e) {}
 			}
 
+			// Format detection: use .ogg where supported, fallback to .m4a for iOS WKWebView
+			var testAudio = new Audio();
+			var canOgg = testAudio.canPlayType && testAudio.canPlayType('audio/ogg').replace(/^no$/, '');
+			var ext = canOgg ? '.ogg' : '.m4a';
+
 			var soundFiles = {
-				tilehit: 'game/default/sounds/tilehit.ogg',
-				affirmation: 'game/default/sounds/Afirmation.ogg',
-				greatJob: 'game/default/sounds/Greatjobsoundeffect.ogg',
-				wrong: 'game/default/sounds/WrongWord.ogg',
-				thud: 'game/default/sounds/thud.ogg',
-				bell: 'game/default/sounds/freesound_community-bell-98033.ogg'
+				tilehit: 'game/default/sounds/tilehit' + ext,
+				affirmation: 'game/default/sounds/Afirmation' + ext,
+				greatJob: 'game/default/sounds/Greatjobsoundeffect' + ext,
+				wrong: 'game/default/sounds/WrongWord' + ext,
+				thud: 'game/default/sounds/thud' + ext,
+				bell: 'game/default/sounds/freesound_community-bell-98033' + ext
 			};
 
 			Object.keys(soundFiles).forEach(function (name) {
@@ -65,7 +72,6 @@
 			// Upbeat background music track from GameSalad (tuned to a balanced background volume)
 			try {
 				var bgm = new Audio();
-				var canOgg = bgm.canPlayType && bgm.canPlayType('audio/ogg').replace(/^no$/, '');
 				bgm.src = canOgg ? 'game/default/sounds/sub_clair-upbeat-587078.ogg'
 				                 : 'game/default/sounds/sub_clair-upbeat-587078.m4a';
 				bgm.loop = true;
@@ -83,10 +89,72 @@
 			window.addEventListener('pointerdown', unlock);
 			window.addEventListener('touchstart', unlock);
 			window.addEventListener('click', unlock);
+
+			// Automatic cut-off & resume on window focus / app lifecycle events
+			document.addEventListener('visibilitychange', function () {
+				if (document.hidden || document.visibilityState === 'hidden') {
+					self.onAppBackground();
+				} else {
+					self.onAppForeground();
+				}
+			});
+			window.addEventListener('pagehide', function () { self.onAppBackground(); });
+			window.addEventListener('pageshow', function () { self.onAppForeground(); });
+			window.addEventListener('blur', function () { self.onAppBackground(); });
+			window.addEventListener('focus', function () { self.onAppForeground(); });
+		},
+
+		onAppBackground: function () {
+			if (this.isAppInBackground) return;
+			this.isAppInBackground = true;
+
+			// 1. Suspend Web Audio context immediately to silence all sound effects
+			if (this.audioCtx && this.audioCtx.state === 'running') {
+				try { this.audioCtx.suspend(); } catch (e) {}
+			}
+
+			// 2. Pause background music track
+			if (this.musicTrack) {
+				if (!this.musicTrack.paused) {
+					this.wasMusicPlaying = true;
+					try { this.musicTrack.pause(); } catch (e) {}
+				} else {
+					this.wasMusicPlaying = false;
+				}
+			}
+
+			// 3. Pause any currently playing HTML5 audio sound effects
+			var self = this;
+			if (self.sounds) {
+				Object.keys(self.sounds).forEach(function (name) {
+					var snd = self.sounds[name];
+					if (snd && !snd.paused) {
+						try { snd.pause(); snd.currentTime = 0; } catch (e) {}
+					}
+				});
+			}
+		},
+
+		onAppForeground: function () {
+			if (!this.isAppInBackground) return;
+			this.isAppInBackground = false;
+
+			// 1. Resume Web Audio context
+			if (this.audioCtx && this.audioCtx.state === 'suspended') {
+				try { this.audioCtx.resume(); } catch (e) {}
+			}
+
+			// 2. Resume music if enabled and was playing before backgrounding
+			if (this.musicEnabled && this.musicTrack) {
+				if (this.wasMusicPlaying) {
+					var p = this.musicTrack.play();
+					if (p && p.catch) p.catch(function () {});
+				}
+			}
 		},
 
 		play: function (name, volume, pitch) {
-			if (!this.soundEnabled) return;
+			if (this.isAppInBackground || !this.soundEnabled) return;
 			var vol = (volume !== undefined ? volume : 1.0);
 
 			// Web Audio path: allows gain boost up to 2.0x and realistic acoustic pitch nuance
@@ -146,8 +214,10 @@
 			this.musicEnabled = !this.musicEnabled;
 			if (this.musicTrack) {
 				if (this.musicEnabled) {
+					this.wasMusicPlaying = true;
 					this.musicTrack.play().catch(function () {});
 				} else {
+					this.wasMusicPlaying = false;
 					this.musicTrack.pause();
 				}
 			}
@@ -161,6 +231,7 @@
 		},
 
 		unlockAudio: function () {
+			if (this.isAppInBackground) return;
 			var self = this;
 			if (!self.audioCtx) {
 				var AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -170,13 +241,83 @@
 				self.audioCtx.resume();
 			}
 			if (self.musicEnabled && self.musicTrack && self.musicTrack.paused) {
+				self.wasMusicPlaying = true;
 				self.musicTrack.play().catch(function () {});
+			}
+			// Prime native haptic engine on iOS for instant response
+			try {
+				var w = window.webkit;
+				if (w && w.messageHandlers && w.messageHandlers.haptics) {
+					w.messageHandlers.haptics.postMessage({ type: 'prime' });
+				}
+			} catch (eH) {}
+		},
+
+		haptic: function (ms, intensity, sharpness) {
+			var durationSec = (ms || 15) / 1000.0;
+			var i = (intensity !== undefined) ? intensity : Math.min(1.0, 0.45 + (ms || 15) * 0.015);
+			var s = (sharpness !== undefined) ? sharpness : 0.75;
+
+			// 1. iOS Core Haptics via WebKit Message Handler
+			try {
+				var w = window.webkit;
+				if (w && w.messageHandlers && w.messageHandlers.haptics) {
+					w.messageHandlers.haptics.postMessage({
+						type: 'pattern',
+						events: [{ t: 0.0, i: i, s: s, d: Math.min(0.12, durationSec) }]
+					});
+				}
+			} catch (e1) {}
+
+			// 2. Android Native Bridge via JavascriptInterface
+			try {
+				if (window.AndroidHaptics && typeof window.AndroidHaptics.postMessage === 'function') {
+					window.AndroidHaptics.postMessage(JSON.stringify({
+						type: 'pattern',
+						events: [{ t: 0.0, i: i, s: s, d: Math.min(0.12, durationSec) }]
+					}));
+				}
+			} catch (e2) {}
+
+			// 3. Web Vibration API fallback
+			if (navigator.vibrate) {
+				try { navigator.vibrate(ms || 15); } catch (e3) {}
 			}
 		},
 
-		haptic: function (ms) {
+		hapticPattern: function (events) {
+			if (!events || !events.length) return;
+			// 1. iOS Core Haptics
+			try {
+				var w = window.webkit;
+				if (w && w.messageHandlers && w.messageHandlers.haptics) {
+					w.messageHandlers.haptics.postMessage({
+						type: 'pattern',
+						events: events
+					});
+				}
+			} catch (e1) {}
+
+			// 2. Android Native Bridge
+			try {
+				if (window.AndroidHaptics && typeof window.AndroidHaptics.postMessage === 'function') {
+					window.AndroidHaptics.postMessage(JSON.stringify({
+						type: 'pattern',
+						events: events
+					}));
+				}
+			} catch (e2) {}
+
+			// 3. Web Vibration API fallback
 			if (navigator.vibrate) {
-				try { navigator.vibrate(ms || 12); } catch (e) {}
+				try {
+					var pattern = [];
+					events.forEach(function (ev) {
+						pattern.push(Math.round((ev.d || 0.02) * 1000));
+						pattern.push(Math.round((ev.t || 0.05) * 1000));
+					});
+					navigator.vibrate(pattern);
+				} catch (e3) {}
 			}
 		}
 	};
@@ -705,83 +846,82 @@
 			if (this.trayThemeTextures[theme]) return this.trayThemeTextures[theme];
 
 			if (theme === 'volcano') {
-				// VOLCANO THEME: Burnt slightly glowing charcoal instead of intense red!
-				// Deep matte charred timber with subtle smoldering hot-coal embers deep in the crevices.
-				// Feeder tray is ALWAYS distinct: rich emerald pine hardwood with champagne brass lip & emerald velvet felt!
+				// VOLCANO THEME: Rich roasted charred timber with vibrant glowing hot-coal embers!
+				// Deep obsidian mahogany with fiery smoldering veins and rich emerald pine staging rack.
 				this.trayThemeTextures.volcano = {
-					rackWood: this.getCharcoalTexture('#18181b', '#0a0a0c', '#e64a19', 0.04),
-					activeWood: this.getCharcoalTexture('#1a1a1e', '#08080a', '#ff6600', 0.24),
-					partnerWood: this.getCharcoalTexture('#18181b', '#08080a', '#e64a19', 0.14),
-					solvedWood: this.getCharcoalTexture('#151517', '#08080a', '#000000', 0.0),
-					dimmedWood: this.getCharcoalTexture('#131315', '#060608', '#000000', 0.0),
-					greenWood: this.getHardwoodTexture('#193424', '#0c1d14', '#2a523a'), // Distinct rich emerald pine hardwood
-					feltColor: 0x111114, // Dark volcanic ash felt
-					feederFeltColor: 0x0f291b, // Rich deep emerald velvet felt
-					activeEmissive: 0x992e00, // Subtle warm smoldering charcoal ember (NOT blinding red!)
-					activeEmissiveIntensity: 0.22,
-					partnerEmissive: 0x551800,
-					partnerEmissiveIntensity: 0.15,
-					chevronColor: 0xff9800,
-					chevronEmissive: 0x78350f,
+					rackWood: this.getCharcoalTexture('#241510', '#100805', '#ff5500', 0.12),
+					activeWood: this.getCharcoalTexture('#3a1a0c', '#180803', '#ff7700', 0.38),
+					partnerWood: this.getCharcoalTexture('#2c140a', '#120703', '#ff5500', 0.22),
+					solvedWood: this.getCharcoalTexture('#1e100a', '#0d0603', '#cc3e00', 0.08),
+					dimmedWood: this.getCharcoalTexture('#170d08', '#0a0402', '#000000', 0.0),
+					greenWood: this.getHardwoodTexture('#14422b', '#082315', '#226943'), // Distinct rich emerald pine hardwood
+					feltColor: 0x1a0f0a, // Rich deep roasted volcanic felt
+					feederFeltColor: 0x092e1a, // Rich deep emerald velvet felt
+					activeEmissive: 0xcc3e00, // Rich warm smoldering charcoal ember
+					activeEmissiveIntensity: 0.38,
+					partnerEmissive: 0x882500,
+					partnerEmissiveIntensity: 0.25,
+					chevronColor: 0xffaa00,
+					chevronEmissive: 0x993d00,
 					bracketVariant: 'darkTray',
-					rackRoughness: 0.88, // Dry matte charred wood
-					activeRoughness: 0.82,
-					partnerRoughness: 0.85,
-					solvedRoughness: 0.90,
-					dimmedRoughness: 0.92,
-					greenRoughness: 0.65
+					rackRoughness: 0.74,
+					activeRoughness: 0.64,
+					partnerRoughness: 0.68,
+					solvedRoughness: 0.76,
+					dimmedRoughness: 0.82,
+					greenRoughness: 0.60
 				};
 			} else if (theme === 'light') {
-				// LIGHT TRAYS & LETTER HOLDERS (Never white! Lighter shade of warm golden honey-oak / cedar wood with rich visible grain texture)
+				// LIGHT TRAYS & LETTER HOLDERS (Rich warm golden honey-oak with vivid natural wood grain)
 				// Feeder tray is ALWAYS distinct: rich deep forest evergreen hardwood!
 				this.trayThemeTextures.light = {
-					rackWood: this.getHardwoodTexture('#8e5b32', '#4e2c14', '#ad7340'),
-					activeWood: this.getHardwoodTexture('#9f6738', '#5a3318', '#bc8048'),
-					partnerWood: this.getHardwoodTexture('#965f34', '#522e15', '#b47842'),
-					solvedWood: this.getHardwoodTexture('#82522c', '#482610', '#9e6534'),
-					dimmedWood: this.getHardwoodTexture('#764926', '#3e1e0c', '#8e552a'),
-					greenWood: this.getHardwoodTexture('#1d3e2d', '#0f2619', '#2f5e43'), // Distinct deep forest evergreen
-					feltColor: 0x3c2414,
-					feederFeltColor: 0x10281b, // Emerald velvet
-					activeEmissive: 0x381e08,
-					activeEmissiveIntensity: 0.35,
-					partnerEmissive: 0x2e1806,
-					partnerEmissiveIntensity: 0.28,
+					rackWood: this.getHardwoodTexture('#b36c32', '#643614', '#d6863e'),
+					activeWood: this.getHardwoodTexture('#c5793a', '#74401a', '#e4954c'),
+					partnerWood: this.getHardwoodTexture('#ba7235', '#6b3a16', '#dc8d43'),
+					solvedWood: this.getHardwoodTexture('#a2602b', '#572d0f', '#c47634'),
+					dimmedWood: this.getHardwoodTexture('#8d5122', '#49230a', '#a86129'),
+					greenWood: this.getHardwoodTexture('#1d5236', '#0f2f1d', '#2d7850'), // Distinct deep forest evergreen
+					feltColor: 0x422412,
+					feederFeltColor: 0x0d331e, // Emerald velvet
+					activeEmissive: 0x4a2408,
+					activeEmissiveIntensity: 0.38,
+					partnerEmissive: 0x3d1c05,
+					partnerEmissiveIntensity: 0.30,
 					chevronColor: 0xf59e0b,
 					chevronEmissive: 0x78350f,
 					bracketVariant: 'lightTray',
-					rackRoughness: 0.70,
-					activeRoughness: 0.62,
-					partnerRoughness: 0.64,
-					solvedRoughness: 0.72,
-					dimmedRoughness: 0.76,
-					greenRoughness: 0.65
+					rackRoughness: 0.66,
+					activeRoughness: 0.58,
+					partnerRoughness: 0.60,
+					solvedRoughness: 0.68,
+					dimmedRoughness: 0.72,
+					greenRoughness: 0.58
 				};
 			} else {
 				// DARK TRAYS & LETTER HOLDERS (Paired with light tiles)
 				// Rich dark roasted walnut / espresso racks, distinct deep emerald spruce staging tray, charcoal felt, gold brackets
 				this.trayThemeTextures.dark = {
-					rackWood: this.getHardwoodTexture('#2c1b10', '#150c07', '#462c1c'),
-					activeWood: this.getHardwoodTexture('#3e2213', '#1e0f07', '#5d351e'),
-					partnerWood: this.getHardwoodTexture('#341b0e', '#190b05', '#4f2b18'),
-					solvedWood: this.getHardwoodTexture('#26170e', '#120a05', '#3e2617'),
-					dimmedWood: this.getHardwoodTexture('#18100a', '#0b0704', '#261b11'),
-					greenWood: this.getHardwoodTexture('#152e20', '#0a1a11', '#234731'), // Distinct deep forest spruce
-					feltColor: 0x14100c,
-					feederFeltColor: 0x0d2216, // Emerald velvet
-					activeEmissive: 0x381705,
-					activeEmissiveIntensity: 0.40,
-					partnerEmissive: 0x2c1304,
-					partnerEmissiveIntensity: 0.30,
+					rackWood: this.getHardwoodTexture('#382012', '#190c05', '#5a351e'),
+					activeWood: this.getHardwoodTexture('#4d2a16', '#261208', '#6e3f22'),
+					partnerWood: this.getHardwoodTexture('#422312', '#200e06', '#61341c'),
+					solvedWood: this.getHardwoodTexture('#301a0d', '#150904', '#4e2c17'),
+					dimmedWood: this.getHardwoodTexture('#221208', '#0e0502', '#361d0f'),
+					greenWood: this.getHardwoodTexture('#16452c', '#0a2315', '#246b45'), // Distinct deep forest spruce
+					feltColor: 0x1c130b,
+					feederFeltColor: 0x0a2818, // Emerald velvet
+					activeEmissive: 0x4a1e06,
+					activeEmissiveIntensity: 0.42,
+					partnerEmissive: 0x381504,
+					partnerEmissiveIntensity: 0.32,
 					chevronColor: 0xf59e0b,
 					chevronEmissive: 0x78350f,
 					bracketVariant: 'darkTray',
-					rackRoughness: 0.76,
-					activeRoughness: 0.68,
-					partnerRoughness: 0.70,
-					solvedRoughness: 0.78,
-					dimmedRoughness: 0.82,
-					greenRoughness: 0.68
+					rackRoughness: 0.70,
+					activeRoughness: 0.62,
+					partnerRoughness: 0.65,
+					solvedRoughness: 0.72,
+					dimmedRoughness: 0.78,
+					greenRoughness: 0.60
 				};
 			}
 			return this.trayThemeTextures[theme];
@@ -992,13 +1132,14 @@
 	// --------------------------------------------------------------------------
 	var UnlockManager = {
 		ownedSkins: ['classic'],
-		ownedSceneries: ['sakura'],
+		ownedSceneries: ['sakura', 'volcano', 'snowtown', 'peaks', 'ocean'],
 		activeTrial: null, // { type: 'skin'|'scenery', id: string, roundLevel: number }
 		lastGiftReceivedLevel: null,
 		levelsSinceLastGift: 0,
 		lastGiftType: 'skin',
 
 		init: function () {
+			var self = this;
 			try {
 				var savedSkins = JSON.parse(localStorage.getItem('word_chain_owned_skins'));
 				if (Array.isArray(savedSkins)) {
@@ -1017,9 +1158,11 @@
 					this.ownedSceneries = savedSceneries;
 				}
 			} catch (e) {}
-			if (this.ownedSceneries.indexOf('sakura') === -1) {
-				this.ownedSceneries.push('sakura');
-			}
+			['sakura', 'volcano', 'snowtown', 'peaks', 'ocean'].forEach(function (s) {
+				if (self.ownedSceneries.indexOf(s) === -1) {
+					self.ownedSceneries.push(s);
+				}
+			});
 
 			try {
 				var savedLastLevel = localStorage.getItem('word_chain_last_gift_level');
@@ -1621,8 +1764,8 @@
 
 		calculateStarsForWpm: function (wpm) {
 			if (!wpm || wpm <= 0) return 0;
-			if (wpm >= 28) return 3; // ⭐⭐⭐ Lightning Fast (>=28 WPM)
-			if (wpm >= 18) return 2; // ⭐⭐ Swift (>=18 WPM)
+			if (wpm >= 18) return 3; // ⭐⭐⭐ Lightning Fast (>=18 WPM - just a little over 2 stars!)
+			if (wpm >= 14) return 2; // ⭐⭐ Swift (>=14 WPM)
 			if (wpm >= 8) return 1;  // ⭐ Steady (>=8 WPM)
 			return 0;
 		},
@@ -1988,8 +2131,8 @@
 			if (!this.starTrackEl) return;
 
 			var speedStars = 0;
-			if (speed >= 28) speedStars = 3;
-			else if (speed >= 18) speedStars = 2;
+			if (speed >= 18) speedStars = 3;
+			else if (speed >= 14) speedStars = 2;
 			else if (speed >= 8) speedStars = 1;
 
 			// CRITICAL: Star milestones won are SAVED for this match!
@@ -2001,15 +2144,15 @@
 
 			// Proportional fill calculation from 0% to 100%
 			// 0% = Star 1 node (8 WPM)
-			// 50% = Star 2 node (18 WPM)
-			// 100% = Star 3 node (28 WPM)
+			// 50% = Star 2 node (14 WPM)
+			// 100% = Star 3 node (18 WPM - just a little over 2 stars!)
 			var fillPct = 0;
-			if (speed >= 28) {
+			if (speed >= 18) {
 				fillPct = 100;
-			} else if (speed >= 18) {
-				fillPct = 50 + ((speed - 18) / 10) * 50;
+			} else if (speed >= 14) {
+				fillPct = 50 + ((speed - 14) / 4) * 50;
 			} else if (speed >= 8) {
-				fillPct = ((speed - 8) / 10) * 50;
+				fillPct = ((speed - 8) / 6) * 50;
 			} else {
 				fillPct = 0;
 			}
@@ -2022,7 +2165,11 @@
 			fillPct = Math.min(100, Math.max(0, fillPct));
 
 			if (this.starFillEl) {
-				this.starFillEl.style.width = fillPct.toFixed(1) + '%';
+				var fillPctStr = fillPct.toFixed(1) + '%';
+				if (this.lastFillPctStr !== fillPctStr) {
+					this.lastFillPctStr = fillPctStr;
+					this.starFillEl.style.width = fillPctStr;
+				}
 			}
 
 			// Update star nodes dynamically
@@ -2182,12 +2329,12 @@
 			var node = this['starNode' + starIdx];
 			if (!node) return;
 
-			// Tactile micro-pulse on the star node SVG
-			var starPolygon = node.querySelector('.star-track-svg polygon');
-			if (starPolygon) {
-				starPolygon.style.animation = 'none';
-				void starPolygon.offsetWidth;
-				starPolygon.style.animation = 'starFireworkPulse 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+			// Tactile micro-pulse on the 3D star node
+			var starTarget = node.querySelector('.star-3d-group') || node.querySelector('.star-track-svg');
+			if (starTarget) {
+				starTarget.style.animation = 'none';
+				void starTarget.offsetWidth;
+				starTarget.style.animation = 'starFireworkPulse 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
 			}
 
 			var rect = node.getBoundingClientRect();
@@ -3326,18 +3473,20 @@
 	}
 
 	/**
-	 * Build the bottom green player hand tray with 8 slots.
-	 * Positioned dynamically based on level depth.
+	 * Build the bottom green player hand tray.
+	 * Dynamically sized and centered to the exact letter count of the active word.
 	 */
-	function buildStagingTray(stagingZ) {
-		stagingZ = (stagingZ !== undefined ? stagingZ : 6.3);
+	function buildStagingTray(stagingZ, wordLength) {
+		var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
+		var layout = getBoardLayout(numRows);
+		stagingZ = (stagingZ !== undefined ? stagingZ : layout.stagingZ);
 
 		while (stagingTrayGroup.children.length > 0) {
 			stagingTrayGroup.remove(stagingTrayGroup.children[0]);
 		}
 		stagingSlots = [];
 
-		var slotCount = 8;
+		var slotCount = Math.max(3, Math.min(8, wordLength || 5));
 		var slotWidth = 1.15;
 		var trayWidth = slotCount * slotWidth + 0.50;
 		var trayDepth = 1.44;
@@ -3423,7 +3572,8 @@
 		var startZ = layout.startZ;
 		var rowSpacing = layout.rowSpacing;
 
-		buildStagingTray(stagingZ);
+		var initialWordLen = (words[0] && words[0].answer) ? words[0].answer.length : 5;
+		buildStagingTray(stagingZ, initialWordLen);
 
 		var slotWidth = 1.15;
 		var rackDepth = 1.30;
@@ -4216,6 +4366,14 @@
 		if (!wordObj) return;
 
 		var letters = (wordObj.scrambled || wordObj.answer).split('');
+		var wordLen = letters.length;
+
+		// Dynamically rebuild feeder tray to fit active word width and center it
+		if (stagingSlots.length !== wordLen) {
+			var numRows = (currentLevelData && currentLevelData.words) ? currentLevelData.words.length : (chainRowData.length || 5);
+			var layout = getBoardLayout(numRows);
+			buildStagingTray(layout.stagingZ, wordLen);
+		}
 
 		for (var i = 0; i < letters.length; i++) {
 			var letter = letters[i];
@@ -4249,35 +4407,39 @@
 		dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.35);
 
 		var dom = renderer.domElement;
+		dom.style.touchAction = 'none';
+		dom.style.webkitUserSelect = 'none';
+		dom.style.userSelect = 'none';
+
 		var pointerDownScreenPos = { x: 0, y: 0 };
 		var pointerDownTime = 0;
 		var pointerHasDragged = false;
 
 		function getPointerPos(e) {
 			var rect = dom.getBoundingClientRect();
-			var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-			var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+			var clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+			var clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
 			pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
 			pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+			return { x: clientX, y: clientY };
 		}
 
-		// Pointer Down
+		// Pointer Down - Ultra-responsive touch detection with Multi-Tier Snapping
 		dom.addEventListener('pointerdown', function (e) {
 			if (levelEntranceState && levelEntranceState.active) {
 				completeLevelEntranceImmediately();
 			}
 			if (isRowShaking || isCelebratingWin || isComboPlaying) return;
-			getPointerPos(e);
-			raycaster.setFromCamera(pointer, camera);
-
-			var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-			var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+			var pt = getPointerPos(e);
+			var clientX = pt.x;
+			var clientY = pt.y;
 			pointerDownScreenPos.x = clientX;
 			pointerDownScreenPos.y = clientY;
 			pointerDownTime = performance.now();
 			pointerHasDragged = false;
+			raycaster.setFromCamera(pointer, camera);
 
-			// Check tap directly on ghost tile
+			// 1. Check tap directly on ghost tile
 			if (ghostTileMesh) {
 				var ghostHits = raycaster.intersectObject(ghostTileMesh);
 				if (ghostHits.length > 0 && currentGhostSlot && currentGhostLetter) {
@@ -4290,28 +4452,69 @@
 				}
 			}
 
-			// Test intersections against unlocked tiles
-			var tileMeshes = allTiles.filter(function (t) { return !t.isLocked; }).map(function (t) { return t.mesh; });
+			// 2. Multi-tier hit-testing hierarchy for letter tiles
+			var targetTile = null;
+
+			// Tier 1: Direct 3D Raycast on unlocked tile meshes
+			var unlockedTiles = allTiles.filter(function (t) { return !t.isLocked && t.mesh; });
+			var tileMeshes = unlockedTiles.map(function (t) { return t.mesh; });
 			var intersects = raycaster.intersectObjects(tileMeshes);
 
 			if (intersects.length > 0) {
 				var hitMesh = intersects[0].object;
-				var tile = hitMesh.userData.tile;
-
-				if (tile && !tile.isLocked) {
-					activeTile = tile;
-					activeTile.isDragging = true;
-					dom.style.cursor = 'grabbing';
-
-					// Intersect with drag plane to calculate grab offset
-					var hitPoint = new THREE.Vector3();
-					raycaster.ray.intersectPlane(dragPlane, hitPoint);
-					dragOffset.copy(tile.mesh.position).sub(hitPoint);
-					prevDragPos.copy(tile.mesh.position);
-
-					AudioManager.play('tilehit', 0.9);
-					AudioManager.haptic(15);
+				if (hitMesh && hitMesh.userData && hitMesh.userData.tile && !hitMesh.userData.tile.isLocked) {
+					targetTile = hitMesh.userData.tile;
 				}
+			}
+
+			// Tier 2: Raycast on tray slot meshes (staging slots & active row chain slots)
+			if (!targetTile) {
+				var activeChainSlots = chainSlots.filter(function (s) { return s.row === currentWordIndex && s.slotMesh; });
+				var testSlots = stagingSlots.concat(activeChainSlots);
+				var slotMeshes = testSlots.map(function (s) { return s.slotMesh; }).filter(Boolean);
+				var slotHits = raycaster.intersectObjects(slotMeshes);
+				if (slotHits.length > 0) {
+					var hitSlotMesh = slotHits[0].object;
+					var matchedSlot = testSlots.find(function (s) { return s.slotMesh === hitSlotMesh; });
+					if (matchedSlot && matchedSlot.tile && !matchedSlot.tile.isLocked) {
+						targetTile = matchedSlot.tile;
+					}
+				}
+			}
+
+			// Tier 3: 2D Screen-space proximity snapping (Covers wide finger touches across feeder tray on mobile)
+			if (!targetTile && unlockedTiles.length > 0) {
+				var bestScreenDist = 58; // 58px radius (~15mm on mobile) guarantees instant first-tap response
+				var tempVec = new THREE.Vector3();
+				for (var ti = 0; ti < unlockedTiles.length; ti++) {
+					var candidateTile = unlockedTiles[ti];
+					tempVec.copy(candidateTile.mesh.position).project(camera);
+					if (tempVec.z < 1.0) {
+						var sx = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
+						var sy = (-(tempVec.y * 0.5) + 0.5) * window.innerHeight;
+						var d = Math.hypot(clientX - sx, clientY - sy);
+						if (d < bestScreenDist) {
+							bestScreenDist = d;
+							targetTile = candidateTile;
+						}
+					}
+				}
+			}
+
+			// On confirmed tile grab
+			if (targetTile) {
+				activeTile = targetTile;
+				activeTile.isDragging = true;
+				dom.style.cursor = 'grabbing';
+
+				// Intersect with drag plane to calculate grab offset
+				var hitPoint = new THREE.Vector3();
+				raycaster.ray.intersectPlane(dragPlane, hitPoint);
+				dragOffset.copy(activeTile.mesh.position).sub(hitPoint);
+				prevDragPos.copy(activeTile.mesh.position);
+
+				AudioManager.play('tilehit', 0.9);
+				AudioManager.haptic(16, 0.85, 0.75); // Instant tactile on-touch feedback!
 			}
 		});
 
@@ -4422,6 +4625,7 @@
 						tile.targetRotation.set(0, 0, 0);
 						tile.startSnapFx();
 						AudioManager.playSnap(1.35);
+						AudioManager.haptic(28, 0.95, 0.85); // Haptic feedback when clicked into the tray!
 						updateSlotBrackets();
 						checkWordCompletion();
 						return;
@@ -4443,6 +4647,7 @@
 						tile.targetRotation.set(0, 0, 0);
 						tile.startSnapFx();
 						AudioManager.playSnap(1.1);
+						AudioManager.haptic(22, 0.85, 0.75); // Haptic feedback when returned to staging tray!
 						updateSlotBrackets();
 						return;
 					}
@@ -4500,6 +4705,7 @@
 				tile.targetRotation.set(0, 0, 0);
 				tile.startSnapFx();
 				AudioManager.playSnap(1.35);
+				AudioManager.haptic(28, 0.95, 0.85); // Haptic feedback when clicked into the tray!
 
 				updateSlotBrackets();
 				checkWordCompletion();
@@ -4510,6 +4716,20 @@
 					tile.targetRotation.set(0, 0, 0);
 				}
 				AudioManager.play('thud', 0.5);
+			}
+		});
+
+		// Pointer Cancel: safely reset active drag state on system interruption
+		window.addEventListener('pointercancel', function () {
+			if (hoverSlotHighlightMesh) hoverSlotHighlightMesh.visible = false;
+			if (activeTile) {
+				if (activeTile.currentSlot) {
+					activeTile.setTarget(activeTile.currentSlot.worldPos.x, activeTile.currentSlot.worldPos.y, activeTile.currentSlot.worldPos.z);
+					activeTile.targetRotation.set(0, 0, 0);
+				}
+				activeTile.isDragging = false;
+				activeTile = null;
+				dom.style.cursor = 'default';
 			}
 		});
 
@@ -4722,7 +4942,9 @@
 			t.startHop(0.32, h);
 		});
 		AudioManager.play('tilehit', 0.75);
-		AudioManager.haptic(25);
+		AudioManager.hapticPattern([
+			{ t: 0.0, i: 0.90, s: 0.82, d: 0.03 }
+		]);
 
 		// 2. Tray 1 lands (0.32s) + natural pause (0.12s) = 0.44s
 		setTimeout(function () {
@@ -4732,7 +4954,9 @@
 				t.startHop(0.32, h);
 			});
 			AudioManager.play('tilehit', 0.85);
-			AudioManager.haptic(30);
+			AudioManager.hapticPattern([
+				{ t: 0.0, i: 1.0, s: 0.88, d: 0.04 }
+			]);
 
 			// 3. Tray 2 lands (0.32s) + brief settle (0.12s) = 0.44s
 			setTimeout(function () {
@@ -5166,23 +5390,9 @@
 				btn.classList.remove('active');
 			}
 
-			// Customization Badges: ✓ OWNED, ⏳ TRIAL, 🔒 WATCH AD
+			// Clean up any old badges
 			var oldBadge = btn.querySelector('.item-badge-status');
 			if (oldBadge) oldBadge.remove();
-
-			var badge = document.createElement('span');
-			badge.className = 'item-badge-status';
-			if (UnlockManager.isOwned('scenery', scId)) {
-				badge.classList.add('item-badge-owned');
-				badge.textContent = '✓ OWNED';
-			} else if (UnlockManager.isTrial('scenery', scId)) {
-				badge.classList.add('item-badge-trial');
-				badge.textContent = '⏳ TRIAL';
-			} else {
-				badge.classList.add('item-badge-locked');
-				badge.textContent = '🔒 WATCH AD';
-			}
-			btn.appendChild(badge);
 		});
 	}
 
@@ -6091,7 +6301,10 @@
 					if (!chainSwingState.hasSnapped) {
 						chainSwingState.hasSnapped = true;
 						AudioManager.playSnap(1.55);
-						AudioManager.haptic(35);
+						AudioManager.hapticPattern([
+							{ t: 0.0, i: 0.95, s: 0.90, d: 0.025 },
+							{ t: 0.07, i: 1.0, s: 0.95, d: 0.035 }
+						]);
 						if (leftMountLower) triggerChainSnapSparks(leftMountLower.position.x, leftMountLower.position.y, leftMountLower.position.z);
 						if (rightMountLower) triggerChainSnapSparks(rightMountLower.position.x, rightMountLower.position.y, rightMountLower.position.z);
 					}
@@ -6208,23 +6421,23 @@
 		renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
 		renderer.shadowMap.enabled = false; // Heavy real-time shadow passes disabled
 		renderer.outputEncoding = THREE.sRGBEncoding;
-		renderer.toneMapping = THREE.ACESFilmicToneMapping;
-		renderer.toneMappingExposure = 1.0;
+		// NoToneMapping prevents grey compression and preserves 100% rich, punchy color vibrancy!
+		renderer.toneMapping = THREE.NoToneMapping;
 		container.appendChild(renderer.domElement);
 
 		// Apply responsive camera framing immediately
 		updateCameraFraming();
 
-		// 4. Lights - Warm Ambient & Clean Directional Sunlight
-		var ambientLight = new THREE.AmbientLight(0xfff2e3, 0.92);
+		// 4. Lights - Warm Amber Ambient & Punchy Directional Sunlight for rich wooden luster
+		var ambientLight = new THREE.AmbientLight(0xffeedd, 0.62);
 		scene.add(ambientLight);
 
-		var sunLight = new THREE.DirectionalLight(0xfff8ee, 0.85);
+		var sunLight = new THREE.DirectionalLight(0xfff8ea, 1.05);
 		sunLight.position.set(4, 20, 10);
 		scene.add(sunLight);
 
-		// Cool blue fill light
-		var fillLight = new THREE.DirectionalLight(0xb4d0ee, 0.32);
+		// Warm fill light for deep timber warmth
+		var fillLight = new THREE.DirectionalLight(0xffd5b0, 0.38);
 		fillLight.position.set(-8, 8, -6);
 		scene.add(fillLight);
 
@@ -6493,27 +6706,25 @@
 			btnStorageClose.addEventListener('click', closeTileStorageModal);
 		}
 
-		// Living Scenery option buttons
+		// Living Scenery option buttons (Instantly switch and equip)
 		document.querySelectorAll('.scenery-opt').forEach(function (btn) {
 			btn.addEventListener('click', function () {
 				var scId = this.getAttribute('data-scenery');
 				if (!scId || !global.WordscapesScenery) return;
 
-				if (UnlockManager.isOwned('scenery', scId) || UnlockManager.isTrial('scenery', scId)) {
-					try { localStorage.setItem('word_chain_scenery_user_selected', 'true'); } catch (e) {}
-					global.WordscapesScenery.setScenery(scId);
-					updateThemeModalUI();
-					AudioManager.play('tilehit', 0.9);
-					AudioManager.haptic(20);
-					showToast('Equipped Living Scenery');
-				} else {
-					var scs = (global.WordscapesScenery.getSceneries) ? global.WordscapesScenery.getSceneries() : {};
-					var scName = (scs[scId] && scs[scId].name) ? scs[scId].name : scId;
-					AdMobRewardService.showRewardAd({ type: 'scenery', id: scId, name: scName }, function () {
-						UnlockManager.unlockPermanent('scenery', scId);
-						showToast('🎉 LOCKED IN! You now own ' + scName + ' forever!');
-					});
-				}
+				try {
+					localStorage.setItem('word_chain_scenery_user_selected', 'true');
+					localStorage.setItem('word_chain_scenery', scId);
+				} catch (e) {}
+
+				global.WordscapesScenery.setScenery(scId);
+				updateThemeModalUI();
+				AudioManager.play('tilehit', 0.9);
+				AudioManager.haptic(20);
+
+				var scs = (global.WordscapesScenery.getSceneries) ? global.WordscapesScenery.getSceneries() : {};
+				var scName = (scs[scId] && scs[scId].name) ? scs[scId].name : 'Living Scenery';
+				showToast('Equipped ' + scName);
 			});
 		});
 
@@ -6872,6 +7083,9 @@
 	} else {
 		init();
 	}
+
+	// Global export for native WebView bridges (Android & iOS background lifecycle hooks)
+	global.AudioManager = AudioManager;
 
 })(window);
 

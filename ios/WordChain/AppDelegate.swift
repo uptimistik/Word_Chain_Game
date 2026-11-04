@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,6 +8,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Configure ambient audio session so game audio respects device silent switch and stops on screen lock
+        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
+
         let window = UIWindow(frame: UIScreen.main.bounds)
         window.backgroundColor = .black
         window.rootViewController = GameViewController()
