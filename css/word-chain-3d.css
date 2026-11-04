@@ -1135,6 +1135,18 @@ html, body {
 	transition: width 0.15s ease-out;
 }
 
+/* 3D Three.js Star Canvas with Lighting & Glow */
+.hud-star-3d-canvas {
+	position: absolute;
+	left: -20px;
+	top: -14px;
+	width: calc(100% + 40px);
+	height: calc(100% + 28px);
+	pointer-events: none;
+	z-index: 4;
+	overflow: visible;
+}
+
 .star-track-node {
 	position: absolute;
 	top: 50%;

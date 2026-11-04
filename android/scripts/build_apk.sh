@@ -72,6 +72,8 @@ echo "Compiling resources with aapt2..."
 echo "Linking resources and assets with aapt2..."
 "$AAPT2" link \
     -I "$ANDROID_JAR" \
+    --min-sdk-version 26 \
+    --target-sdk-version 35 \
     --manifest "$APP_DIR/src/main/AndroidManifest.xml" \
     --java "$BUILD_DIR/gen" \
     -A "$APP_DIR/src/main/assets" \
@@ -127,6 +129,9 @@ echo "Signing APK with apksigner..."
     --ks-pass pass:android \
     --key-pass pass:android \
     --ks-key-alias androiddebugkey \
+    --v1-signing-enabled true \
+    --v2-signing-enabled true \
+    --v3-signing-enabled true \
     --out "$TARGET_APK" \
     "$BUILD_DIR/aligned.apk"
 
@@ -134,8 +139,11 @@ echo "Signing APK with apksigner..."
 echo "Verifying APK..."
 "$APKSIGNER" verify --verbose "$TARGET_APK"
 
+cp -f "$TARGET_APK" "$REPO_ROOT/WordChain.apk"
+
 APK_SIZE=$(du -h "$TARGET_APK" | awk '{print $1}')
 echo "============================================="
 echo "Successfully created APK: $TARGET_APK ($APK_SIZE)"
+echo "Copied to project root: $REPO_ROOT/WordChain.apk"
 echo "============================================="
 

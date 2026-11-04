@@ -43,10 +43,10 @@ mkdir -p "$DIST_DIR"
 if [ -n "$SIGNING_IDENTITY" ]; then
     echo "Building with code signing: $SIGNING_IDENTITY"
     xcodebuild -project "$PROJECT" \
-               -scheme "$SCHEME" \
+               -target "$SCHEME" \
                -configuration "$CONFIGURATION" \
                -sdk iphoneos \
-               -derivedDataPath "$DERIVED_DATA" \
+               SYMROOT="$BUILD_DIR" \
                CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
                CODE_SIGNING_REQUIRED=YES \
                CODE_SIGNING_ALLOWED=YES \
@@ -54,15 +54,15 @@ if [ -n "$SIGNING_IDENTITY" ]; then
 else
     echo "Building unsigned (ready for TrollStore / AltStore / Sideloadly)..."
     xcodebuild -project "$PROJECT" \
-               -scheme "$SCHEME" \
+               -target "$SCHEME" \
                -configuration "$CONFIGURATION" \
                -sdk iphoneos \
-               -derivedDataPath "$DERIVED_DATA" \
+               SYMROOT="$BUILD_DIR" \
                CODE_SIGNING_ALLOWED=NO \
                build
 fi
 
-APP_BUNDLE="$DERIVED_DATA/Build/Products/$CONFIGURATION-iphoneos/WordChain.app"
+APP_BUNDLE="$BUILD_DIR/$CONFIGURATION-iphoneos/WordChain.app"
 
 if [ ! -d "$APP_BUNDLE" ]; then
     echo "Error: App bundle not found at $APP_BUNDLE"
@@ -90,7 +90,10 @@ fi
 (cd "$BUILD_DIR" && rm -f "$IPA_PATH" && zip -qr "$IPA_PATH" "Payload")
 rm -rf "$PAYLOAD_DIR"
 
+cp -f "$IPA_PATH" "$REPO_ROOT/WordChain.ipa"
+
 SIZE=$(du -h "$IPA_PATH" | awk '{print $1}')
 echo "============================================="
 echo "Successfully created IPA: $IPA_PATH ($SIZE)"
+echo "Copied to project root: $REPO_ROOT/WordChain.ipa"
 echo "============================================="

@@ -78,12 +78,12 @@ public class MainActivity extends Activity {
         });
 
         setContentView(webView);
-        webView.loadUrl("https://localhost/index.html");
+        webView.loadUrl("https://localhost/3d.html");
     }
 
     private WebResourceResponse handleLocalAsset(String path) {
         if (path == null || path.isEmpty() || path.equals("/")) {
-            path = "/index.html";
+            path = "/3d.html";
         }
         if (path.startsWith("/")) {
             path = path.substring(1);
@@ -142,18 +142,31 @@ public class MainActivity extends Activity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             setImmersiveMode();
+            if (webView != null) {
+                webView.evaluateJavascript("if (window.AudioManager && typeof window.AudioManager.onAppForeground === 'function') window.AudioManager.onAppForeground();", null);
+            }
+        } else {
+            if (webView != null) {
+                webView.evaluateJavascript("if (window.AudioManager && typeof window.AudioManager.onAppBackground === 'function') window.AudioManager.onAppBackground();", null);
+            }
         }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (webView != null) webView.onResume();
+        if (webView != null) {
+            webView.onResume();
+            webView.evaluateJavascript("if (window.AudioManager && typeof window.AudioManager.onAppForeground === 'function') window.AudioManager.onAppForeground();", null);
+        }
     }
 
     @Override
     protected void onPause() {
-        if (webView != null) webView.onPause();
+        if (webView != null) {
+            webView.evaluateJavascript("if (window.AudioManager && typeof window.AudioManager.onAppBackground === 'function') window.AudioManager.onAppBackground();", null);
+            webView.onPause();
+        }
         super.onPause();
     }
 

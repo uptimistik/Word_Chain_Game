@@ -42,13 +42,26 @@ final class GameViewController: UIViewController, WKScriptMessageHandler {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        webView.load(URLRequest(url: URL(string: "\(Self.scheme)://localhost/index.html")!))
+        webView.load(URLRequest(url: URL(string: "\(Self.scheme)://localhost/3d.html")!))
+
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAppResignActive), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAppResignActive), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAppBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAppBecomeActive), name: UIApplication.willEnterForegroundNotification, object: nil)
+    }
+
+    @objc private func handleAppResignActive() {
+        webView.evaluateJavaScript("if (window.AudioManager && typeof window.AudioManager.onAppBackground === 'function') window.AudioManager.onAppBackground();", completionHandler: nil)
+    }
+
+    @objc private func handleAppBecomeActive() {
+        webView.evaluateJavaScript("if (window.AudioManager && typeof window.AudioManager.onAppForeground === 'function') window.AudioManager.onAppForeground();", completionHandler: nil)
     }
 
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge { .all }
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .allButUpsideDown }
 
     // MARK: WKScriptMessageHandler
 
@@ -79,7 +92,7 @@ private final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
             task.didFailWithError(URLError(.badURL)); return
         }
         var path = url.path.removingPercentEncoding ?? url.path
-        if path.isEmpty || path == "/" { path = "/index.html" }
+        if path.isEmpty || path == "/" { path = "/3d.html" }
         let fileURL = root.appendingPathComponent(String(path.dropFirst())).standardizedFileURL
 
         // Never serve anything outside www/.

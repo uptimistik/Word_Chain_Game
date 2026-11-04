@@ -12,10 +12,12 @@ rsync -a --delete \
   --exclude ".DS_Store" \
   --exclude "cordova-app.js" \
   "$REPO_ROOT/index.html" \
+  "$REPO_ROOT/3d.html" \
   "$REPO_ROOT/css" \
   "$REPO_ROOT/js" \
   "$REPO_ROOT/game" \
   "$REPO_ROOT/images" \
+  "$REPO_ROOT/OriginalTileImages" \
   "$DEST/"
 
 echo "Synced web game into $DEST"

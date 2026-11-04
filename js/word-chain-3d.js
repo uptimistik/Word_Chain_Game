@@ -1691,6 +1691,485 @@
 	}
 
 	// --------------------------------------------------------------------------
+	// 3D Star System with Three.js Lighting & Radiant Light Glow (HUD Star Track)
+	// --------------------------------------------------------------------------
+	var Star3DManager = {
+		initialized: false,
+		canvas: null,
+		renderer: null,
+		scene: null,
+		camera: null,
+		stars: [],
+		ambientLight: null,
+		sunLight: null,
+		rimLight: null,
+		glowTexture: null,
+		flareTexture: null,
+		trackEl: null,
+		canvasWidth: 184,
+		canvasHeight: 58,
+		dpr: 1,
+
+		createFacetedStarGeometry: function (outerR, innerR, frontZ, backZ) {
+			var geom = new THREE.BufferGeometry();
+			var points = 5;
+			var vertices = [];
+
+			var tips = [];
+			var valleys = [];
+
+			for (var i = 0; i < points; i++) {
+				var aTip = (i / points) * Math.PI * 2 + Math.PI / 2;
+				tips.push({
+					x: Math.cos(aTip) * outerR,
+					y: Math.sin(aTip) * outerR,
+					z: 0
+				});
+				var aVal = ((i + 0.5) / points) * Math.PI * 2 + Math.PI / 2;
+				valleys.push({
+					x: Math.cos(aVal) * innerR,
+					y: Math.sin(aVal) * innerR,
+					z: 0
+				});
+			}
+
+			var frontApex = { x: 0, y: 0, z: frontZ };
+			var backApex = { x: 0, y: 0, z: -backZ };
+
+			function pushTri(p1, p2, p3) {
+				vertices.push(p1.x, p1.y, p1.z);
+				vertices.push(p2.x, p2.y, p2.z);
+				vertices.push(p3.x, p3.y, p3.z);
+			}
+
+			for (var p = 0; p < points; p++) {
+				var nextP = (p + 1) % points;
+				// Front Facet A: Apex -> Tip[p] -> Val[p]
+				pushTri(frontApex, tips[p], valleys[p]);
+				// Front Facet B: Apex -> Val[p] -> Tip[nextP]
+				pushTri(frontApex, valleys[p], tips[nextP]);
+
+				// Back Facet A: BackApex -> Val[p] -> Tip[p]
+				pushTri(backApex, valleys[p], tips[p]);
+				// Back Facet B: BackApex -> Tip[nextP] -> Val[p]
+				pushTri(backApex, tips[nextP], valleys[p]);
+			}
+
+			geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3));
+			geom.computeVertexNormals();
+			return geom;
+		},
+
+		createGlowTexture: function () {
+			if (this.glowTexture) return this.glowTexture;
+			var c = document.createElement('canvas');
+			c.width = 128;
+			c.height = 128;
+			var ctx = c.getContext('2d');
+			var grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+			grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+			grad.addColorStop(0.18, 'rgba(255, 230, 110, 0.95)');
+			grad.addColorStop(0.38, 'rgba(255, 185, 10, 0.70)');
+			grad.addColorStop(0.60, 'rgba(255, 120, 0, 0.35)');
+			grad.addColorStop(0.82, 'rgba(255, 70, 0, 0.12)');
+			grad.addColorStop(1.0, 'rgba(255, 50, 0, 0.0)');
+			ctx.fillStyle = grad;
+			ctx.fillRect(0, 0, 128, 128);
+			this.glowTexture = new THREE.CanvasTexture(c);
+			this.glowTexture.generateMipmaps = false;
+			this.glowTexture.minFilter = THREE.LinearFilter;
+			this.glowTexture.magFilter = THREE.LinearFilter;
+			return this.glowTexture;
+		},
+
+		createFlareTexture: function () {
+			if (this.flareTexture) return this.flareTexture;
+			var c = document.createElement('canvas');
+			c.width = 128;
+			c.height = 128;
+			var ctx = c.getContext('2d');
+			var cx = 64, cy = 64;
+
+			var radGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 46);
+			radGrad.addColorStop(0.0, 'rgba(255, 255, 230, 0.9)');
+			radGrad.addColorStop(0.3, 'rgba(255, 200, 30, 0.5)');
+			radGrad.addColorStop(1.0, 'rgba(255, 140, 0, 0.0)');
+			ctx.fillStyle = radGrad;
+			ctx.beginPath();
+			ctx.arc(cx, cy, 46, 0, Math.PI * 2);
+			ctx.fill();
+
+			var hGrad = ctx.createLinearGradient(0, cy, 128, cy);
+			hGrad.addColorStop(0, 'rgba(255, 210, 50, 0)');
+			hGrad.addColorStop(0.5, 'rgba(255, 255, 240, 0.85)');
+			hGrad.addColorStop(1, 'rgba(255, 210, 50, 0)');
+			ctx.fillStyle = hGrad;
+			ctx.beginPath();
+			ctx.moveTo(0, cy);
+			ctx.lineTo(cx, cy - 3.5);
+			ctx.lineTo(128, cy);
+			ctx.lineTo(cx, cy + 3.5);
+			ctx.closePath();
+			ctx.fill();
+
+			var vGrad = ctx.createLinearGradient(cx, 0, cx, 128);
+			vGrad.addColorStop(0, 'rgba(255, 210, 50, 0)');
+			vGrad.addColorStop(0.5, 'rgba(255, 255, 240, 0.85)');
+			vGrad.addColorStop(1, 'rgba(255, 210, 50, 0)');
+			ctx.fillStyle = vGrad;
+			ctx.beginPath();
+			ctx.moveTo(cx, 0);
+			ctx.lineTo(cx - 3.5, cy);
+			ctx.lineTo(cx, 128);
+			ctx.lineTo(cx + 3.5, cy);
+			ctx.closePath();
+			ctx.fill();
+
+			this.flareTexture = new THREE.CanvasTexture(c);
+			this.flareTexture.generateMipmaps = false;
+			this.flareTexture.minFilter = THREE.LinearFilter;
+			this.flareTexture.magFilter = THREE.LinearFilter;
+			return this.flareTexture;
+		},
+
+		init: function () {
+			if (this.initialized) return;
+			this.canvas = document.getElementById('hud-star-3d-canvas');
+			this.trackEl = document.getElementById('hud-star-track');
+			if (!this.canvas || !this.trackEl || typeof THREE === 'undefined') return;
+
+			try {
+				var rect = this.canvas.getBoundingClientRect();
+				this.canvasWidth = Math.max(160, rect.width || 184);
+				this.canvasHeight = Math.max(48, rect.height || 58);
+				this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+				this.renderer = new THREE.WebGLRenderer({
+					canvas: this.canvas,
+					antialias: true,
+					alpha: true,
+					powerPreference: 'high-performance'
+				});
+				this.renderer.setClearColor(0x000000, 0);
+				this.renderer.setPixelRatio(this.dpr);
+				this.renderer.setSize(this.canvasWidth, this.canvasHeight, false);
+				this.renderer.shadowMap.enabled = false;
+				this.renderer.outputEncoding = THREE.sRGBEncoding;
+
+				this.scene = new THREE.Scene();
+
+				var fov = 40;
+				var fovRad = THREE.MathUtils.degToRad(fov);
+				var camZ = (this.canvasHeight / 2) / Math.tan(fovRad / 2);
+				this.camera = new THREE.PerspectiveCamera(fov, this.canvasWidth / this.canvasHeight, 0.1, 1000);
+				this.camera.position.set(0, 0, camZ);
+				this.camera.lookAt(0, 0, 0);
+
+				// 1. Ambient Light
+				this.ambientLight = new THREE.AmbientLight(0xffffff, 0.42);
+				this.scene.add(this.ambientLight);
+
+				// 2. Key Sun Directional Light (angled from top-left to highlight 3D facets)
+				this.sunLight = new THREE.DirectionalLight(0xfffaea, 1.35);
+				this.sunLight.position.set(-25, 45, 50);
+				this.scene.add(this.sunLight);
+
+				// 3. Cool Rim Directional Light
+				this.rimLight = new THREE.DirectionalLight(0x60a5fa, 0.38);
+				this.rimLight.position.set(30, -20, -15);
+				this.scene.add(this.rimLight);
+
+				// 4. Build 3D Stars, PointLights, and Light Glows
+				var starGeom = this.createFacetedStarGeometry(12.0, 5.4, 4.8, 3.2);
+				var glowTex = this.createGlowTexture();
+				var flareTex = this.createFlareTexture();
+
+				var glowGeom = new THREE.PlaneGeometry(44, 44);
+				var flareGeom = new THREE.PlaneGeometry(50, 50);
+
+				var defaultOffsets = [-58, 0, 58];
+
+				this.stars = [];
+				for (var i = 0; i < 3; i++) {
+					var baseX = defaultOffsets[i];
+
+					// Group for star + glow
+					var starGroup = new THREE.Group();
+					starGroup.position.set(baseX, 0, 0);
+
+					// Glowing halo quad
+					var glowMat = new THREE.MeshBasicMaterial({
+						map: glowTex,
+						transparent: true,
+						opacity: 0,
+						blending: THREE.AdditiveBlending,
+						depthWrite: false
+					});
+					var glowMesh = new THREE.Mesh(glowGeom, glowMat);
+					glowMesh.position.set(0, 0, -1.8);
+					glowMesh.scale.set(0.1, 0.1, 0.1);
+					starGroup.add(glowMesh);
+
+					// Celestial 4-pointed radiant ray flare
+					var flareMat = new THREE.MeshBasicMaterial({
+						map: flareTex,
+						transparent: true,
+						opacity: 0,
+						blending: THREE.AdditiveBlending,
+						depthWrite: false
+					});
+					var flareMesh = new THREE.Mesh(flareGeom, flareMat);
+					flareMesh.position.set(0, 0, -1.5);
+					flareMesh.scale.set(0.1, 0.1, 0.1);
+					starGroup.add(flareMesh);
+
+					// 3D Faceted Star Mesh
+					var starMat = new THREE.MeshStandardMaterial({
+						color: 0x222a38,
+						roughness: 0.45,
+						metalness: 0.80,
+						emissive: 0x000000,
+						emissiveIntensity: 0.0,
+						flatShading: true
+					});
+					var starMesh = new THREE.Mesh(starGeom, starMat);
+					starMesh.scale.set(0.95, 0.95, 0.95);
+					starGroup.add(starMesh);
+
+					// THREE.JS PointLight for this star (activated when milestone achieved)
+					var pLight = new THREE.PointLight(0xffbe1a, 0.0, 60, 1.4);
+					pLight.position.set(0, 0, 15);
+					starGroup.add(pLight);
+
+					this.scene.add(starGroup);
+
+					this.stars.push({
+						group: starGroup,
+						mesh: starMesh,
+						light: pLight,
+						glowMesh: glowMesh,
+						flareMesh: flareMesh,
+						baseX: baseX,
+						litAmount: 0.0,
+						targetLit: 0.0,
+						isLit: false,
+						spinVelocity: 0.0,
+						popScale: 0.95,
+						pulseTimer: 0.0
+					});
+				}
+
+				this.updatePositions();
+				this.initialized = true;
+			} catch (err) {
+				console.warn('Star3DManager initialization error:', err);
+			}
+		},
+
+		updatePositions: function () {
+			if (!this.trackEl || !this.stars.length) return;
+			var trackRect = this.trackEl.getBoundingClientRect();
+			var trackCenterX = trackRect.left + trackRect.width / 2;
+
+			for (var i = 0; i < 3; i++) {
+				var nodeEl = document.getElementById('star-node-' + (i + 1));
+				if (nodeEl) {
+					var nodeRect = nodeEl.getBoundingClientRect();
+					var nodeCenterX = nodeRect.left + nodeRect.width / 2;
+					var dx = nodeCenterX - trackCenterX;
+					if (Math.abs(dx) > 0.01) {
+						this.stars[i].baseX = dx;
+						this.stars[i].group.position.x = dx;
+					}
+				}
+			}
+		},
+
+		onResize: function () {
+			if (!this.initialized || !this.canvas || !this.renderer) return;
+			var rect = this.canvas.getBoundingClientRect();
+			this.canvasWidth = Math.max(160, rect.width || 184);
+			this.canvasHeight = Math.max(48, rect.height || 58);
+			this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+			this.renderer.setPixelRatio(this.dpr);
+			this.renderer.setSize(this.canvasWidth, this.canvasHeight, false);
+
+			var fov = 40;
+			var fovRad = THREE.MathUtils.degToRad(fov);
+			var camZ = (this.canvasHeight / 2) / Math.tan(fovRad / 2);
+			this.camera.aspect = this.canvasWidth / this.canvasHeight;
+			this.camera.position.set(0, 0, camZ);
+			this.camera.updateProjectionMatrix();
+
+			this.updatePositions();
+		},
+
+		reset: function () {
+			if (!this.initialized) this.init();
+			for (var i = 0; i < this.stars.length; i++) {
+				var s = this.stars[i];
+				s.isLit = false;
+				s.targetLit = 0.0;
+				s.litAmount = 0.0;
+				s.spinVelocity = 0.0;
+				s.popScale = 0.95;
+				s.pulseTimer = 0.0;
+				s.light.intensity = 0.0;
+				s.mesh.material.color.setHex(0x222a38);
+				s.mesh.material.emissive.setHex(0x000000);
+				s.mesh.material.emissiveIntensity = 0.0;
+				s.mesh.material.roughness = 0.45;
+				s.mesh.material.metalness = 0.80;
+				s.glowMesh.material.opacity = 0;
+				s.glowMesh.scale.set(0.1, 0.1, 0.1);
+				s.flareMesh.material.opacity = 0;
+				s.flareMesh.scale.set(0.1, 0.1, 0.1);
+			}
+		},
+
+		setStarsLit: function (count) {
+			if (!this.initialized) this.init();
+			if (!this.initialized) return;
+
+			for (var i = 0; i < 3; i++) {
+				var s = this.stars[i];
+				var shouldBeLit = (i < count);
+
+				if (shouldBeLit && !s.isLit) {
+					s.isLit = true;
+					s.targetLit = 1.0;
+					// Ignition burst: 3D spin, scale pop, Three.js point light flash & glow bloom
+					s.spinVelocity = 14.0;
+					s.popScale = 1.45;
+					s.light.intensity = 5.2;
+					s.pulseTimer = 1.0;
+					s.glowMesh.scale.set(1.65, 1.65, 1.65);
+					s.flareMesh.scale.set(1.5, 1.5, 1.5);
+				} else if (!shouldBeLit && s.isLit) {
+					s.isLit = false;
+					s.targetLit = 0.0;
+				}
+			}
+		},
+
+		celebrate: function (starsEarned) {
+			if (!this.initialized) this.init();
+			if (!this.initialized) return;
+
+			var self = this;
+			for (var i = 0; i < starsEarned; i++) {
+				(function (idx) {
+					setTimeout(function () {
+						if (!self.stars[idx]) return;
+						var s = self.stars[idx];
+						s.spinVelocity = 16.0;
+						s.popScale = 1.55;
+						s.light.intensity = 5.5;
+						s.pulseTimer = 1.2;
+						s.glowMesh.scale.set(1.8, 1.8, 1.8);
+						s.flareMesh.scale.set(1.6, 1.6, 1.6);
+					}, idx * 190);
+				})(i);
+			}
+		},
+
+		pulseStar: function (starIndex) {
+			if (!this.initialized) return;
+			var s = this.stars[starIndex];
+			if (!s) return;
+			s.spinVelocity = 9.0;
+			s.popScale = 1.35;
+			s.light.intensity = 4.8;
+			s.pulseTimer = 0.85;
+			s.glowMesh.scale.set(1.5, 1.5, 1.5);
+			s.flareMesh.scale.set(1.4, 1.4, 1.4);
+		},
+
+		render: function (now, dt) {
+			if (!this.initialized) return;
+			dt = Math.min(dt || 0.016, 0.05);
+
+			var dimColor = new THREE.Color(0x222a38);
+			var litColor = new THREE.Color(0xffd700);
+
+			for (var i = 0; i < this.stars.length; i++) {
+				var s = this.stars[i];
+
+				// 1. Smooth interpolation of lit state
+				s.litAmount += (s.targetLit - s.litAmount) * Math.min(1.0, dt * 7.5);
+
+				// 2. Dynamic 3D Material interpolation (metalness, roughness, emissive glow)
+				s.mesh.material.color.copy(dimColor).lerp(litColor, s.litAmount);
+				s.mesh.material.roughness = 0.45 - 0.29 * s.litAmount;
+				s.mesh.material.metalness = 0.80 + 0.12 * s.litAmount;
+				s.mesh.material.emissive.setHex(0xff8c00);
+
+				var breath = Math.sin(now * 0.0045 + i * 1.5) * 0.22;
+				s.mesh.material.emissiveIntensity = Math.max(0, (0.75 + breath) * s.litAmount + s.pulseTimer * 1.4);
+
+				// 3. Three.js PointLight lighting when activated
+				if (s.litAmount < 0.02) {
+					s.light.intensity = 0.0;
+				} else {
+					var targetLightInt = (2.5 + breath * 1.1) * s.litAmount;
+					s.light.intensity += (targetLightInt - s.light.intensity) * Math.min(1.0, dt * 5.0);
+					s.light.position.x = Math.sin(now * 0.003 + i * 1.4) * 3.5;
+					s.light.position.y = Math.cos(now * 0.0035 + i * 1.4) * 2.5;
+					s.light.position.z = 14.0 + Math.sin(now * 0.0025 + i) * 2.0;
+				}
+
+				// 4. Radiant Light Glow (Additive Halo & Flare)
+				var glowBreath = Math.sin(now * 0.004 + i * 1.4) * 0.15;
+				s.glowMesh.material.opacity = Math.max(0, (0.80 + glowBreath) * s.litAmount + s.pulseTimer * 0.4);
+				var targetGlowScale = (1.0 + Math.sin(now * 0.0035 + i * 1.4) * 0.08) * (s.litAmount > 0.1 ? 1.0 : 0.1);
+				s.glowMesh.scale.x += (targetGlowScale - s.glowMesh.scale.x) * Math.min(1.0, dt * 6.0);
+				s.glowMesh.scale.y = s.glowMesh.scale.x;
+
+				s.flareMesh.rotation.z += (0.006 + s.spinVelocity * 0.04);
+				s.flareMesh.material.opacity = Math.max(0, 0.45 * s.litAmount + s.pulseTimer * 0.45);
+				var targetFlareScale = (1.0 + Math.sin(now * 0.003 + i) * 0.06) * (s.litAmount > 0.1 ? 1.0 : 0.1);
+				s.flareMesh.scale.x += (targetFlareScale - s.flareMesh.scale.x) * Math.min(1.0, dt * 6.0);
+				s.flareMesh.scale.y = s.flareMesh.scale.x;
+
+				// 5. 3D Rotation, Tilt & Floating Physics
+				s.mesh.rotation.y += s.spinVelocity * dt;
+				s.spinVelocity = Math.max(0, s.spinVelocity - s.spinVelocity * 4.5 * dt);
+
+				var idleTiltY = Math.sin(now * 0.0022 + i * 1.8) * 0.20;
+				var idleTiltX = Math.cos(now * 0.0028 + i * 1.8) * 0.14;
+				var idleBobY = Math.sin(now * 0.0032 + i * 1.8) * 1.1;
+
+				if (s.litAmount < 0.1) {
+					idleTiltY *= 0.25;
+					idleTiltX = 0.08;
+					idleBobY = 0;
+				}
+
+				s.mesh.rotation.x = idleTiltX;
+				if (s.spinVelocity < 0.05) {
+					var curY = s.mesh.rotation.y % (Math.PI * 2);
+					s.mesh.rotation.y += (idleTiltY - curY) * Math.min(1.0, dt * 4.0);
+				}
+				s.mesh.position.y = idleBobY;
+				s.glowMesh.position.y = idleBobY;
+				s.flareMesh.position.y = idleBobY;
+
+				// 6. Scale Pop decay
+				var targetScale = (s.litAmount > 0.5 ? 1.18 : 0.95);
+				s.popScale += (targetScale - s.popScale) * Math.min(1.0, dt * 7.0);
+				s.mesh.scale.set(s.popScale, s.popScale, s.popScale);
+
+				// 7. Pulse timer decay
+				s.pulseTimer = Math.max(0, s.pulseTimer - dt * 2.5);
+			}
+
+			this.renderer.render(this.scene, this.camera);
+		}
+	};
+	global.Star3DManager = Star3DManager;
+
+	// --------------------------------------------------------------------------
 	// Speedometer & Speed Ranking Manager (3D Magical Gauge & Star Progress)
 	// --------------------------------------------------------------------------
 	var SpeedometerManager = {
@@ -2106,6 +2585,9 @@
 			this.starNode2 = document.getElementById('star-node-2');
 			this.starNode3 = document.getElementById('star-node-3');
 			this.starTrackCached = true;
+			if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.init === 'function') {
+				Star3DManager.init();
+			}
 		},
 
 		resetStarTrack: function () {
@@ -2122,6 +2604,9 @@
 				}
 			}
 			this.lastStarsLit = 0;
+			if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.reset === 'function') {
+				Star3DManager.reset();
+			}
 			var oldSparks = document.querySelectorAll('.star-sparkle-dot, .star-firework-particle, .star-firework-flash');
 			oldSparks.forEach(function (el) { el.remove(); });
 		},
@@ -2191,6 +2676,9 @@
 					node.classList.add('dim');
 				}
 			}
+			if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.setStarsLit === 'function') {
+				Star3DManager.setStarsLit(starsLit);
+			}
 			this.lastStarsLit = starsLit;
 		},
 
@@ -2215,6 +2703,10 @@
 			if (this.starFillEl) {
 				var fillPct = (starsEarned >= 3) ? 100 : (starsEarned === 2 ? 50 : 0);
 				this.starFillEl.style.width = fillPct + '%';
+			}
+
+			if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.celebrate === 'function') {
+				Star3DManager.celebrate(starsEarned);
 			}
 
 			if (starsEarned >= 3) {
@@ -2330,7 +2822,10 @@
 			if (!node) return;
 
 			// Tactile micro-pulse on the 3D star node
-			var starTarget = node.querySelector('.star-3d-group') || node.querySelector('.star-track-svg');
+			if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.pulseStar === 'function') {
+				Star3DManager.pulseStar(starIdx - 1);
+			}
+			var starTarget = node.querySelector('.star-3d-group') || node.querySelector('.star-track-svg') || node;
 			if (starTarget) {
 				starTarget.style.animation = 'none';
 				void starTarget.offsetWidth;
@@ -6198,6 +6693,9 @@
 
 	function onWindowResize() {
 		applyPerspectiveMode();
+		if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.onResize === 'function') {
+			Star3DManager.onResize();
+		}
 	}
 
 	var lastTime = 0;
@@ -6381,6 +6879,11 @@
 		// Update Live Speedometer Gauge
 		if (typeof SpeedometerManager !== 'undefined') {
 			SpeedometerManager.updateLoop();
+		}
+
+		// Render 3D HUD Stars with Three.js Lighting & Glow
+		if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.render === 'function') {
+			Star3DManager.render(now, dt);
 		}
 
 		// Idle title screen camera breathing to make the 3D world feel living & dynamic
