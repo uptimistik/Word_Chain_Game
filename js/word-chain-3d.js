@@ -12,6 +12,13 @@
 (function (global) {
 	'use strict';
 
+	// Strictly Android-only detection so iOS (WKWebView / Safari) remains 100% untouched
+	var IS_ANDROID = (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')) ||
+		(typeof window !== 'undefined' && !!window.AndroidHaptics);
+	if (IS_ANDROID && typeof document !== 'undefined' && document.documentElement) {
+		document.documentElement.classList.add('is-android');
+	}
+
 	// Letter point values for Scrabble / Word Chain tiles
 	var LETTER_POINTS = {
 		A: 1, B: 3, C: 3, D: 2, E: 1, F: 4, G: 2, H: 4, I: 1,
@@ -40,9 +47,12 @@
 				try { self.audioCtx = new AudioContext(); } catch (e) {}
 			}
 
-			// Format detection: use .ogg where supported, fallback to .m4a for iOS WKWebView
-			var testAudio = new Audio();
-			var canOgg = testAudio.canPlayType && testAudio.canPlayType('audio/ogg').replace(/^no$/, '');
+			// Format detection: Android WebView natively supports .ogg; fallback to .m4a for iOS WKWebView
+			var canOgg = true;
+			if (!IS_ANDROID) {
+				var testAudio = new Audio();
+				canOgg = testAudio.canPlayType && testAudio.canPlayType('audio/ogg').replace(/^no$/, '');
+			}
 			var ext = canOgg ? '.ogg' : '.m4a';
 
 			var soundFiles = {
@@ -56,9 +66,13 @@
 
 			Object.keys(soundFiles).forEach(function (name) {
 				var url = soundFiles[name];
-				var audio = new Audio(url);
-				audio.preload = 'auto';
-				self.sounds[name] = audio;
+				// On Android, when WebAudio (audioCtx) is available, do NOT allocate 6 <audio preload="auto">
+				// HTMLMediaElements (which opens 6 concurrent hardware AAudioStreams and overflows the audio socket buffer).
+				if (!IS_ANDROID || !self.audioCtx) {
+					var audio = new Audio(url);
+					audio.preload = 'auto';
+					self.sounds[name] = audio;
+				}
 
 				if (self.audioCtx && window.fetch) {
 					fetch(url)
@@ -76,7 +90,7 @@
 				                 : 'game/default/sounds/sub_clair-upbeat-587078.m4a';
 				bgm.loop = true;
 				bgm.volume = 0.16;
-				bgm.preload = 'auto';
+				bgm.preload = IS_ANDROID ? 'none' : 'auto';
 				self.musicTrack = bgm;
 			} catch (e) {}
 
@@ -195,9 +209,15 @@
 			var orig = this.sounds[name];
 			if (orig) {
 				try {
-					var clone = orig.cloneNode();
-					clone.volume = Math.min(1.0, vol);
-					clone.play().catch(function () {});
+					if (IS_ANDROID) {
+						orig.currentTime = 0;
+						orig.volume = Math.min(1.0, vol);
+						orig.play().catch(function () {});
+					} else {
+						var clone = orig.cloneNode();
+						clone.volume = Math.min(1.0, vol);
+						clone.play().catch(function () {});
+					}
 				} catch (e) {}
 			}
 		},
@@ -284,14 +304,20 @@
 				}
 			} catch (e1) {}
 
-			// 2. Android Native Bridge via JavascriptInterface
+			// 2. Android Native Bridge via JavascriptInterface (Asynchronous tap method avoids JSON + Binder IPC stall)
 			try {
-				if (window.AndroidHaptics && typeof window.AndroidHaptics.postMessage === 'function') {
-					window.AndroidHaptics.postMessage(JSON.stringify({
-						type: 'pattern',
-						events: [{ t: 0.0, i: i, s: s, d: Math.min(0.12, durationSec) }]
-					}));
-					return;
+				if (window.AndroidHaptics) {
+					if (typeof window.AndroidHaptics.tap === 'function') {
+						window.AndroidHaptics.tap(Math.round(ms || 15));
+						return;
+					}
+					if (typeof window.AndroidHaptics.postMessage === 'function') {
+						window.AndroidHaptics.postMessage(JSON.stringify({
+							type: 'pattern',
+							events: [{ t: 0.0, i: i, s: s, d: Math.min(0.12, durationSec) }]
+						}));
+						return;
+					}
 				}
 			} catch (e2) {}
 
@@ -311,21 +337,30 @@
 						type: 'pattern',
 						events: events
 					});
+					return;
 				}
 			} catch (e1) {}
 
 			// 2. Android Native Bridge
 			try {
-				if (window.AndroidHaptics && typeof window.AndroidHaptics.postMessage === 'function') {
-					window.AndroidHaptics.postMessage(JSON.stringify({
-						type: 'pattern',
-						events: events
-					}));
+				if (window.AndroidHaptics) {
+					if (events.length === 1 && typeof window.AndroidHaptics.tap === 'function') {
+						var dMs = Math.round(((events[0] && events[0].d) || 0.025) * 1000);
+						window.AndroidHaptics.tap(Math.max(15, dMs));
+						return;
+					}
+					if (typeof window.AndroidHaptics.postMessage === 'function') {
+						window.AndroidHaptics.postMessage(JSON.stringify({
+							type: 'pattern',
+							events: events
+						}));
+						return;
+					}
 				}
 			} catch (e2) {}
 
-			// 3. Web Vibration API fallback
-			if (navigator.vibrate) {
+			// 3. Web Vibration API fallback (skipped on Android WebView when AndroidHaptics is present)
+			if (!IS_ANDROID && navigator.vibrate) {
 				try {
 					var pattern = [];
 					events.forEach(function (ev) {
@@ -426,6 +461,7 @@
 		preloadSkinImages: function (skinId) {
 			var self = this;
 			var alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
 			for (var i = 0; i < alphabet.length; i++) {
 				(function (c) {
 					var key = skinId + ':' + c;
@@ -461,7 +497,8 @@
 			ctx.fillRect(0, 0, width, height);
 
 			// Longitudinal prominent wood grain lines (ALWAYS rich, visible wooden texture)
-			for (var y = 0; y < height; y += 2.5) {
+			var yStep = 2.5;
+			for (var y = 0; y < height; y += yStep) {
 				var grainAlpha = (Math.sin(y * 0.14) * 0.5 + 0.5) * 0.32 + Math.random() * 0.12;
 				ctx.fillStyle = (Math.sin(y * 0.32) > 0) ? grainDarkHex : grainLightHex;
 				ctx.globalAlpha = grainAlpha;
@@ -477,8 +514,9 @@
 			}
 
 			// Annual growth ring bands (darker rich organic grain waves)
-			for (var b = 0; b < 6; b++) {
-				var bandY = (b * 44) + 18;
+			var bandCount = 6;
+			for (var b = 0; b < bandCount; b++) {
+				var bandY = (b * 44) + 14;
 				ctx.fillStyle = grainDarkHex;
 				ctx.globalAlpha = 0.22;
 				ctx.beginPath();
@@ -494,10 +532,11 @@
 			// Fine wood pore capillaries
 			ctx.fillStyle = grainDarkHex;
 			ctx.globalAlpha = 0.16;
-			for (var i = 0; i < 450; i++) {
+			var poreCount = 350;
+			for (var i = 0; i < poreCount; i++) {
 				var px = Math.random() * width;
 				var py = Math.random() * height;
-				var len = Math.random() * 32 + 10;
+				var len = Math.random() * 28 + 8;
 				ctx.fillRect(px, py, len, 1.4);
 			}
 			ctx.globalAlpha = 1.0;
@@ -507,6 +546,9 @@
 			texture.wrapS = THREE.RepeatWrapping;
 			texture.wrapT = THREE.RepeatWrapping;
 			texture.repeat.set(2, 1);
+			texture.generateMipmaps = true;
+			texture.minFilter = THREE.LinearMipmapLinearFilter;
+			texture.magFilter = THREE.LinearFilter;
 			return texture;
 		},
 
@@ -523,7 +565,8 @@
 			ctx.fillRect(0, 0, width, height);
 
 			// Longitudinal char ridges & alligator fractures (burnt timber texture)
-			for (var y = 0; y < height; y += 3) {
+			var cyStep = 3;
+			for (var y = 0; y < height; y += cyStep) {
 				var charAlpha = (Math.sin(y * 0.18) * 0.5 + 0.5) * 0.45 + Math.random() * 0.15;
 				ctx.fillStyle = (Math.sin(y * 0.35) > 0) ? (ashFissureHex || '#0a0a0c') : '#25252b';
 				ctx.globalAlpha = charAlpha;
@@ -549,7 +592,8 @@
 			// Ash flecks & carbon flakes
 			ctx.fillStyle = '#3a3a42';
 			ctx.globalAlpha = 0.25;
-			for (var f = 0; f < 300; f++) {
+			var fleckCount = 250;
+			for (var f = 0; f < fleckCount; f++) {
 				var fx = Math.random() * width;
 				var fy = Math.random() * height;
 				var fSize = Math.random() * 2.5 + 1.0;
@@ -560,7 +604,8 @@
 			if (emberIntensity && emberIntensity > 0) {
 				ctx.fillStyle = emberGlowHex || '#d84315';
 				ctx.globalAlpha = emberIntensity;
-				for (var e = 0; e < 12; e++) {
+				var veinCount = 10;
+				for (var e = 0; e < veinCount; e++) {
 					var ey = (e * 21) + 8 + (Math.random() * 6);
 					ctx.beginPath();
 					ctx.moveTo(0, ey);
@@ -574,7 +619,8 @@
 				}
 
 				// Deep burning micro-ember hotspots
-				for (var h = 0; h < 20; h++) {
+				var spotCount = 16;
+				for (var h = 0; h < spotCount; h++) {
 					var hx = Math.random() * width;
 					var hy = Math.random() * height;
 					var grad = ctx.createRadialGradient(hx, hy, 0, hx, hy, 12);
@@ -596,6 +642,9 @@
 			texture.wrapS = THREE.RepeatWrapping;
 			texture.wrapT = THREE.RepeatWrapping;
 			texture.repeat.set(2, 1);
+			texture.generateMipmaps = true;
+			texture.minFilter = THREE.LinearMipmapLinearFilter;
+			texture.magFilter = THREE.LinearFilter;
 			return texture;
 		},
 
@@ -635,6 +684,7 @@
 			var key = sid + ':' + letter;
 			if (this.letterTextures[key]) return this.letterTextures[key];
 
+			// Crisp HD 512x512 with mipmaps eliminates all flickering/shimmering when tiles are tilted or in motion
 			var size = 512;
 			var canvas = document.createElement('canvas');
 			canvas.width = size;
@@ -643,9 +693,10 @@
 
 			var texture = new THREE.CanvasTexture(canvas);
 			texture.encoding = THREE.sRGBEncoding;
+			texture.generateMipmaps = true;
 			texture.minFilter = THREE.LinearMipmapLinearFilter;
 			texture.magFilter = THREE.LinearFilter;
-			texture.anisotropy = (renderer && renderer.capabilities) ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 4;
+			texture.anisotropy = (renderer && renderer.capabilities) ? Math.min(4, renderer.capabilities.getMaxAnisotropy()) : 2;
 			this.letterTextures[key] = texture;
 
 			var self = this;
@@ -1891,6 +1942,44 @@
 				this._litRim = new THREE.Color(0x6b2f02);
 				this.lastRenderTime = 0;
 
+				var defaultOffsets = [-80, 0, 80];
+
+				// On Android, render the 10-facet 3D stars via a dedicated 2D Canvas context
+				// so Android WebView NEVER creates a 2nd WebGLRenderer (preventing GPU context-switch flicker),
+				// while preserving 100% of the 3D floating, tilting, starburst rays, and board illumination!
+				if (IS_ANDROID) {
+					this.canvas.width = Math.round(this.canvasWidth * this.dpr);
+					this.canvas.height = Math.round(this.canvasHeight * this.dpr);
+					this.ctx2d = this.canvas.getContext('2d');
+					var gTex = this.createGlowTexture();
+					var fTex = this.createFlareTexture();
+					this.glowCanvas = gTex ? gTex.image : null;
+					this.flareCanvas = fTex ? fTex.image : null;
+					this.stars = [];
+					for (var ai = 0; ai < 3; ai++) {
+						this.stars.push({
+							baseX: defaultOffsets[ai],
+							litAmount: 0.0,
+							targetLit: 0.0,
+							isLit: false,
+							spinVelocity: 0.0,
+							spinAngle: 0.0,
+							flareAngle: ai * 0.8,
+							popScale: 0.96,
+							pulseTimer: 0.0
+						});
+					}
+					if (scene && !this.boardStarLight) {
+						this.boardStarLight = new THREE.PointLight(0xffcf40, 0.0, 22, 1.5);
+						this.boardStarLight.position.set(0, 4.5, -5.5);
+						scene.add(this.boardStarLight);
+					}
+					this.updatePositions();
+					this.needsRender = true;
+					this.initialized = true;
+					return;
+				}
+
 				this.renderer = new THREE.WebGLRenderer({
 					canvas: this.canvas,
 					antialias: true,
@@ -1938,8 +2027,6 @@
 
 				var glowGeom = new THREE.PlaneGeometry(42, 42);
 				var flareGeom = new THREE.PlaneGeometry(46, 46);
-
-				var defaultOffsets = [-80, 0, 80];
 
 				this.stars = [];
 				for (var i = 0; i < 3; i++) {
@@ -2040,6 +2127,7 @@
 				}
 
 				this.updatePositions();
+				this.needsRender = true;
 				this.initialized = true;
 			} catch (err) {
 				console.warn('Star3DManager initialization error:', err);
@@ -2059,18 +2147,30 @@
 					var dx = nodeCenterX - trackCenterX;
 					if (Math.abs(dx) > 0.01) {
 						this.stars[i].baseX = dx;
-						this.stars[i].group.position.x = dx;
+						if (this.stars[i].group) {
+							this.stars[i].group.position.x = dx;
+						}
 					}
 				}
 			}
+			this.needsRender = true;
 		},
 
 		onResize: function () {
-			if (!this.initialized || !this.canvas || !this.renderer) return;
+			if (!this.initialized || !this.canvas) return;
 			var rect = this.canvas.getBoundingClientRect();
 			this.canvasWidth = Math.max(220, rect.width || 264);
 			this.canvasHeight = Math.max(68, rect.height || 88);
 			this.dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+
+			if (IS_ANDROID && this.ctx2d) {
+				this.canvas.width = Math.round(this.canvasWidth * this.dpr);
+				this.canvas.height = Math.round(this.canvasHeight * this.dpr);
+				this.updatePositions();
+				this.needsRender = true;
+				return;
+			}
+			if (!this.renderer) return;
 
 			this.renderer.setPixelRatio(this.dpr);
 			this.renderer.setSize(this.canvasWidth, this.canvasHeight, false);
@@ -2083,6 +2183,7 @@
 			this.camera.updateProjectionMatrix();
 
 			this.updatePositions();
+			this.needsRender = true;
 		},
 
 		reset: function () {
@@ -2093,24 +2194,28 @@
 				s.targetLit = 0.0;
 				s.litAmount = 0.0;
 				s.spinVelocity = 0.0;
+				s.spinAngle = 0.0;
 				s.popScale = 0.96;
 				s.pulseTimer = 0.0;
-				s.light.intensity = 0.0;
-				s.mesh.material.color.setHex(0x64748b);
-				s.mesh.material.emissive.setHex(0x000000);
-				s.mesh.material.emissiveIntensity = 0.0;
-				s.mesh.material.roughness = 0.34;
-				s.mesh.material.metalness = 0.36;
-				s.rimMesh.material.color.setHex(0x1e293b);
-				s.rimMesh.material.emissiveIntensity = 0.0;
-				s.glowMesh.material.opacity = 0;
-				s.glowMesh.scale.set(0.1, 0.1, 0.1);
-				s.flareMesh.material.opacity = 0;
-				s.flareMesh.scale.set(0.1, 0.1, 0.1);
+				if (!IS_ANDROID && s.mesh) {
+					s.light.intensity = 0.0;
+					s.mesh.material.color.setHex(0x64748b);
+					s.mesh.material.emissive.setHex(0x000000);
+					s.mesh.material.emissiveIntensity = 0.0;
+					s.mesh.material.roughness = 0.34;
+					s.mesh.material.metalness = 0.36;
+					s.rimMesh.material.color.setHex(0x1e293b);
+					s.rimMesh.material.emissiveIntensity = 0.0;
+					s.glowMesh.material.opacity = 0;
+					s.glowMesh.scale.set(0.1, 0.1, 0.1);
+					s.flareMesh.material.opacity = 0;
+					s.flareMesh.scale.set(0.1, 0.1, 0.1);
+				}
 			}
 			if (this.boardStarLight) {
 				this.boardStarLight.intensity = 0.0;
 			}
+			this.needsRender = true;
 		},
 
 		setStarsLit: function (count) {
@@ -2127,13 +2232,17 @@
 					// Crisp 3D spin & pop while preserving the 5-pointed star silhouette
 					s.spinVelocity = 14.0;
 					s.popScale = 1.36;
-					s.light.intensity = 1.65;
 					s.pulseTimer = 0.85;
-					s.glowMesh.scale.set(1.25, 1.25, 1.25);
-					s.flareMesh.scale.set(1.2, 1.2, 1.2);
+					if (!IS_ANDROID && s.light) {
+						s.light.intensity = 1.65;
+						s.glowMesh.scale.set(1.25, 1.25, 1.25);
+						s.flareMesh.scale.set(1.2, 1.2, 1.2);
+					}
+					this.needsRender = true;
 				} else if (!shouldBeLit && s.isLit) {
 					s.isLit = false;
 					s.targetLit = 0.0;
+					this.needsRender = true;
 				}
 			}
 		},
@@ -2150,10 +2259,13 @@
 						var s = self.stars[idx];
 						s.spinVelocity = 16.0;
 						s.popScale = 1.42;
-						s.light.intensity = 1.85;
 						s.pulseTimer = 1.0;
-						s.glowMesh.scale.set(1.35, 1.35, 1.35);
-						s.flareMesh.scale.set(1.3, 1.3, 1.3);
+						if (!IS_ANDROID && s.light) {
+							s.light.intensity = 1.85;
+							s.glowMesh.scale.set(1.35, 1.35, 1.35);
+							s.flareMesh.scale.set(1.3, 1.3, 1.3);
+						}
+						self.needsRender = true;
 					}, idx * 190);
 				})(i);
 			}
@@ -2165,10 +2277,157 @@
 			if (!s) return;
 			s.spinVelocity = 9.5;
 			s.popScale = 1.28;
-			s.light.intensity = 1.6;
 			s.pulseTimer = 0.7;
-			s.glowMesh.scale.set(1.2, 1.2, 1.2);
-			s.flareMesh.scale.set(1.18, 1.18, 1.18);
+			if (!IS_ANDROID && s.light) {
+				s.light.intensity = 1.6;
+				s.glowMesh.scale.set(1.2, 1.2, 1.2);
+				s.flareMesh.scale.set(1.18, 1.18, 1.18);
+			}
+			this.needsRender = true;
+		},
+
+		renderAndroid2D: function (now, dt) {
+			var ctx = this.ctx2d;
+			if (!ctx) return;
+			var dpr = this.dpr || 1;
+			var w = this.canvasWidth;
+			var h = this.canvasHeight;
+			ctx.save();
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+			ctx.clearRect(0, 0, w, h);
+
+			var centerX = w * 0.5;
+			var centerY = h * 0.5;
+			var totalLitAmount = 0;
+
+			for (var i = 0; i < this.stars.length; i++) {
+				var s = this.stars[i];
+				s.litAmount += (s.targetLit - s.litAmount) * Math.min(1.0, dt * 8.0);
+				if (Math.abs(s.targetLit - s.litAmount) < 0.003) s.litAmount = s.targetLit;
+				totalLitAmount += s.litAmount;
+
+				s.spinAngle = (s.spinAngle || 0) + s.spinVelocity * dt;
+				s.spinVelocity = Math.max(0, s.spinVelocity - s.spinVelocity * 4.2 * dt);
+				if (s.spinVelocity < 0.01) {
+					s.spinVelocity = 0;
+					s.spinAngle = 0;
+				}
+				s.flareAngle = (s.flareAngle || 0) + (0.005 + s.spinVelocity * 0.03);
+
+				var idleTiltY = Math.sin(now * 0.0024 + i * 1.8) * 0.24;
+				var idleTiltX = Math.cos(now * 0.0029 + i * 1.8) * 0.15;
+				var idleBobY = Math.sin(now * 0.0032 + i * 1.8) * 1.0;
+
+				if (s.litAmount < 0.1) {
+					idleTiltY *= 0.45;
+					idleTiltX = 0.10 + Math.cos(now * 0.002 + i) * 0.05;
+					idleBobY *= 0.2;
+				}
+
+				var targetScale = (s.litAmount > 0.5 ? 1.15 : 0.96);
+				s.popScale += (targetScale - s.popScale) * Math.min(1.0, dt * 7.0);
+				if (Math.abs(targetScale - s.popScale) < 0.004) s.popScale = targetScale;
+				s.pulseTimer = Math.max(0, s.pulseTimer - dt * 2.4);
+
+				var sx = centerX + s.baseX;
+				var sy = centerY - idleBobY;
+				var scale = s.popScale;
+				var rotY = (s.spinVelocity >= 0.05) ? s.spinAngle : idleTiltY;
+				var squeezeX = Math.cos(rotY);
+				if (Math.abs(squeezeX) < 0.15) squeezeX = (squeezeX < 0 ? -0.15 : 0.15);
+
+				ctx.save();
+				ctx.translate(sx, sy);
+
+				// 1. Warm amber-gold backlight aura + rotating starburst flare rays strictly behind lit stars
+				if (s.litAmount > 0.03) {
+					var glowBreath = Math.sin(now * 0.004 + i * 1.4) * 0.08;
+					if (this.glowCanvas) {
+						var glowOp = Math.min(1.0, Math.max(0, (0.48 + glowBreath) * s.litAmount + s.pulseTimer * 0.22));
+						var glowSz = 42 * (0.98 + Math.sin(now * 0.0035 + i * 1.4) * 0.05) * scale;
+						ctx.save();
+						ctx.globalAlpha = glowOp;
+						ctx.drawImage(this.glowCanvas, -glowSz * 0.5, -glowSz * 0.5, glowSz, glowSz);
+						ctx.restore();
+					}
+					if (this.flareCanvas) {
+						var flareOp = Math.min(1.0, Math.max(0, (0.32 + glowBreath * 0.4) * s.litAmount + s.pulseTimer * 0.25));
+						var flareSz = 46 * (0.95 + Math.sin(now * 0.003 + i) * 0.05) * scale;
+						ctx.save();
+						ctx.globalAlpha = flareOp;
+						ctx.globalCompositeOperation = 'lighter';
+						ctx.rotate(s.flareAngle);
+						ctx.drawImage(this.flareCanvas, -flareSz * 0.5, -flareSz * 0.5, flareSz, flareSz);
+						ctx.restore();
+					}
+				}
+
+				ctx.scale(scale * squeezeX, scale);
+
+				// 2. Dark bevel rim for razor-sharp 5-pointed silhouette
+				var rimOuter = 14.8, rimInner = 6.4;
+				var rimShiftX = -idleTiltY * 1.2;
+				var rimShiftY = idleTiltX * 1.2;
+				ctx.fillStyle = (s.litAmount > 0.5) ? '#5c2802' : '#1e293b';
+				ctx.beginPath();
+				for (var rp = 0; rp < 10; rp++) {
+					var rAng = (rp / 10) * Math.PI * 2 - Math.PI / 2;
+					var rRad = (rp % 2 === 0) ? rimOuter : rimInner;
+					var rx = rimShiftX + Math.cos(rAng) * rRad;
+					var ry = rimShiftY + Math.sin(rAng) * rRad;
+					if (rp === 0) ctx.moveTo(rx, ry);
+					else ctx.lineTo(rx, ry);
+				}
+				ctx.closePath();
+				ctx.fill();
+
+				// 3. 10-Facet 3D Star Body with 3D apex parallax & dynamic sunlit facet contrast
+				var outerR = 13.0, innerR = 5.5;
+				var apexX = idleTiltY * 2.8;
+				var apexY = -idleTiltX * 2.4;
+				var lightFacets = (s.litAmount > 0.5)
+					? ['#ffe066', '#ffc300', '#ffd13b', '#e09100', '#ffea85']
+					: ['#94a3b8', '#78879c', '#8695aa', '#526074', '#a3b1c6'];
+				var darkFacets = (s.litAmount > 0.5)
+					? ['#d48400', '#b86b00', '#c97a00', '#9e5800', '#e09600']
+					: ['#475569', '#3b4758', '#414e61', '#334155', '#526074'];
+
+				for (var p = 0; p < 5; p++) {
+					var aTip = (p / 5) * Math.PI * 2 - Math.PI / 2;
+					var aVal = ((p + 0.5) / 5) * Math.PI * 2 - Math.PI / 2;
+					var aPrevVal = ((p - 0.5) / 5) * Math.PI * 2 - Math.PI / 2;
+
+					var tx = Math.cos(aTip) * outerR, ty = Math.sin(aTip) * outerR;
+					var vx = Math.cos(aVal) * innerR, vy = Math.sin(aVal) * innerR;
+					var pvx = Math.cos(aPrevVal) * innerR, pvy = Math.sin(aPrevVal) * innerR;
+
+					// Left facet of point (sunlit)
+					ctx.fillStyle = lightFacets[p];
+					ctx.beginPath();
+					ctx.moveTo(apexX, apexY);
+					ctx.lineTo(pvx, pvy);
+					ctx.lineTo(tx, ty);
+					ctx.closePath();
+					ctx.fill();
+
+					// Right facet of point (shaded)
+					ctx.fillStyle = darkFacets[p];
+					ctx.beginPath();
+					ctx.moveTo(apexX, apexY);
+					ctx.lineTo(tx, ty);
+					ctx.lineTo(vx, vy);
+					ctx.closePath();
+					ctx.fill();
+				}
+
+				ctx.restore();
+			}
+
+			if (this.boardStarLight) {
+				this.boardStarLight.intensity = (totalLitAmount / 3.0) * 1.25;
+			}
+
+			ctx.restore();
 		},
 
 		render: function (now, dt) {
@@ -2176,6 +2435,12 @@
 			if (!this.initialized) return;
 
 			dt = Math.min(dt || 0.016, 0.05);
+
+			if (IS_ANDROID) {
+				// Continuous synchronous frame submission prevents Android compositor buffer drops & flickering
+				this.renderAndroid2D(now, dt);
+				return;
+			}
 
 			var dimColor = this._dimColor || (this._dimColor = new THREE.Color(0x64748b));
 			var litColor = this._litColor || (this._litColor = new THREE.Color(0xffb700)); // Rich 24K Gold (never washes out to white)
@@ -2189,9 +2454,10 @@
 
 				// 1. Smooth interpolation of lit state
 				s.litAmount += (s.targetLit - s.litAmount) * Math.min(1.0, dt * 8.0);
+				if (Math.abs(s.targetLit - s.litAmount) < 0.003) s.litAmount = s.targetLit;
 				totalLitAmount += s.litAmount;
 
-				var breath = Math.sin(now * 0.004 + i * 1.5) * 0.06;
+				var breath = IS_ANDROID ? 0.0 : Math.sin(now * 0.004 + i * 1.5) * 0.06;
 
 				// 2. Dynamic 3D Material interpolation (preserving sharp 10-facet contrast!)
 				s.mesh.material.color.copy(dimColor).lerp(litColor, s.litAmount);
@@ -2211,33 +2477,34 @@
 				} else {
 					var targetLightInt = (1.10 + breath * 0.8) * s.litAmount + s.pulseTimer * 0.6;
 					s.light.intensity += (targetLightInt - s.light.intensity) * Math.min(1.0, dt * 6.0);
-					s.light.position.x = -7.0 + Math.sin(now * 0.003 + i * 1.4) * 4.0;
-					s.light.position.y = 8.0 + Math.cos(now * 0.0035 + i * 1.4) * 3.0;
+					s.light.position.x = IS_ANDROID ? -7.0 : (-7.0 + Math.sin(now * 0.003 + i * 1.4) * 4.0);
+					s.light.position.y = IS_ANDROID ? 8.0 : (8.0 + Math.cos(now * 0.0035 + i * 1.4) * 3.0);
 					s.light.position.z = 18.0;
 				}
 
 				// 4. Subtle Warm Golden Back-Glow strictly behind the star
-				var glowBreath = Math.sin(now * 0.004 + i * 1.4) * 0.08;
+				var glowBreath = IS_ANDROID ? 0.0 : Math.sin(now * 0.004 + i * 1.4) * 0.08;
 				s.glowMesh.material.opacity = Math.max(0, (0.48 + glowBreath) * s.litAmount + s.pulseTimer * 0.22);
-				var targetGlowScale = (0.98 + Math.sin(now * 0.0035 + i * 1.4) * 0.05) * (s.litAmount > 0.08 ? 1.0 : 0.1);
+				var targetGlowScale = (IS_ANDROID ? 0.98 : (0.98 + Math.sin(now * 0.0035 + i * 1.4) * 0.05)) * (s.litAmount > 0.08 ? 1.0 : 0.1);
 				s.glowMesh.scale.x += (targetGlowScale - s.glowMesh.scale.x) * Math.min(1.0, dt * 6.5);
 				s.glowMesh.scale.y = s.glowMesh.scale.x;
 
-				s.flareMesh.rotation.z += (0.005 + s.spinVelocity * 0.03);
+				s.flareMesh.rotation.z += ((IS_ANDROID ? 0.0 : 0.005) + s.spinVelocity * 0.03);
 				s.flareMesh.material.opacity = Math.max(0, (0.32 + glowBreath * 0.4) * s.litAmount + s.pulseTimer * 0.25);
-				var targetFlareScale = (0.95 + Math.sin(now * 0.003 + i) * 0.05) * (s.litAmount > 0.08 ? 1.0 : 0.1);
+				var targetFlareScale = (IS_ANDROID ? 0.95 : (0.95 + Math.sin(now * 0.003 + i) * 0.05)) * (s.litAmount > 0.08 ? 1.0 : 0.1);
 				s.flareMesh.scale.x += (targetFlareScale - s.flareMesh.scale.x) * Math.min(1.0, dt * 6.5);
 				s.flareMesh.scale.y = s.flareMesh.scale.x;
 
 				// 5. 3D Rotation, Tilt & Floating Physics
 				s.bodyPivot.rotation.y += s.spinVelocity * dt;
 				s.spinVelocity = Math.max(0, s.spinVelocity - s.spinVelocity * 4.2 * dt);
+				if (s.spinVelocity < 0.01) s.spinVelocity = 0;
 
-				var idleTiltY = Math.sin(now * 0.0024 + i * 1.8) * 0.24;
-				var idleTiltX = Math.cos(now * 0.0029 + i * 1.8) * 0.15;
-				var idleBobY = Math.sin(now * 0.0032 + i * 1.8) * 1.0;
+				var idleTiltY = IS_ANDROID ? ((i - 1) * 0.12) : (Math.sin(now * 0.0024 + i * 1.8) * 0.24);
+				var idleTiltX = IS_ANDROID ? 0.08 : (Math.cos(now * 0.0029 + i * 1.8) * 0.15);
+				var idleBobY = IS_ANDROID ? 0.0 : (Math.sin(now * 0.0032 + i * 1.8) * 1.0);
 
-				if (s.litAmount < 0.1) {
+				if (!IS_ANDROID && s.litAmount < 0.1) {
 					idleTiltY *= 0.45;
 					idleTiltX = 0.10 + Math.cos(now * 0.002 + i) * 0.05;
 					idleBobY *= 0.2;
@@ -2255,6 +2522,7 @@
 				// 6. Scale Pop decay
 				var targetScale = (s.litAmount > 0.5 ? 1.15 : 0.96);
 				s.popScale += (targetScale - s.popScale) * Math.min(1.0, dt * 7.0);
+				if (Math.abs(targetScale - s.popScale) < 0.004) s.popScale = targetScale;
 				s.bodyPivot.scale.set(s.popScale, s.popScale, s.popScale);
 
 				// 7. Pulse timer decay
@@ -7147,8 +7415,11 @@
 
 					if (!levelEntranceState.rowsLanded[r]) {
 						levelEntranceState.rowsLanded[r] = true;
-						AudioManager.play('tilehit', 0.20 + r * 0.03);
-						AudioManager.haptic(10);
+						var isTitleCovering = (titleScreenEl && !titleScreenEl.classList.contains('hide') && titleScreenEl.style.display !== 'none');
+						if (!isTitleCovering) {
+							AudioManager.play('tilehit', 0.20 + r * 0.03);
+							AudioManager.haptic(10);
+						}
 					}
 				} else {
 					// Smooth ease-out quartic deceleration
@@ -7191,8 +7462,11 @@
 					levelEntranceState.stagingLanded = true;
 					levelEntranceState.active = false;
 					levelEntranceState.completed = true;
-					AudioManager.play('tilehit', 0.35);
-					AudioManager.haptic(15);
+					var isTitleCoveringStage = (titleScreenEl && !titleScreenEl.classList.contains('hide') && titleScreenEl.style.display !== 'none');
+					if (!isTitleCoveringStage) {
+						AudioManager.play('tilehit', 0.35);
+						AudioManager.haptic(15);
+					}
 					spawnStagingTiles(currentWordIndex);
 
 					// SEQUENCE: The trays appear FIRST!
@@ -9360,7 +9634,9 @@
 		requestAnimationFrame(animate);
 
 		var dt = (now - lastTime) * 0.001;
-		if (dt < 0.009) return; // Smooth 60 FPS pacing without dropping frames on 60Hz displays
+		var isTitleOpen = (titleScreenEl && !titleScreenEl.classList.contains('hide') && titleScreenEl.style.display !== 'none');
+		var minFrameInterval = (IS_ANDROID && isTitleOpen) ? 0.032 : 0.009;
+		if (dt < minFrameInterval) return; // Smooth 60 FPS in-game, calm 30 FPS on title menu
 		lastTime = now;
 		dt = Math.min(dt, 0.05);
 
@@ -9494,13 +9770,16 @@
 					// 2. MECHANICAL SNAP & OVERSHOOT IMPACT PHASE:
 					if (!chainSwingState.hasSnapped) {
 						chainSwingState.hasSnapped = true;
-						AudioManager.playSnap(1.55);
-						AudioManager.hapticPattern([
-							{ t: 0.0, i: 0.95, s: 0.90, d: 0.025 },
-							{ t: 0.07, i: 1.0, s: 0.95, d: 0.035 }
-						]);
-						if (leftMountLower) triggerChainSnapSparks(leftMountLower.position.x, leftMountLower.position.y, leftMountLower.position.z);
-						if (rightMountLower) triggerChainSnapSparks(rightMountLower.position.x, rightMountLower.position.y, rightMountLower.position.z);
+						var isTitleCoveringSnap = (titleScreenEl && !titleScreenEl.classList.contains('hide') && titleScreenEl.style.display !== 'none');
+						if (!isTitleCoveringSnap) {
+							AudioManager.playSnap(1.55);
+							AudioManager.hapticPattern([
+								{ t: 0.0, i: 0.95, s: 0.90, d: 0.025 },
+								{ t: 0.07, i: 1.0, s: 0.95, d: 0.035 }
+							]);
+							if (leftMountLower) triggerChainSnapSparks(leftMountLower.position.x, leftMountLower.position.y, leftMountLower.position.z);
+							if (rightMountLower) triggerChainSnapSparks(rightMountLower.position.x, rightMountLower.position.y, rightMountLower.position.z);
+						}
 					}
 
 					// Damped physical spring wobble on landing
@@ -9596,6 +9875,11 @@
 			global.WordscapesScenery.update(dt, now);
 		}
 
+		// On Android, render 3D background scenery inside the main WebGLRenderer to eliminate multi-context switching
+		if (global.WordscapesScenery && typeof global.WordscapesScenery.renderBackgroundPass === 'function') {
+			global.WordscapesScenery.renderBackgroundPass(renderer);
+		}
+
 		renderer.render(scene, camera);
 	}
 
@@ -9613,7 +9897,7 @@
 		camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 2.0, 80);
 		camera.up.set(0, 0, -1);
 
-		// 3. Renderer (Crisp HD 2.0x DPR & hardware MSAA with transparent background)
+		// 3. Renderer (Crisp HD 2.0x DPR & hardware MSAA with transparent background; highp prevents slot felt & bracket Z-fighting)
 		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 		renderer.setClearColor(0x000000, 0);
 		renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));

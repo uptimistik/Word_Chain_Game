@@ -18,6 +18,10 @@
 (function (global) {
 	'use strict';
 
+	// Strictly Android-only detection so iOS (WKWebView / Safari) remains 100% untouched
+	var IS_ANDROID = (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')) ||
+		(typeof window !== 'undefined' && !!window.AndroidHaptics);
+
 	var sceneRef = null;
 	var cameraRef = null;
 	var rendererRef = null;
@@ -1091,7 +1095,8 @@
 		if (!live.canvas) return;
 		var cssW = window.innerWidth;
 		var cssH = window.innerHeight;
-		var dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+		// On Android, 1.0 DPR matches the native 768x1376 resolution of the background art while saving 75% fragment shader load; iOS keeps 2.0 DPR
+		var dpr = IS_ANDROID ? 1.0 : Math.min(window.devicePixelRatio || 1, 2.0);
 		var w = Math.round(cssW * dpr);
 		var h = Math.round(cssH * dpr);
 		if (w !== live.width || h !== live.height) {
@@ -1107,6 +1112,7 @@
 	function liveDraw(force) {
 		if (!live.gl || !live.texReady) return;
 		var now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+		if (!force && IS_ANDROID && (now - live.lastDraw < 32)) return;
 		live.lastDraw = now;
 		var gl = live.gl;
 		var pInfo = liveGetProgram(currentScenery);
@@ -1616,24 +1622,28 @@
 		if (!container) return false;
 
 		try {
-			var canvas = document.createElement('canvas');
-			canvas.id = 'scenery-peaks-3d-canvas';
-			canvas.className = 'scenery-peaks-3d-canvas';
-			var vignette = document.getElementById('scenery-vignette');
-			container.insertBefore(canvas, vignette || null);
+			var canvas = null;
+			var renderer = null;
+			if (!IS_ANDROID) {
+				canvas = document.createElement('canvas');
+				canvas.id = 'scenery-peaks-3d-canvas';
+				canvas.className = 'scenery-peaks-3d-canvas';
+				var vignette = document.getElementById('scenery-vignette');
+				container.insertBefore(canvas, vignette || null);
 
-			var renderer = new THREE.WebGLRenderer({
-				canvas: canvas,
-				antialias: true,
-				alpha: false,
-				powerPreference: 'high-performance'
-			});
-			renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
-			renderer.setClearColor(0x52a2f7, 1);
-			renderer.outputEncoding = THREE.sRGBEncoding;
-			if (typeof THREE.ACESFilmicToneMapping !== 'undefined') {
-				renderer.toneMapping = THREE.ACESFilmicToneMapping;
-				renderer.toneMappingExposure = 1.12;
+				renderer = new THREE.WebGLRenderer({
+					canvas: canvas,
+					antialias: true,
+					alpha: false,
+					powerPreference: 'high-performance'
+				});
+				renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+				renderer.setClearColor(0x52a2f7, 1);
+				renderer.outputEncoding = THREE.sRGBEncoding;
+				if (typeof THREE.ACESFilmicToneMapping !== 'undefined') {
+					renderer.toneMapping = THREE.ACESFilmicToneMapping;
+					renderer.toneMappingExposure = 1.12;
+				}
 			}
 
 			var scene = new THREE.Scene();
@@ -2012,14 +2022,16 @@
 	}
 
 	function peaks3DResize() {
-		if (!peaks3D.initialized || !peaks3D.renderer || !peaks3D.camera) return;
+		if (!peaks3D.initialized || !peaks3D.camera) return;
 		var w = window.innerWidth || 390;
 		var h = window.innerHeight || 844;
 		if (w === peaks3D.width && h === peaks3D.height) return;
 		peaks3D.width = w;
 		peaks3D.height = h;
-		peaks3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
-		peaks3D.renderer.setSize(w, h, false);
+		if (peaks3D.renderer) {
+			peaks3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+			peaks3D.renderer.setSize(w, h, false);
+		}
 		var aspect = w / h;
 		peaks3D.camera.aspect = aspect;
 		peaks3D.camera.fov = 48;
@@ -2113,7 +2125,28 @@
 			sPosAttr.needsUpdate = true;
 		}
 
-		peaks3D.renderer.render(peaks3D.scene, peaks3D.camera);
+		if (peaks3D.renderer) {
+			peaks3D.renderer.render(peaks3D.scene, peaks3D.camera);
+		}
+	}
+
+	function renderBackgroundPass(targetRenderer) {
+		if (!IS_ANDROID) return false;
+		var r = targetRenderer || rendererRef;
+		if (!r) return false;
+		if (peaks3D.active && peaks3D.initialized && peaks3D.scene && peaks3D.camera) {
+			r.autoClear = false;
+			r.setClearColor(0x52a2f7, 1);
+			r.clear(true, true, true);
+			r.render(peaks3D.scene, peaks3D.camera);
+			r.clearDepth();
+			return true;
+		}
+		if (r.autoClear === false) {
+			r.autoClear = true;
+			r.setClearColor(0x000000, 0);
+		}
+		return false;
 	}
 
 	function peaks3DSetActive(isActive) {
@@ -2190,7 +2223,7 @@
 		if (!bgCanvas) return;
 		bgWidth = window.innerWidth;
 		bgHeight = window.innerHeight;
-		bgDpr = Math.min(window.devicePixelRatio || 1, 2.0);
+		bgDpr = IS_ANDROID ? 1.0 : Math.min(window.devicePixelRatio || 1, 2.0);
 		bgCanvas.width = bgWidth * bgDpr;
 		bgCanvas.height = bgHeight * bgDpr;
 		bgCanvas.style.width = bgWidth + 'px';
@@ -2556,14 +2589,19 @@
 
 				var curAlpha = sp.alpha * sp.fade;
 				var r = sp.size;
-				var grad = bgCtx.createRadialGradient(sp.x, sp.y, r * 0.1, sp.x, sp.y, r);
-				grad.addColorStop(0.0, 'rgba(255, 255, 255, ' + curAlpha + ')');
-				grad.addColorStop(0.5, 'rgba(240, 248, 255, ' + (curAlpha * 0.85) + ')');
-				grad.addColorStop(1.0, 'rgba(220, 235, 255, 0)');
-				bgCtx.fillStyle = grad;
-				bgCtx.beginPath();
-				bgCtx.arc(sp.x, sp.y, r, 0, Math.PI * 2);
-				bgCtx.fill();
+				if (IS_ANDROID) {
+					bgCtx.globalAlpha = curAlpha;
+					bgCtx.drawImage(getBgParticleSprite('snow'), sp.x - r, sp.y - r, r * 2, r * 2);
+				} else {
+					var grad = bgCtx.createRadialGradient(sp.x, sp.y, r * 0.1, sp.x, sp.y, r);
+					grad.addColorStop(0.0, 'rgba(255, 255, 255, ' + curAlpha + ')');
+					grad.addColorStop(0.5, 'rgba(240, 248, 255, ' + (curAlpha * 0.85) + ')');
+					grad.addColorStop(1.0, 'rgba(220, 235, 255, 0)');
+					bgCtx.fillStyle = grad;
+					bgCtx.beginPath();
+					bgCtx.arc(sp.x, sp.y, r, 0, Math.PI * 2);
+					bgCtx.fill();
+				}
 			}
 		}
 	}
@@ -2977,6 +3015,7 @@
 	global.WordscapesScenery = {
 		init: init,
 		update: update,
+		renderBackgroundPass: renderBackgroundPass,
 		setScenery: setScenery,
 		setSceneryForLevel: setSceneryForLevel,
 		applyLighting: applyLighting,
