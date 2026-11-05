@@ -13,7 +13,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="css/word-chain-3d.css?v=21.0">
+	<link rel="stylesheet" href="css/word-chain-3d.css?v=25.3">
 	<style>
 		/* Title Screen: Semi-transparent background with sleek blur */
 		#title-screen {
@@ -482,8 +482,8 @@
 			top: -2px;
 			left: 50%;
 			transform: translateX(-50%);
-			width: 86px;
-			height: 48px;
+			width: 100px;
+			height: 56px;
 			border-radius: 50% 50% 0 0;
 			filter: blur(12px);
 			opacity: 0.45;
@@ -494,8 +494,8 @@
 
 		.speedo-dial {
 			position: relative;
-			width: 84px;
-			height: 48px;
+			width: 98px;
+			height: 56px;
 			display: flex;
 			justify-content: center;
 			overflow: visible;
@@ -519,12 +519,12 @@
 
 		.speedo-center-readout {
 			position: absolute;
-			bottom: 3px;
+			bottom: 4px;
 			left: 50%;
 			transform: translateX(-50%);
 			display: flex;
 			align-items: baseline;
-			gap: 2px;
+			gap: 2.5px;
 			pointer-events: none;
 			z-index: 8;
 			white-space: nowrap;
@@ -532,7 +532,7 @@
 
 		.speedo-number {
 			font-family: 'Orbitron', 'Share Tech Mono', 'SF Pro Display', ui-monospace, 'Menlo', 'Monaco', 'Courier New', monospace;
-			font-size: 16px;
+			font-size: 19px;
 			font-weight: 800;
 			color: #ffffff;
 			line-height: 1;
@@ -543,7 +543,7 @@
 
 		.speedo-unit {
 			font-family: 'Orbitron', 'Share Tech Mono', sans-serif;
-			font-size: 7.5px;
+			font-size: 9px;
 			font-weight: 700;
 			color: #ffd700;
 			letter-spacing: 1px;
@@ -552,7 +552,7 @@
 
 		.speedo-sub-badge {
 			font-family: 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
-			font-size: 8px;
+			font-size: 9.5px;
 			font-weight: 800;
 			letter-spacing: 1.5px;
 			color: #00e5ff;
@@ -560,15 +560,15 @@
 			margin-top: 2px;
 			text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 6px currentColor;
 			z-index: 8;
-			height: 12px;
-			line-height: 12px;
+			height: 14px;
+			line-height: 14px;
 		}
 
 		/* Dynamic Speed Milestone Star Gauge (Directly Below Speedometer, Above Board) */
 		.hud-star-track {
 			position: relative;
-			width: 196px;
-			height: 44px;
+			width: 225px;
+			height: 48px;
 			margin-top: 5px;
 			display: block;
 			pointer-events: none;
@@ -992,6 +992,202 @@
 			font-weight: 700;
 			cursor: pointer;
 		}
+
+		/* Unified Flat HUD Header Elements (Profile + Speedometer + Settings) */
+		#hud-player-card {
+			background: transparent !important;
+			border: none !important;
+			box-shadow: none !important;
+			backdrop-filter: none !important;
+			-webkit-backdrop-filter: none !important;
+			border-radius: 0 !important;
+			padding: 0 !important;
+			top: 6px !important;
+			left: 4px !important;
+			transform: none !important;
+		}
+
+		#hud-player-card:hover {
+			transform: scale(1.05) !important;
+		}
+
+		#hud-player-card:active {
+			transform: scale(0.96) !important;
+		}
+
+		#hud-player-card .hud-player-avatar-ring {
+			width: 48px !important;
+			height: 48px !important;
+			border-radius: 50% !important;
+			border: 2.5px solid #38bdf8 !important;
+			background: #0f172a !important;
+			box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5) !important;
+			overflow: hidden !important;
+			display: flex !important;
+			align-items: center !important;
+			justify-content: center !important;
+			margin-bottom: 3px !important;
+		}
+
+		#hud-player-card .hud-player-avatar-img {
+			width: 100% !important;
+			height: 100% !important;
+			object-fit: contain !important;
+			object-position: center !important;
+			display: block !important;
+			border-radius: 50% !important;
+		}
+
+		#hud-player-card .hud-player-name {
+			font-size: 11px !important;
+			font-weight: 900 !important;
+			letter-spacing: 0.5px !important;
+			color: #ffffff !important;
+			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+			max-width: 80px !important;
+			overflow: hidden !important;
+			text-overflow: ellipsis !important;
+			white-space: nowrap !important;
+			text-transform: uppercase !important;
+		}
+
+		#hud-player-card .hud-player-stats-row {
+			display: flex !important;
+			align-items: center !important;
+			justify-content: center !important;
+			margin-top: 1px !important;
+		}
+
+		#hud-player-card .hud-player-stat.stat-wpm {
+			font-size: 10.5px !important;
+			font-weight: 800 !important;
+			color: #38bdf8 !important;
+			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+		}
+
+		/* Solo Play: ONLY include WPM, NEVER Crowns! */
+		#hud-player-card #hud-player-crowns,
+		#hud-player-crowns {
+			display: none !important;
+		}
+
+		#hud-player-card .hud-add-name-btn {
+			padding: 3px 8px !important;
+			font-size: 10.5px !important;
+			font-weight: 800 !important;
+			border-radius: 12px !important;
+		}
+
+		/* Multiplayer VS HUD Word Crowns Badge */
+		.vs-hud-crowns {
+			font-size: 11.5px;
+			font-weight: 900;
+			color: #facc15;
+			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(250, 204, 21, 0.4);
+			letter-spacing: 0.3px;
+			margin-top: 1px;
+			display: inline-block;
+			transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+		}
+
+		.vs-hud-crowns.bump {
+			transform: scale(1.35);
+		}
+
+		/* Flying Crowns to Avatar Animation */
+		.vs-flying-crown-particle {
+			position: fixed;
+			pointer-events: none;
+			z-index: 99999;
+			font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+			font-size: 15px;
+			font-weight: 900;
+			color: #ffffff;
+			background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+			border: 2px solid #fef08a;
+			border-radius: 16px;
+			padding: 4px 10px;
+			box-shadow: 0 6px 18px rgba(245, 158, 11, 0.8), 0 0 14px rgba(254, 240, 138, 0.9);
+			transform: translate(-50%, -50%) scale(1);
+			transition: left 0.60s cubic-bezier(0.16, 1, 0.3, 1),
+			            top 0.60s cubic-bezier(0.16, 1, 0.3, 1),
+			            transform 0.60s cubic-bezier(0.16, 1, 0.3, 1),
+			            opacity 0.60s ease;
+			display: flex;
+			align-items: center;
+			gap: 4px;
+			white-space: nowrap;
+		}
+
+		.vs-flying-crown-sparkle {
+			position: fixed;
+			pointer-events: none;
+			z-index: 99998;
+			font-size: 18px;
+			filter: drop-shadow(0 2px 6px rgba(250, 204, 21, 0.9));
+			transform: translate(-50%, -50%) scale(1);
+			transition: left 0.58s cubic-bezier(0.16, 1, 0.3, 1),
+			            top 0.58s cubic-bezier(0.16, 1, 0.3, 1),
+			            transform 0.58s cubic-bezier(0.16, 1, 0.3, 1),
+			            opacity 0.58s ease;
+		}
+
+		@keyframes crownRingAbsorb {
+			0% {
+				box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.8), 0 4px 12px rgba(0, 0, 0, 0.4);
+				transform: scale(1);
+			}
+			40% {
+				box-shadow: 0 0 25px 8px rgba(250, 204, 21, 0.9), 0 0 12px 4px #ffd700;
+				transform: scale(1.18);
+			}
+			100% {
+				box-shadow: 0 0 0 0 rgba(250, 204, 21, 0), 0 4px 12px rgba(0, 0, 0, 0.4);
+				transform: scale(1);
+			}
+		}
+
+		.crown-absorb-pulse {
+			animation: crownRingAbsorb 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+		}
+
+		.hud-right-actions {
+			top: 10px !important;
+			transform: none !important;
+		}
+
+		#btn-settings.hud-gear-btn {
+			background: transparent !important;
+			border: none !important;
+			box-shadow: none !important;
+			backdrop-filter: none !important;
+			-webkit-backdrop-filter: none !important;
+			border-radius: 0 !important;
+			padding: 0 !important;
+			width: 36px !important;
+			height: 36px !important;
+			outline: none !important;
+			color: #ffffff !important;
+		}
+
+		#btn-settings .hud-gear-svg {
+			width: 27px;
+			height: 27px;
+			display: block;
+			stroke: currentColor;
+			filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.85));
+			transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.18s ease;
+		}
+
+		#btn-settings:hover .hud-gear-svg {
+			transform: rotate(30deg) scale(1.1);
+			color: #38bdf8;
+			filter: drop-shadow(0 2px 8px rgba(56, 189, 248, 0.6));
+		}
+
+		#btn-settings:active .hud-gear-svg {
+			transform: scale(0.92);
+		}
 	</style>
 
 
@@ -1118,22 +1314,20 @@
 					</div>
 				</div>
 
-				<!-- Fancy Felt-Floored Tile Storage & Store Entrance -->
-				<div class="title-storage-btn" id="btn-title-storage-bar"
-					title="Open Tile Storage & Store (12 Felt Cubbies)">
-					<div class="storage-btn-felt-window">
-						<img src="OriginalTileImages/A4.png" class="storage-mini-tile tile-a"
-							id="title-preview-tile-a" alt="A">
-						<img src="OriginalTileImages/B4.png" class="storage-mini-tile tile-b"
-							id="title-preview-tile-b" alt="B">
-						<img src="OriginalTileImages/C4.png" class="storage-mini-tile tile-c"
-							id="title-preview-tile-c" alt="C">
+				<!-- Title Screen Player Profile Card (Avatar + Add Name / Username) -->
+				<div class="title-profile-widget" id="title-profile-widget" title="Player Profile & Career Stats">
+					<div class="title-avatar-ring" id="title-avatar-ring">
+						<img src="OriginalTileImages/Character_8.png" alt="Profile Avatar" class="title-avatar-img" id="title-profile-img">
 					</div>
-					<div class="storage-btn-meta">
-						<span class="storage-btn-title">🗄️ TILE STORAGE & STORE</span>
-						<span class="storage-btn-style-name" id="title-style-name">CLASSIC</span>
+					<button type="button" class="title-profile-btn" id="btn-title-profile">
+						<span class="title-profile-btn-icon" id="title-profile-btn-icon">➕</span>
+						<span class="title-profile-btn-text" id="title-profile-btn-text">Add Name</span>
+					</button>
+					<div class="title-profile-sub" id="title-profile-sub" style="display: none;">
+						<span id="title-profile-crowns">👑 0 Crowns</span>
+						<span>•</span>
+						<span id="title-profile-wpm">⚡ 12 WPM</span>
 					</div>
-					<span class="storage-btn-badge">SELECT ▶</span>
 				</div>
 			</div>
 
@@ -1146,11 +1340,11 @@
 
 				<button type="button" class="title-menu-btn btn-vs" id="btn-title-vs" title="VS Mode Challenge">
 					<div class="vs-avatar-badge">
-						<img src="OriginalTileImages/Character_1.png" alt="Player 1" class="vs-avatar-img">
+						<img src="OriginalTileImages/Character_8.png" alt="Player 1" class="vs-avatar-img" id="title-vs-p1-img">
 					</div>
 					<span class="vs-title-text">VS MODE</span>
 					<div class="vs-avatar-badge">
-						<img src="OriginalTileImages/Character_8.png" alt="Player 2" class="vs-avatar-img">
+						<img src="OriginalTileImages/Character_9.png" alt="Player 2" class="vs-avatar-img" id="title-vs-p2-img">
 					</div>
 				</button>
 			</div>
@@ -1176,6 +1370,25 @@
 	<!-- In-Game Minimal Clean HUD Header with Live Speedometer -->
 	<header id="hud-header">
 		<div class="hud-top-bar">
+			<!-- In-Game Player Profile Card (Left Side) -->
+			<div class="hud-player-card" id="hud-player-card" title="Player Profile & Career Stats">
+				<div class="hud-player-avatar-ring" id="hud-player-avatar-ring">
+					<img src="OriginalTileImages/Character_8.png" alt="You" class="hud-player-avatar-img" id="hud-player-avatar-img">
+				</div>
+				<!-- If no username set: shows +Add Name button -->
+				<button type="button" class="hud-add-name-btn" id="btn-hud-add-name">
+					<span>+Add Name</span>
+				</button>
+				<!-- Once username is set: shows username + WPM avg + Word Crowns -->
+				<div class="hud-player-info" id="hud-player-info" style="display: none;">
+					<span class="hud-player-name" id="hud-player-name">NAME</span>
+					<div class="hud-player-stats-row">
+						<span class="hud-player-stat stat-wpm" id="hud-player-wpm" title="Average Solving Speed">⚡ 12</span>
+						<span class="hud-player-stat stat-crowns" id="hud-player-crowns" title="Word Crowns earned in VS Mode">👑 0</span>
+					</div>
+				</div>
+			</div>
+
 			<!-- Hidden Level Select hook (accessible via settings & title) -->
 			<div class="hud-left-pill" title="Tap to open Level Select & Stars" style="display: none !important;">
 				<span class="hud-level-badge">
@@ -1279,6 +1492,56 @@
 				</div>
 			</div>
 
+			<!-- Simple Clean Multiplayer VS HUD (Avatars + Usernames + WPM + VS + Winner's Crown) -->
+			<div class="hud-vs-bar" id="hud-vs-bar" style="display: none;">
+				<div class="vs-hud-player vs-p1">
+					<div class="vs-hud-avatar-ring ring-blue">
+						<svg class="vs-winner-crown" id="vs-p1-crown" viewBox="0 0 44 32" aria-hidden="true">
+							<defs>
+								<linearGradient id="vsCrownGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+									<stop offset="0%" stop-color="#fff59d" />
+									<stop offset="50%" stop-color="#ffd700" />
+									<stop offset="100%" stop-color="#f59e0b" />
+								</linearGradient>
+							</defs>
+							<path d="M6 27 L38 27 L35 22 L9 22 Z" fill="#f59e0b" stroke="#92400e" stroke-width="1.4" stroke-linejoin="round" />
+							<path d="M6 22 L3 7 L14 16 L22 3 L30 16 L41 7 L38 22 Z" fill="url(#vsCrownGrad)" stroke="#b45309" stroke-width="1.5" stroke-linejoin="round" />
+							<circle cx="3" cy="6.5" r="2.6" fill="#fffbeb" stroke="#d97706" stroke-width="1.2" />
+							<circle cx="22" cy="3" r="3" fill="#fffbeb" stroke="#d97706" stroke-width="1.2" />
+							<circle cx="41" cy="6.5" r="2.6" fill="#fffbeb" stroke="#d97706" stroke-width="1.2" />
+						</svg>
+						<div class="vs-hud-avatar-clip">
+							<img src="OriginalTileImages/Character_8.png" alt="You" id="vs-p1-avatar">
+						</div>
+						<span class="vs-hud-wpm" id="vs-p1-wpm">10WPM</span>
+					</div>
+					<span class="vs-hud-name" id="vs-p1-name">YOU</span>
+					<span class="vs-hud-crowns" id="vs-p1-crowns">👑 0</span>
+				</div>
+
+				<div class="vs-hud-center" aria-hidden="true">
+					<span class="vs-char-v">V</span><span class="vs-char-s">S</span>
+				</div>
+
+				<div class="vs-hud-player vs-p2">
+					<div class="vs-hud-avatar-ring ring-red">
+						<svg class="vs-winner-crown" id="vs-p2-crown" viewBox="0 0 44 32" aria-hidden="true">
+							<path d="M6 27 L38 27 L35 22 L9 22 Z" fill="#f59e0b" stroke="#92400e" stroke-width="1.4" stroke-linejoin="round" />
+							<path d="M6 22 L3 7 L14 16 L22 3 L30 16 L41 7 L38 22 Z" fill="url(#vsCrownGrad)" stroke="#b45309" stroke-width="1.5" stroke-linejoin="round" />
+							<circle cx="3" cy="6.5" r="2.6" fill="#fffbeb" stroke="#d97706" stroke-width="1.2" />
+							<circle cx="22" cy="3" r="3" fill="#fffbeb" stroke="#d97706" stroke-width="1.2" />
+							<circle cx="41" cy="6.5" r="2.6" fill="#fffbeb" stroke="#d97706" stroke-width="1.2" />
+						</svg>
+						<div class="vs-hud-avatar-clip">
+							<img src="OriginalTileImages/Character_9.png" alt="Opponent" id="vs-p2-avatar">
+						</div>
+						<span class="vs-hud-wpm" id="vs-p2-wpm">14WPM</span>
+					</div>
+					<span class="vs-hud-name" id="vs-p2-name">OPPONENT</span>
+					<span class="vs-hud-crowns" id="vs-p2-crowns">👑 0</span>
+				</div>
+			</div>
+
 			<!-- Top Right Actions: ONLY Settings icon -->
 			<div class="hud-right-actions">
 				<button class="hud-action-pill-btn" id="btn-toggle-cam" type="button" title="Toggle Camera View"
@@ -1286,7 +1549,10 @@
 					<span id="cam-toggle-icon">🎸</span>
 				</button>
 				<button class="hud-gear-btn" id="btn-settings" title="Settings" aria-label="Settings">
-					<span class="hud-gear-emoji">⚙️</span>
+					<svg class="hud-gear-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="3"></circle>
+						<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+					</svg>
 				</button>
 			</div>
 		</div>
@@ -1512,6 +1778,209 @@
 		</div>
 	</div>
 
+	<!-- Player Profile & Career Stats Modal -->
+	<div id="profile-modal" class="game-modal">
+		<div class="profile-card">
+			<div class="theme-header">
+				<h3>PLAYER PROFILE</h3>
+				<button class="theme-close" id="btn-profile-close" type="button" aria-label="Close">&times;</button>
+			</div>
+
+			<!-- Current Avatar & Change Image Grid -->
+			<div class="profile-avatar-hero">
+				<div class="profile-avatar-large-ring">
+					<img src="OriginalTileImages/Character_8.png" alt="Current Avatar" class="profile-avatar-large-img" id="profile-current-avatar-img">
+				</div>
+				<div class="profile-sub-title">SELECT AVATAR</div>
+				<div class="profile-avatar-grid" id="profile-avatar-grid">
+					<!-- 9 Character_*.png avatars populated by JS -->
+				</div>
+			</div>
+
+			<!-- Username Input -->
+			<div class="profile-username-group">
+				<label class="profile-sub-title" for="profile-username-input">YOUR USERNAME</label>
+				<input type="text" id="profile-username-input" class="vs-username-input"
+					placeholder="Enter your username..." maxlength="14" autocomplete="nickname" spellcheck="false">
+			</div>
+
+			<!-- Career Stats Section -->
+			<div class="profile-sub-title">CAREER STATS</div>
+			<div class="profile-stats-grid">
+				<div class="profile-stat-box">
+					<span class="profile-stat-label">WORD CROWNS</span>
+					<span class="profile-stat-value"><span style="color:#facc15;">👑</span> <span id="stat-word-crowns">0</span></span>
+					<span class="profile-stat-desc">Trays won fastest in PVP</span>
+				</div>
+				<div class="profile-stat-box">
+					<span class="profile-stat-label">AVERAGE SPEED</span>
+					<span class="profile-stat-value"><span style="color:#38bdf8;">⚡</span> <span id="stat-avg-wpm">12</span> <span style="font-size:11px;color:#94a3b8;">WPM</span></span>
+					<span class="profile-stat-desc">Speedometer pace</span>
+				</div>
+				<div class="profile-stat-box">
+					<span class="profile-stat-label">PVP BATTLES</span>
+					<span class="profile-stat-value"><span style="color:#f87171;">⚔️</span> <span id="stat-pvp-matches">0</span></span>
+					<span class="profile-stat-desc">Wins: <strong id="stat-pvp-wins" style="color:#4ade80;">0</strong></span>
+				</div>
+				<div class="profile-stat-box">
+					<span class="profile-stat-label">SOLO PROGRESS</span>
+					<span class="profile-stat-value"><span style="color:#fbbf24;">⭐</span> <span id="stat-solo-stars">0</span></span>
+					<span class="profile-stat-desc">Levels: <strong id="stat-solo-levels" style="color:#ffffff;">0</strong> / 30</span>
+				</div>
+			</div>
+
+			<button type="button" class="profile-save-btn" id="btn-profile-save">
+				SAVE PROFILE
+			</button>
+		</div>
+	</div>
+
+	<!-- Colyseus VS Mode Avatar Selection, Quick Match & Play With Friend Modal -->
+	<div id="vs-lobby-modal" class="game-modal">
+		<div class="vs-lobby-card">
+			<div class="theme-header">
+				<h3>VS MODE</h3>
+				<button class="theme-close" id="btn-vs-lobby-close" type="button" aria-label="Close">&times;</button>
+			</div>
+
+			<!-- Step 1: Create Username, Select Avatar & Choose Match Type -->
+			<div id="vs-step-select" class="vs-lobby-step">
+				<div class="vs-username-group">
+					<label class="vs-lobby-subtitle vs-username-label" for="vs-username-input">YOUR USERNAME</label>
+					<input type="text" id="vs-username-input" class="vs-username-input"
+						placeholder="Create username..." maxlength="14" autocomplete="nickname" spellcheck="false">
+				</div>
+
+				<div class="vs-lobby-subtitle">SELECT YOUR AVATAR</div>
+				<div class="vs-avatar-grid" id="vs-avatar-grid">
+					<!-- 9 Character_*.png avatars populated by MultiplayerManager -->
+				</div>
+
+				<button type="button" class="vs-find-btn" id="btn-vs-find-match">
+					SEARCH FOR OPPONENT
+				</button>
+
+				<div class="vs-friend-divider">
+					<span>PLAY WITH A FRIEND</span>
+				</div>
+
+				<div class="vs-friend-actions">
+					<button type="button" class="vs-friend-create-btn" id="btn-vs-create-friend">
+						CREATE ROOM
+					</button>
+					<div class="vs-friend-join-group">
+						<input type="text" id="vs-friend-code-input" class="vs-friend-code-input"
+							placeholder="CODE" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false">
+						<button type="button" class="vs-friend-join-btn" id="btn-vs-join-friend">JOIN</button>
+					</div>
+				</div>
+
+				<div class="vs-lobby-notice" id="vs-lobby-notice" style="display: none;"></div>
+			</div>
+
+			<!-- Step 2: Searching for Opponent / Waiting for Friend -->
+			<div id="vs-step-search" class="vs-lobby-step" style="display: none;">
+				<div class="vs-matchup-stage">
+					<div class="vs-hud-player">
+						<div class="vs-hud-avatar-ring ring-blue">
+							<div class="vs-hud-avatar-clip">
+								<img src="OriginalTileImages/Character_8.png" alt="You" id="vs-search-p1-avatar">
+							</div>
+							<span class="vs-hud-wpm" id="vs-search-p1-wpm">12WPM</span>
+						</div>
+						<span class="vs-hud-name" id="vs-search-p1-name">YOU</span>
+					</div>
+
+					<div class="vs-hud-center" aria-hidden="true">
+						<span class="vs-char-v">V</span><span class="vs-char-s">S</span>
+					</div>
+
+					<div class="vs-hud-player">
+						<div class="vs-hud-avatar-ring ring-red" id="vs-search-p2-ring">
+							<div class="vs-hud-avatar-clip">
+								<img src="OriginalTileImages/Character_9.png" alt="Opponent" id="vs-search-p2-avatar">
+							</div>
+							<span class="vs-hud-wpm" id="vs-search-p2-wpm">--WPM</span>
+						</div>
+						<span class="vs-hud-name" id="vs-search-p2-name">Searching...</span>
+					</div>
+				</div>
+
+				<!-- Shown when hosting a private Friend Room -->
+				<div class="vs-friend-room-box" id="vs-friend-room-box" style="display: none;">
+					<div class="vs-friend-room-label">SHARE ROOM CODE WITH YOUR FRIEND</div>
+					<div class="vs-friend-room-code" id="vs-friend-room-code">----</div>
+					<button type="button" class="vs-copy-invite-btn" id="btn-vs-copy-invite">
+						COPY INVITE LINK
+					</button>
+				</div>
+
+				<div class="vs-search-status" id="vs-search-status">Searching for opponent...</div>
+				<button type="button" class="vs-cancel-btn" id="btn-vs-cancel-search">Cancel</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- VS Post-Match Results Modal (Upper-Center so bottom tile taps never skip results) -->
+	<div id="vs-results-modal" class="game-modal">
+		<div class="vs-lobby-card vs-results-card" id="vs-results-card">
+			<div class="theme-header vs-results-header">
+				<span class="vs-results-mode-tag" id="vs-results-mode-tag">PVP MATCH RESULTS</span>
+				<button class="theme-close" id="btn-vs-results-close" type="button" aria-label="Exit to Title" title="Exit to Title">&times;</button>
+			</div>
+
+			<div class="vs-results-outcome" id="vs-results-outcome">VICTORY!</div>
+			<div class="vs-results-sub" id="vs-results-sub">You completed the entire chain first!</div>
+
+			<div class="vs-results-duel">
+				<!-- Local Player (Blue) -->
+				<div class="vs-results-fighter fighter-blue" id="vs-res-p1-col">
+					<div class="vs-hud-avatar-ring ring-blue vs-res-ring">
+						<span class="vs-winner-crown" id="vs-res-p1-crown" aria-hidden="true">👑</span>
+						<div class="vs-hud-avatar-clip">
+							<img src="OriginalTileImages/Character_8.png" alt="You" id="vs-res-p1-avatar">
+						</div>
+					</div>
+					<div class="vs-res-name" id="vs-res-p1-name">YOU</div>
+					<div class="vs-res-role" id="vs-res-p1-role">YOU</div>
+					<div class="vs-res-wpm" id="vs-res-p1-wpm">0 WPM</div>
+					<div class="vs-res-meta" id="vs-res-p1-meta">0/0 Words</div>
+				</div>
+
+				<div class="vs-results-vs-badge" aria-hidden="true">VS</div>
+
+				<!-- Opponent (Red) -->
+				<div class="vs-results-fighter fighter-red" id="vs-res-p2-col">
+					<div class="vs-hud-avatar-ring ring-red vs-res-ring">
+						<span class="vs-winner-crown" id="vs-res-p2-crown" aria-hidden="true">👑</span>
+						<div class="vs-hud-avatar-clip">
+							<img src="OriginalTileImages/Character_9.png" alt="Opponent" id="vs-res-p2-avatar">
+						</div>
+					</div>
+					<div class="vs-res-name" id="vs-res-p2-name">OPPONENT</div>
+					<div class="vs-res-role" id="vs-res-p2-role">OPPONENT</div>
+					<div class="vs-res-wpm" id="vs-res-p2-wpm">0 WPM</div>
+					<div class="vs-res-meta" id="vs-res-p2-meta">0/0 Words</div>
+				</div>
+			</div>
+
+			<!-- Visual First-Solver Chain Breakdown (Blue vs Red solved trays) -->
+			<div class="vs-results-chain-wrap">
+				<div class="vs-results-chain-label">FIRST SOLVER BY TRAY</div>
+				<div class="vs-results-chain-pills" id="vs-results-chain-pills"></div>
+			</div>
+
+			<div class="vs-results-actions">
+				<button type="button" class="vs-find-btn vs-results-primary-btn" id="btn-vs-results-next">
+					NEXT MATCH
+				</button>
+				<button type="button" class="vs-cancel-btn vs-results-secondary-btn" id="btn-vs-results-lobby">
+					VS LOBBY
+				</button>
+			</div>
+		</div>
+	</div>
+
 	<!-- 3D Celebratory Win Star Card (Report popup suppressed per user request) -->
 	<div id="win-celebration-card" class="win-celebration-card" style="display: none !important;">
 		<div class="win-celeb-banner">CHAIN COMPLETED!</div>
@@ -1651,7 +2120,8 @@
 	<script src="js/three.min.js"></script>
 	<script src="js/levels.js"></script>
 	<script src="js/wordscapes-scenery.js?v=21.0"></script>
-	<script src="js/word-chain-3d.js?v=21.0"></script>
+	<script src="js/colyseus.js?v=25.1"></script>
+	<script src="js/word-chain-3d.js?v=25.5"></script>
 
 	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
 	<script>

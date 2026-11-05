@@ -1,0 +1,21 @@
+{
+  "name": "word-chain-colyseus-server",
+  "version": "1.0.0",
+  "description": "Colyseus multiplayer, friend rooms, ghost run recorder & match result store for Word Chain 3D",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@colyseus/core": "^0.18.18",
+    "@colyseus/sdk": "^0.18.9",
+    "@colyseus/ws-transport": "^0.18.4",
+    "better-sqlite3": "^11.8.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}

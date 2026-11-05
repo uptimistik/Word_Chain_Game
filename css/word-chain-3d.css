@@ -842,8 +842,8 @@ html, body {
 .hud-right-actions {
 	position: absolute;
 	right: 0;
-	top: 50%;
-	transform: translateY(-50%);
+	top: 10px;
+	transform: none;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -886,41 +886,47 @@ html, body {
 	box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
 }
 
-/* Settings Gear Button (Tesla / Glassmorphic Floating Icon) */
+/* Settings Gear Button (Flat Icon on Screen) */
 .hud-gear-btn {
 	pointer-events: auto;
-	width: 40px;
-	height: 40px;
-	border-radius: 50%;
-	background: rgba(15, 20, 30, 0.28);
-	border: 1px solid rgba(255, 255, 255, 0.20);
+	width: 36px;
+	height: 36px;
 	padding: 0;
 	cursor: pointer;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-	backdrop-filter: blur(12px) saturate(140%);
-	-webkit-backdrop-filter: blur(12px) saturate(140%);
-	transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+	background: transparent !important;
+	border: none !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+	outline: none;
+	color: #ffffff;
+	transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.18s ease;
+}
+
+.hud-gear-svg {
+	width: 27px;
+	height: 27px;
+	display: block;
+	stroke: currentColor;
+	filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.85));
+	transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .hud-gear-btn:hover {
-	transform: rotate(45deg) scale(1.08);
-	background: rgba(35, 45, 65, 0.5);
-	border-color: rgba(255, 255, 255, 0.5);
-	box-shadow: 0 0 16px rgba(255, 255, 255, 0.35);
+	color: #38bdf8;
+}
+
+.hud-gear-btn:hover .hud-gear-svg {
+	transform: rotate(30deg) scale(1.1);
+	filter: drop-shadow(0 2px 8px rgba(56, 189, 248, 0.6));
 }
 
 .hud-gear-btn:active {
 	transform: scale(0.92);
-}
-
-.hud-gear-emoji {
-	font-size: 19px;
-	line-height: 1;
-	display: block;
-	filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 /* ==============================================================================
@@ -1595,14 +1601,6 @@ html, body {
 	filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
-.hud-gear-btn:hover {
-	transform: rotate(45deg) scale(1.08);
-	background: rgba(35, 28, 48, 0.9);
-}
-
-.hud-gear-btn:active {
-	transform: scale(0.92) rotate(30deg);
-}
 
 /* ==============================================================================
    Bottom Action Controls (Simplistic Title-Screen Style)
@@ -1932,8 +1930,8 @@ html, body {
 .tactile-next-btn {
 	position: absolute;
 	left: 50%;
-	bottom: 24px;
-	bottom: max(24px, env(safe-area-inset-bottom));
+	bottom: 242px;
+	bottom: max(242px, calc(env(safe-area-inset-bottom) + 220px));
 	transform: translateX(-50%) scale(0);
 	opacity: 0;
 	pointer-events: none;
@@ -2331,9 +2329,12 @@ html, body {
 	}
 
 	.hud-gear-btn {
-		width: 38px;
-		height: 38px;
+		width: 36px;
+		height: 36px;
 		flex-shrink: 0;
+		background: transparent !important;
+		border: none !important;
+		box-shadow: none !important;
 	}
 
 	.hud-action-pill-btn {
@@ -2343,8 +2344,8 @@ html, body {
 	.hud-right-actions {
 		position: absolute;
 		right: 0;
-		top: 50%;
-		transform: translateY(-50%);
+		top: 10px;
+		transform: none;
 		gap: 6px;
 	}
 
@@ -2439,8 +2440,8 @@ html, body {
 
 	.tactile-next-btn {
 		left: 50%;
-		bottom: 20px;
-		bottom: max(20px, env(safe-area-inset-bottom));
+		bottom: 226px;
+		bottom: max(226px, calc(env(safe-area-inset-bottom) + 206px));
 		min-width: 164px;
 		height: 52px;
 		padding: 0 22px;
@@ -4270,8 +4271,1188 @@ html, body {
 		background: rgba(18, 14, 24, 0.90) !important;
 	}
 
-	.hud-action-pill-btn,
-	.hud-gear-btn {
+	.hud-action-pill-btn {
 		background: rgba(15, 20, 32, 0.72) !important;
 	}
+}
+
+/* ==============================================================================
+   Lightweight Multiplayer VS Mode UI & Avatar Matchmaking Lobby
+   ============================================================================== */
+body.vs-mode-active #hud-speedometer {
+	display: none !important;
+}
+
+body.vs-mode-active #hud-vs-bar {
+	display: flex !important;
+}
+
+body.vs-mode-active #hud-header {
+	top: max(12px, env(safe-area-inset-top));
+}
+
+body.vs-mode-active .hud-right-actions {
+	top: 8px;
+	transform: none;
+}
+
+/* Hide solo level-select jump controls inside Settings while in a VS match */
+body.vs-mode-active #theme-modal .level-select-row,
+body.vs-mode-active #btn-settings-all-levels {
+	display: none !important;
+}
+
+.hud-vs-bar {
+	display: none;
+	align-items: flex-start;
+	justify-content: center;
+	gap: 8px;
+	position: relative;
+	pointer-events: none;
+	user-select: none;
+	-webkit-user-select: none;
+	padding-top: 2px;
+}
+
+.vs-hud-player {
+	position: relative;
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+}
+
+.vs-hud-avatar-ring {
+	position: relative;
+	width: 92px;
+	height: 92px;
+	border-radius: 50%;
+	box-sizing: border-box;
+	background: #0977b3;
+	box-shadow: 0 5px 14px rgba(0, 0, 0, 0.35);
+	flex-shrink: 0;
+}
+
+.vs-hud-avatar-ring.ring-blue {
+	border: 6px solid #0e639c;
+}
+
+.vs-hud-avatar-ring.ring-red {
+	border: 6px solid #9e0b0f;
+}
+
+.vs-hud-avatar-clip {
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	overflow: hidden;
+	background: #0977b3;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.vs-hud-avatar-clip img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transform: scale(1.07);
+	display: block;
+}
+
+.vs-hud-wpm {
+	position: absolute;
+	bottom: -7px;
+	right: -18px;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-weight: 900;
+	font-size: 13.5px;
+	letter-spacing: 0.2px;
+	color: #ffffff;
+	text-shadow:
+		0 1.5px 4px rgba(0, 0, 0, 0.85),
+		0 0 2px rgba(0, 0, 0, 0.95);
+	white-space: nowrap;
+	z-index: 4;
+}
+
+.vs-hud-name {
+	margin-top: 4px;
+	max-width: 112px;
+	padding: 1.5px 8px;
+	border-radius: 999px;
+	background: rgba(11, 18, 32, 0.58);
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-size: 11.5px;
+	font-weight: 800;
+	letter-spacing: 0.3px;
+	color: #ffffff;
+	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.25;
+}
+
+.vs-p1 .vs-hud-name {
+	border-color: rgba(56, 189, 248, 0.45);
+}
+
+.vs-p2 .vs-hud-name {
+	border-color: rgba(248, 113, 113, 0.45);
+}
+
+.vs-hud-center {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin: 14px -2px 0 -2px;
+	z-index: 3;
+	font-family: 'Arial Black', 'Impact', system-ui, -apple-system, sans-serif;
+	font-weight: 900;
+	font-size: 56px;
+	line-height: 0.9;
+	color: #ffffff;
+	text-shadow: 0 4px 12px rgba(0, 0, 0, 0.32);
+	letter-spacing: -3px;
+}
+
+.vs-char-v {
+	display: inline-block;
+	transform: rotate(-4deg);
+}
+
+.vs-char-s {
+	display: inline-block;
+	transform: translateY(3px);
+}
+
+.vs-winner-crown {
+	display: none;
+	position: absolute;
+	top: -27px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 42px;
+	height: 31px;
+	z-index: 6;
+	filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 10px rgba(255, 215, 0, 0.8));
+}
+
+.vs-winner-crown.show {
+	display: block;
+	animation: vsCrownPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes vsCrownPop {
+	0% {
+		opacity: 0;
+		transform: translateX(-50%) translateY(10px) scale(0.4);
+	}
+	100% {
+		opacity: 1;
+		transform: translateX(-50%) translateY(0) scale(1);
+	}
+}
+
+@media (max-width: 420px) {
+	.vs-hud-avatar-ring {
+		width: 84px;
+		height: 84px;
+		border-width: 5.5px;
+	}
+	.vs-hud-center {
+		font-size: 50px;
+		margin-top: 12px;
+	}
+	.vs-hud-wpm {
+		font-size: 12.5px;
+		right: -16px;
+	}
+	.vs-hud-name {
+		max-width: 98px;
+		font-size: 11px;
+	}
+}
+
+/* VS Lobby Modal (Username, Avatar Select & Opponent Search) */
+#vs-lobby-modal {
+	z-index: 150;
+}
+
+.vs-lobby-card {
+	background: linear-gradient(180deg, #1d2436, #111622);
+	border: 1.5px solid rgba(56, 189, 248, 0.55);
+	border-radius: 22px;
+	padding: 18px 18px 20px 18px;
+	max-width: 374px;
+	width: 90%;
+	box-shadow: 0 18px 48px rgba(0, 0, 0, 0.85), 0 0 28px rgba(14, 99, 156, 0.35);
+	transform: scale(0.94);
+	transition: transform 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+	color: #ffffff;
+	text-align: center;
+}
+
+#vs-lobby-modal.show .vs-lobby-card {
+	transform: scale(1);
+}
+
+.vs-username-group {
+	margin-bottom: 14px;
+	text-align: left;
+}
+
+.vs-username-label {
+	display: block;
+	margin-bottom: 6px !important;
+	text-align: center;
+}
+
+.vs-username-input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 10px 14px;
+	border-radius: 12px;
+	border: 1.5px solid rgba(56, 189, 248, 0.40);
+	background: rgba(15, 23, 42, 0.88);
+	color: #ffffff;
+	font-size: 15px;
+	font-weight: 800;
+	letter-spacing: 0.4px;
+	text-align: center;
+	outline: none;
+	transition: border-color 0.16s ease, box-shadow 0.16s ease;
+	user-select: text !important;
+	-webkit-user-select: text !important;
+}
+
+.vs-username-input::placeholder {
+	color: rgba(148, 163, 184, 0.65);
+	font-weight: 700;
+}
+
+.vs-username-input:focus {
+	border-color: #38bdf8;
+	box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+}
+
+.vs-username-input.needs-attention {
+	border-color: #facc15;
+	box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.35);
+}
+
+.vs-lobby-subtitle {
+	font-size: 11.5px;
+	font-weight: 800;
+	letter-spacing: 1.2px;
+	color: #93c5fd;
+	margin-bottom: 10px;
+	text-transform: uppercase;
+}
+
+.vs-avatar-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 10px;
+	justify-items: center;
+	margin-bottom: 16px;
+}
+
+.vs-avatar-option {
+	width: 66px;
+	height: 66px;
+	border-radius: 50%;
+	padding: 0;
+	background: #0977b3;
+	border: 4px solid rgba(255, 255, 255, 0.20);
+	overflow: hidden;
+	cursor: pointer;
+	transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.18s ease, box-shadow 0.18s ease;
+	outline: none;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.vs-avatar-option img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transform: scale(1.07);
+	display: block;
+}
+
+.vs-avatar-option:hover {
+	transform: scale(1.06);
+	border-color: rgba(255, 255, 255, 0.55);
+}
+
+.vs-avatar-option.selected {
+	border-color: #38bdf8;
+	box-shadow: 0 0 0 3px rgba(14, 99, 156, 0.65), 0 0 18px rgba(56, 189, 248, 0.85);
+	transform: scale(1.09);
+}
+
+.vs-find-btn {
+	width: 100%;
+	padding: 14px 18px;
+	border-radius: 14px;
+	border: none;
+	background: linear-gradient(135deg, #0ea5e9, #0369a1);
+	color: #ffffff;
+	font-size: 15px;
+	font-weight: 900;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	cursor: pointer;
+	box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+	transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.vs-find-btn:hover {
+	filter: brightness(1.08);
+	transform: translateY(-1px);
+}
+
+.vs-find-btn:active {
+	transform: scale(0.97);
+}
+
+.vs-matchup-stage {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	padding: 14px 0 18px 0;
+}
+
+.vs-searching-spin {
+	animation: vsSearchPulse 0.38s ease-in-out infinite alternate;
+}
+
+@keyframes vsSearchPulse {
+	0% { transform: scale(0.96); filter: brightness(0.92); }
+	100% { transform: scale(1.03); filter: brightness(1.08); }
+}
+
+.vs-search-status {
+	font-size: 14px;
+	font-weight: 800;
+	color: #e2e8f0;
+	margin-bottom: 16px;
+	min-height: 20px;
+}
+
+.vs-cancel-btn {
+	background: rgba(255, 255, 255, 0.10);
+	border: 1px solid rgba(255, 255, 255, 0.22);
+	color: #cbd5e1;
+	border-radius: 12px;
+	padding: 9px 24px;
+	font-size: 13px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.vs-cancel-btn:hover {
+	background: rgba(255, 255, 255, 0.18);
+}
+
+/* Pronounced Winner Glow & Pulse on main HUD avatar when a player solves a tray */
+.vs-hud-avatar-ring.solve-pulse {
+	animation: vsAvatarSolvePulse 0.95s cubic-bezier(0.2, 0.9, 0.3, 1.2) !important;
+	z-index: 10;
+}
+
+.vs-hud-avatar-ring.ring-blue.solve-pulse {
+	box-shadow: 0 0 0 4px #93c5fd, 0 0 28px 10px rgba(59, 130, 246, 0.90), 0 0 48px 18px rgba(37, 99, 235, 0.60) !important;
+	border-color: #60a5fa !important;
+}
+
+.vs-hud-avatar-ring.ring-red.solve-pulse {
+	box-shadow: 0 0 0 4px #fca5a5, 0 0 28px 10px rgba(239, 68, 68, 0.90), 0 0 48px 18px rgba(220, 38, 38, 0.60) !important;
+	border-color: #f87171 !important;
+}
+
+@keyframes vsAvatarSolvePulse {
+	0% {
+		transform: scale(1);
+	}
+	22% {
+		transform: scale(1.18);
+	}
+	45% {
+		transform: scale(1.08);
+	}
+	68% {
+		transform: scale(1.14);
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+
+/* Friend Room Controls inside VS Lobby Modal */
+.vs-friend-divider {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 15px 0 12px 0;
+	color: rgba(148, 163, 184, 0.85);
+	font-size: 10.5px;
+	font-weight: 800;
+	letter-spacing: 1.1px;
+}
+
+.vs-friend-divider::before,
+.vs-friend-divider::after {
+	content: '';
+	flex: 1;
+	height: 1px;
+	background: rgba(255, 255, 255, 0.12);
+}
+
+.vs-friend-actions {
+	display: flex;
+	gap: 8px;
+	align-items: stretch;
+}
+
+.vs-friend-create-btn {
+	flex: 1;
+	padding: 11px 10px;
+	border-radius: 12px;
+	border: 1.5px solid rgba(250, 204, 21, 0.45);
+	background: linear-gradient(135deg, rgba(234, 179, 8, 0.22), rgba(161, 98, 7, 0.28));
+	color: #fef08a;
+	font-size: 12px;
+	font-weight: 900;
+	letter-spacing: 0.6px;
+	cursor: pointer;
+	transition: transform 0.14s ease, background 0.14s ease;
+	white-space: nowrap;
+}
+
+.vs-friend-create-btn:hover {
+	background: linear-gradient(135deg, rgba(234, 179, 8, 0.34), rgba(161, 98, 7, 0.38));
+}
+
+.vs-friend-create-btn:active {
+	transform: scale(0.97);
+}
+
+.vs-friend-join-group {
+	display: flex;
+	flex: 1.15;
+	gap: 5px;
+}
+
+.vs-friend-code-input {
+	width: 100%;
+	min-width: 0;
+	padding: 10px 8px;
+	border-radius: 12px;
+	border: 1.5px solid rgba(148, 163, 184, 0.35);
+	background: rgba(15, 23, 42, 0.85);
+	color: #ffffff;
+	font-size: 14px;
+	font-weight: 900;
+	letter-spacing: 2.5px;
+	text-align: center;
+	text-transform: uppercase;
+	outline: none;
+	user-select: text !important;
+	-webkit-user-select: text !important;
+}
+
+.vs-friend-code-input:focus {
+	border-color: #38bdf8;
+	box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+.vs-friend-join-btn {
+	padding: 10px 13px;
+	border-radius: 12px;
+	border: none;
+	background: linear-gradient(135deg, #10b981, #059669);
+	color: #ffffff;
+	font-size: 12.5px;
+	font-weight: 900;
+	letter-spacing: 0.6px;
+	cursor: pointer;
+	transition: transform 0.14s ease, filter 0.14s ease;
+}
+
+.vs-friend-join-btn:hover {
+	filter: brightness(1.08);
+}
+
+.vs-friend-join-btn:active {
+	transform: scale(0.96);
+}
+
+.vs-lobby-notice {
+	margin-top: 12px;
+	padding: 9px 12px;
+	border-radius: 11px;
+	background: rgba(239, 68, 68, 0.16);
+	border: 1px solid rgba(248, 113, 113, 0.40);
+	color: #fecaca;
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.35;
+}
+
+.vs-friend-room-box {
+	margin: 0 0 14px 0;
+	padding: 12px 14px;
+	border-radius: 14px;
+	background: rgba(15, 23, 42, 0.78);
+	border: 1.5px solid rgba(250, 204, 21, 0.45);
+}
+
+.vs-friend-room-label {
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 1px;
+	color: #fde047;
+	margin-bottom: 5px;
+}
+
+.vs-friend-room-code {
+	font-family: 'Orbitron', system-ui, monospace;
+	font-size: 28px;
+	font-weight: 900;
+	letter-spacing: 6px;
+	color: #ffffff;
+	margin-bottom: 8px;
+	user-select: text !important;
+	-webkit-user-select: text !important;
+}
+
+.vs-copy-invite-btn {
+	padding: 7px 14px;
+	border-radius: 999px;
+	border: 1px solid rgba(56, 189, 248, 0.50);
+	background: rgba(14, 165, 233, 0.20);
+	color: #bae6fd;
+	font-size: 11.5px;
+	font-weight: 800;
+	letter-spacing: 0.5px;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.vs-copy-invite-btn:hover {
+	background: rgba(14, 165, 233, 0.34);
+}
+
+/* Never show the raw floating NEXT button in VS Mode — Match Results modal handles post-match flow */
+body.vs-mode-active #btn-floating-next {
+	display: none !important;
+}
+
+/* ==============================================================================
+   VS Post-Match Results Modal (Elevated away from bottom tile-tap thumb zone)
+   ============================================================================== */
+#vs-results-modal {
+	z-index: 155;
+	padding-bottom: 92px;
+	box-sizing: border-box;
+}
+
+.vs-results-card {
+	max-width: 382px;
+	padding: 20px 18px 20px 18px;
+	transition: transform 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.28), border-color 0.2s ease;
+}
+
+#vs-results-modal.show .vs-results-card {
+	transform: scale(1);
+}
+
+.vs-results-card.outcome-win {
+	border-color: rgba(250, 204, 21, 0.70);
+	box-shadow: 0 20px 52px rgba(0, 0, 0, 0.88), 0 0 32px rgba(56, 189, 248, 0.35), 0 0 18px rgba(250, 204, 21, 0.25);
+}
+
+.vs-results-card.outcome-loss {
+	border-color: rgba(248, 113, 113, 0.55);
+	box-shadow: 0 20px 52px rgba(0, 0, 0, 0.88), 0 0 28px rgba(185, 28, 28, 0.30);
+}
+
+.vs-results-header {
+	margin-bottom: 6px;
+}
+
+.vs-results-mode-tag {
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 1.2px;
+	color: #94a3b8;
+	text-transform: uppercase;
+}
+
+.vs-results-outcome {
+	font-family: 'Orbitron', system-ui, sans-serif;
+	font-size: 28px;
+	font-weight: 900;
+	letter-spacing: 1.5px;
+	margin: 2px 0 4px 0;
+	color: #fde047;
+	text-shadow: 0 2px 12px rgba(250, 204, 21, 0.45);
+}
+
+.vs-results-card.outcome-loss .vs-results-outcome {
+	color: #fca5a5;
+	text-shadow: 0 2px 12px rgba(239, 68, 68, 0.40);
+}
+
+.vs-results-sub {
+	font-size: 12.5px;
+	font-weight: 700;
+	color: #cbd5e1;
+	margin-bottom: 16px;
+}
+
+.vs-results-duel {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 12px 10px;
+	border-radius: 16px;
+	background: rgba(15, 23, 42, 0.65);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	margin-bottom: 14px;
+}
+
+.vs-results-fighter {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+}
+
+.vs-res-ring {
+	width: 74px !important;
+	height: 74px !important;
+	border-width: 5px !important;
+	margin-bottom: 2px;
+}
+
+.vs-res-name {
+	font-size: 14px;
+	font-weight: 900;
+	color: #ffffff;
+	max-width: 132px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	margin-top: 2px;
+}
+
+.vs-res-role {
+	font-size: 9.5px;
+	font-weight: 900;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #7dd3fc;
+}
+
+.fighter-red .vs-res-role {
+	color: #fca5a5;
+}
+
+.vs-res-wpm {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-size: 18px;
+	font-weight: 900;
+	letter-spacing: 0.4px;
+	color: #ffffff;
+}
+
+.vs-res-meta {
+	font-size: 11.5px;
+	font-weight: 700;
+	color: #94a3b8;
+}
+
+.vs-results-vs-badge {
+	font-family: 'Orbitron', system-ui, sans-serif;
+	font-size: 22px;
+	font-weight: 900;
+	color: rgba(255, 255, 255, 0.45);
+	padding: 0 2px;
+}
+
+.vs-results-chain-wrap {
+	margin-bottom: 16px;
+	padding: 10px 10px 11px 10px;
+	border-radius: 14px;
+	background: rgba(15, 23, 42, 0.55);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vs-results-chain-label {
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 1.1px;
+	color: #94a3b8;
+	margin-bottom: 8px;
+}
+
+.vs-results-chain-pills {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+}
+
+.vs-chain-pill {
+	padding: 4px 8px;
+	border-radius: 7px;
+	font-size: 11px;
+	font-weight: 900;
+	letter-spacing: 0.8px;
+	text-transform: uppercase;
+	color: #ffffff;
+	background: rgba(71, 85, 105, 0.55);
+	border: 1px solid rgba(148, 163, 184, 0.30);
+}
+
+.vs-chain-pill.pill-anchor {
+	background: rgba(120, 83, 35, 0.55);
+	border-color: rgba(250, 204, 21, 0.40);
+	color: #fef08a;
+}
+
+.vs-chain-pill.pill-blue {
+	background: linear-gradient(180deg, #0e74b8, #0a4f80);
+	border-color: #38bdf8;
+	box-shadow: 0 2px 6px rgba(14, 116, 184, 0.40);
+}
+
+.vs-chain-pill.pill-red {
+	background: linear-gradient(180deg, #b91c1c, #7f1d1d);
+	border-color: #f87171;
+	box-shadow: 0 2px 6px rgba(185, 28, 28, 0.40);
+}
+
+.vs-results-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 9px;
+}
+
+.vs-results-secondary-btn {
+	width: 100%;
+	padding: 11px 16px;
+}
+
+/* Rematch Notification & Inviting Pulse Effect */
+@keyframes vsRematchPulse {
+	0%, 100% {
+		box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+		transform: scale(1);
+	}
+	50% {
+		box-shadow: 0 0 20px 6px rgba(245, 158, 11, 0.95);
+		transform: scale(1.03);
+	}
+}
+
+.vs-results-primary-btn.vs-pulse-rematch {
+	animation: vsRematchPulse 1.2s infinite ease-in-out;
+	background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%) !important;
+	border-color: #fef08a !important;
+	color: #ffffff !important;
+}
+
+/* Miniature avatar face on the post-match results chain breakdown pill */
+.vs-pill-avatar-img {
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	object-fit: cover;
+	margin-right: 5px;
+	vertical-align: middle;
+	border: 1.5px solid rgba(255, 255, 255, 0.90);
+	background: #1e1b4b;
+	display: inline-block;
+}
+
+/* ==========================================================================
+   TITLE SCREEN PLAYER PROFILE WIDGET
+   ========================================================================== */
+.title-profile-widget {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	margin: 12px auto 16px auto;
+	cursor: pointer;
+	user-select: none;
+	-webkit-user-select: none;
+	transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+	z-index: 5;
+}
+
+.title-profile-widget:hover {
+	transform: scale(1.05);
+}
+
+.title-profile-widget:active {
+	transform: scale(0.96);
+}
+
+.title-avatar-ring {
+	position: relative;
+	width: 76px;
+	height: 76px;
+	border-radius: 50%;
+	border: 3.5px solid #38bdf8;
+	background: radial-gradient(circle at 35% 35%, #1e3a8a 0%, #0f172a 100%);
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 16px rgba(56, 189, 248, 0.45);
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 7px;
+}
+
+.title-avatar-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.title-profile-btn {
+	background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+	border: 1.5px solid #38bdf8;
+	border-radius: 20px;
+	color: #ffffff;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 800;
+	letter-spacing: 0.6px;
+	padding: 6px 16px;
+	box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	transition: all 0.18s ease;
+}
+
+.title-profile-btn:hover {
+	background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+	box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6);
+}
+
+.title-profile-sub {
+	font-size: 11px;
+	font-weight: 700;
+	color: #fde047;
+	margin-top: 5px;
+	letter-spacing: 0.5px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+/* ==========================================================================
+   IN-GAME PLAYER PROFILE BADGE (LEFT FLANK)
+   ========================================================================== */
+.hud-player-card {
+	position: absolute;
+	left: 0;
+	top: 4px;
+	transform: none;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	pointer-events: auto;
+	cursor: pointer;
+	z-index: 12;
+	user-select: none;
+	-webkit-user-select: none;
+	transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+	background: transparent !important;
+	border: none !important;
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+	border-radius: 0 !important;
+	padding: 0 !important;
+	box-shadow: none !important;
+}
+
+.hud-player-card:hover {
+	transform: scale(1.06);
+}
+
+.hud-player-card:active {
+	transform: scale(0.95);
+}
+
+body.vs-mode-active #hud-player-card {
+	display: none !important;
+}
+
+.hud-player-avatar-ring {
+	position: relative;
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	border: 2.5px solid #38bdf8;
+	background: #0f172a;
+	box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 3px;
+	transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.hud-player-avatar-img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	object-position: center;
+	display: block;
+	border-radius: 50%;
+}
+
+.hud-add-name-btn {
+	background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+	border: 1px solid #38bdf8;
+	border-radius: 12px;
+	color: #ffffff;
+	font-family: inherit;
+	font-size: 10.5px;
+	font-weight: 800;
+	letter-spacing: 0.3px;
+	padding: 3px 8px;
+	box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+	cursor: pointer;
+	white-space: nowrap;
+	transition: all 0.16s ease;
+}
+
+.hud-add-name-btn:hover {
+	background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+	box-shadow: 0 4px 10px rgba(14, 165, 233, 0.6);
+}
+
+.hud-player-info {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	line-height: 1.15;
+}
+
+.hud-player-name {
+	font-size: 11px;
+	font-weight: 900;
+	letter-spacing: 0.5px;
+	color: #ffffff;
+	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+	max-width: 80px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	text-transform: uppercase;
+}
+
+.hud-player-stats-row {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-top: 1px;
+}
+
+.hud-player-stat.stat-wpm {
+	font-size: 10.5px;
+	font-weight: 800;
+	color: #38bdf8;
+	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+/* Solo play: NEVER show Word Crowns */
+.hud-player-stat.stat-crowns {
+	display: none !important;
+}
+
+/* ==========================================================================
+   PROFILE & STATS MODAL
+   ========================================================================== */
+#profile-modal {
+	z-index: 160;
+}
+
+.profile-card {
+	background: linear-gradient(180deg, #1e293b, #0f172a);
+	border: 1.5px solid rgba(56, 189, 248, 0.45);
+	border-radius: 24px;
+	padding: 20px 20px 22px 20px;
+	max-width: 380px;
+	width: 92%;
+	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(14, 99, 156, 0.3);
+	color: #ffffff;
+	text-align: center;
+	transform: scale(0.95);
+	transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+	max-height: 90vh;
+	overflow-y: auto;
+	box-sizing: border-box;
+}
+
+#profile-modal.show .profile-card {
+	transform: scale(1);
+}
+
+.profile-avatar-hero {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 14px;
+}
+
+.profile-avatar-large-ring {
+	position: relative;
+	width: 84px;
+	height: 84px;
+	border-radius: 50%;
+	border: 4px solid #38bdf8;
+	background: radial-gradient(circle at 35% 35%, #1e3a8a 0%, #0f172a 100%);
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.5);
+	overflow: hidden;
+	margin-bottom: 8px;
+}
+
+.profile-avatar-large-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.profile-sub-title {
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 1px;
+	color: #94a3b8;
+	margin-bottom: 8px;
+	text-transform: uppercase;
+}
+
+.profile-avatar-grid {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 8px;
+	justify-content: center;
+	margin-bottom: 14px;
+	padding: 0 4px;
+}
+
+.profile-avatar-option {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	border: 2px solid rgba(148, 163, 184, 0.3);
+	overflow: hidden;
+	cursor: pointer;
+	transition: all 0.16s ease;
+	background: #1e293b;
+	box-sizing: border-box;
+}
+
+.profile-avatar-option:hover {
+	transform: scale(1.1);
+	border-color: #38bdf8;
+}
+
+.profile-avatar-option.selected {
+	border-color: #facc15;
+	box-shadow: 0 0 12px rgba(250, 204, 21, 0.85);
+	transform: scale(1.12);
+}
+
+.profile-avatar-option img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.profile-username-group {
+	margin-bottom: 16px;
+}
+
+.profile-stats-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+	margin-bottom: 18px;
+	text-align: left;
+}
+
+.profile-stat-box {
+	background: rgba(15, 23, 42, 0.65);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 12px;
+	padding: 10px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.profile-stat-label {
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 0.6px;
+	color: #94a3b8;
+	text-transform: uppercase;
+}
+
+.profile-stat-value {
+	font-size: 16px;
+	font-weight: 900;
+	color: #ffffff;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.profile-stat-desc {
+	font-size: 9.5px;
+	color: rgba(148, 163, 184, 0.8);
+}
+
+.profile-save-btn {
+	width: 100%;
+	padding: 13px;
+	border-radius: 14px;
+	font-size: 14px;
+	font-weight: 900;
+	letter-spacing: 0.8px;
+	text-transform: uppercase;
+	color: #ffffff;
+	background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+	border: 1.5px solid #38bdf8;
+	box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
+	cursor: pointer;
+	transition: all 0.18s ease;
+}
+
+.profile-save-btn:hover {
+	background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+	box-shadow: 0 8px 24px rgba(14, 165, 233, 0.6);
 }

@@ -1006,10 +1006,10 @@
 				materials.chevron.needsUpdate = true;
 			}
 
-			// Immediately refresh rack and lip material assignments across all rows
+			// Immediately refresh rack and lip material assignments across all rows without prematurely showing coupler
 			if (typeof updateActiveRowVisuals === 'function') {
 				try {
-					updateActiveRowVisuals();
+					updateActiveRowVisuals(true);
 				} catch (e) {}
 			}
 		},
@@ -3322,6 +3322,2081 @@
 	};
 
 	// --------------------------------------------------------------------------
+	// Colyseus Multiplayer VS Mode, Friend Rooms & Real Ghost Run Recorder
+	// --------------------------------------------------------------------------
+	var MultiplayerManager = {
+		PLAYER_ID_KEY: 'word_chain_player_id_v1',
+		USERNAME_STORAGE_KEY: 'word_chain_vs_username',
+		AVATAR_STORAGE_KEY: 'word_chain_vs_avatar',
+		STATS_STORAGE_KEY: 'word_chain_vs_stats_v1',
+		WORD_CROWNS_KEY: 'word_chain_word_crowns_v1',
+		PENDING_RUNS_KEY: 'word_chain_pending_runs_v1',
+		SERVER_URL_KEY: 'word_chain_server_url',
+		AVATARS: [
+			'Character_1.png',
+			'Character_2.png',
+			'Character_3.png',
+			'Character_4.png',
+			'Character_5.png',
+			'Character_6.png',
+			'Character_7.png',
+			'Character_8.png',
+			'Character_9.png'
+		],
+
+		playerId: '',
+		playerUsername: '',
+		opponentUsername: 'Opponent',
+		isActive: false,
+		isSearching: false,
+		playerAvatar: 'Character_8.png',
+		opponentAvatar: 'Character_9.png',
+		playerBaseWpm: 11,
+		opponentTargetWpm: 12,
+		playerLiveWpm: 0,
+		opponentLiveWpm: 0,
+		wordCrowns: 0,
+		matchesPlayed: 0,
+		matchesWon: 0,
+		tempProfileAvatar: null,
+		lastEarnedCrowns: 0,
+		p1MatchCrowns: 0,
+		p2MatchCrowns: 0,
+
+		// Colyseus state
+		colyseusClient: null,
+		room: null,
+		mySlot: 'p1',         // 'p1' or 'p2' on server; local player is ALWAYS Blue (left) on screen
+		matchMode: 'live',    // 'live' | 'friend' | 'ghost'
+		roomCode: null,
+		canRematch: false,
+
+		// Race progress
+		raceStarted: false,
+		raceStartTime: 0,
+		playerRowsSolved: 0,
+		opponentRowsSolved: 0,
+		firstSolverByRow: {}, // rowIndex -> 'p1' (you / Blue) | 'p2' (opponent / Red)
+		matchFinished: false,
+		winner: null,         // 'p1' (you / Blue) | 'p2' (opponent / Red)
+		lastVsLevelIndex: -1,
+		lastMatchSummary: null,
+		resultsInteractiveAt: 0,
+		resultsRevealTimeout: null,
+		rematchWaitTimer: null,
+		rematchAbortTimer: null,
+
+		// Solo run recording for genuine Ghost source material
+		soloRunActive: false,
+		soloRunLevelIndex: -1,
+		soloRunStartMs: 0,
+		soloRowSolveTimesMs: [],
+
+		searchInterval: null,
+		searchTimeout: null,
+		recentWpms: [],
+
+		init: function () {
+			try {
+				var pid = localStorage.getItem(this.PLAYER_ID_KEY);
+				if (!pid || pid.length < 6) {
+					pid = 'wc_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+					localStorage.setItem(this.PLAYER_ID_KEY, pid);
+				}
+				this.playerId = pid;
+
+				var savedUsername = localStorage.getItem(this.USERNAME_STORAGE_KEY);
+				if (savedUsername) {
+					this.playerUsername = this.cleanUsername(savedUsername);
+				}
+
+				var savedAvatar = localStorage.getItem(this.AVATAR_STORAGE_KEY);
+				if (savedAvatar && this.AVATARS.indexOf(savedAvatar) !== -1) {
+					this.playerAvatar = savedAvatar;
+				}
+
+				var savedCrowns = parseInt(localStorage.getItem(this.WORD_CROWNS_KEY) || '0', 10);
+				this.wordCrowns = (isNaN(savedCrowns) || savedCrowns < 0) ? 0 : savedCrowns;
+
+				var savedStats = localStorage.getItem(this.STATS_STORAGE_KEY);
+				if (savedStats) {
+					var parsed = JSON.parse(savedStats);
+					if (parsed && Array.isArray(parsed.recentWpms)) {
+						this.recentWpms = parsed.recentWpms.filter(function (n) {
+							return typeof n === 'number' && isFinite(n) && n > 0;
+						}).slice(-6);
+					}
+					if (parsed && typeof parsed.matchesPlayed === 'number') {
+						this.matchesPlayed = parsed.matchesPlayed;
+					}
+					if (parsed && typeof parsed.matchesWon === 'number') {
+						this.matchesWon = parsed.matchesWon;
+					}
+				}
+			} catch (e) {
+				this.playerId = 'wc_' + Math.random().toString(36).slice(2, 10);
+			}
+
+			this.pickPreviewOpponent();
+			this.syncTitleButtonAvatars();
+			this.bindModalEvents();
+			this.updateProfileUI();
+			this.flushPendingRuns();
+		},
+
+		getServerEndpoints: function () {
+			var custom = null;
+			try {
+				var params = new URLSearchParams(window.location.search);
+				custom = params.get('server') || window.WORD_CHAIN_SERVER_URL || localStorage.getItem(this.SERVER_URL_KEY);
+			} catch (e) {}
+
+			if (custom) {
+				var trimmed = String(custom).replace(/\/+$/, '');
+				var httpUrl = trimmed.replace(/^ws(s?):\/\//, 'http$1://');
+				var wsUrl = trimmed.replace(/^http(s?):\/\//, 'ws$1://');
+				return { httpBase: httpUrl, wsBase: wsUrl };
+			}
+
+			var loc = window.location;
+			var isHttps = (loc.protocol === 'https:');
+			var host = loc.hostname || 'localhost';
+			var port = loc.port;
+
+			// If served directly by the Colyseus server (default 2567) or deployed HTTPS host without dev static port
+			if (port === '2567' || (isHttps && !port)) {
+				var protoWs = isHttps ? 'wss://' : 'ws://';
+				var protoHttp = isHttps ? 'https://' : 'http://';
+				var authority = host + (port ? (':' + port) : '');
+				return {
+					httpBase: protoHttp + authority,
+					wsBase: protoWs + authority
+				};
+			}
+
+			// Local dev static server (e.g. port 8080 / 5500 / file://) -> connect to Colyseus on 2567
+			var targetHost = (loc.protocol === 'file:' || !host) ? 'localhost' : host;
+			return {
+				httpBase: 'http://' + targetHost + ':2567',
+				wsBase: 'ws://' + targetHost + ':2567'
+			};
+		},
+
+		getColyseusClient: function () {
+			if (!window.Colyseus || !window.Colyseus.Client) {
+				return null;
+			}
+			var endpoints = this.getServerEndpoints();
+			if (!this.colyseusClient || this._lastWsBase !== endpoints.wsBase) {
+				this._lastWsBase = endpoints.wsBase;
+				this.colyseusClient = new window.Colyseus.Client(endpoints.wsBase);
+			}
+			return this.colyseusClient;
+		},
+
+		// ----------------------------------------------------------------------
+		// Solo Run Recording -> Genuine Ghost Match-Up Source Material
+		// ----------------------------------------------------------------------
+		onSoloEntranceReady: function (levelIdx) {
+			if (this.isActive) return;
+			this.soloRunActive = true;
+			this.soloRunLevelIndex = levelIdx;
+			this.soloRunStartMs = performance.now();
+			this.soloRowSolveTimesMs = [];
+		},
+
+		onSoloRowSolved: function (rowIdx, totalRows) {
+			if (this.isActive || !this.soloRunActive || this.soloRunLevelIndex !== currentLevelIndex) return;
+			if (rowIdx !== this.soloRowSolveTimesMs.length + 1) {
+				this.soloRunActive = false;
+				return;
+			}
+			var rawElapsed = Math.max(300, Math.round(performance.now() - this.soloRunStartMs));
+			var prev = this.soloRowSolveTimesMs.length > 0
+				? this.soloRowSolveTimesMs[this.soloRowSolveTimesMs.length - 1]
+				: 0;
+			var elapsedMs = Math.max(prev + 260, rawElapsed);
+			this.soloRowSolveTimesMs.push(elapsedMs);
+
+			if (rowIdx >= totalRows - 1) {
+				this.soloRunActive = false;
+				this.submitPlayerRun({
+					runUuid: 'run_' + this.playerId + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+					playerId: this.playerId,
+					username: this.playerUsername,
+					avatar: this.playerAvatar,
+					source: 'solo',
+					levelIndex: currentLevelIndex,
+					rowSolveTimesMs: this.soloRowSolveTimesMs.slice()
+				});
+			}
+		},
+
+		submitPlayerRun: function (runPayload) {
+			var self = this;
+			var endpoints = this.getServerEndpoints();
+			return fetch(endpoints.httpBase + '/api/runs', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(runPayload)
+			}).then(function (res) {
+				if (!res.ok) throw new Error('HTTP ' + res.status);
+				return res.json();
+			}).catch(function () {
+				// Queue offline Solo run locally so it syncs into SQLite as soon as server is online
+				try {
+					var raw = localStorage.getItem(self.PENDING_RUNS_KEY);
+					var queue = raw ? JSON.parse(raw) : [];
+					if (!Array.isArray(queue)) queue = [];
+					queue.push(runPayload);
+					if (queue.length > 25) queue = queue.slice(-25);
+					localStorage.setItem(self.PENDING_RUNS_KEY, JSON.stringify(queue));
+				} catch (e) {}
+			});
+		},
+
+		flushPendingRuns: function () {
+			var self = this;
+			var queue = [];
+			try {
+				var raw = localStorage.getItem(this.PENDING_RUNS_KEY);
+				queue = raw ? JSON.parse(raw) : [];
+			} catch (e) {
+				queue = [];
+			}
+			if (!Array.isArray(queue) || queue.length === 0) {
+				return Promise.resolve();
+			}
+
+			var endpoints = this.getServerEndpoints();
+			var remaining = [];
+			var chain = Promise.resolve();
+
+			queue.forEach(function (item) {
+				if (self.playerUsername && self.playerUsername.length >= 2) {
+					item.username = self.playerUsername;
+				}
+				chain = chain.then(function () {
+					return fetch(endpoints.httpBase + '/api/runs', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(item)
+					}).then(function (res) {
+						if (!res.ok && res.status >= 500) {
+							remaining.push(item);
+						}
+					}).catch(function () {
+						remaining.push(item);
+					});
+				});
+			});
+
+			return chain.then(function () {
+				try {
+					localStorage.setItem(self.PENDING_RUNS_KEY, JSON.stringify(remaining));
+				} catch (e) {}
+			});
+		},
+
+		// ----------------------------------------------------------------------
+		// Username, Avatar & WPM Helpers
+		// ----------------------------------------------------------------------
+		cleanUsername: function (raw) {
+			if (typeof raw !== 'string') return '';
+			return raw
+				.replace(/[^a-zA-Z0-9 _.\-\u00C0-\u024F]/g, '')
+				.replace(/\s+/g, ' ')
+				.trim()
+				.slice(0, 14);
+		},
+
+		getDisplayUsername: function () {
+			return (this.playerUsername && this.playerUsername.length >= 2) ? this.playerUsername : 'You';
+		},
+
+		saveUsernameFromInput: function () {
+			var input = document.getElementById('vs-username-input');
+			if (!input) return this.playerUsername;
+			var cleaned = this.cleanUsername(input.value);
+			this.playerUsername = cleaned;
+			try {
+				if (cleaned) {
+					localStorage.setItem(this.USERNAME_STORAGE_KEY, cleaned);
+				} else {
+					localStorage.removeItem(this.USERNAME_STORAGE_KEY);
+				}
+			} catch (e) {}
+			return cleaned;
+		},
+
+		requireValidUsername: function () {
+			var cleaned = this.saveUsernameFromInput();
+			var input = document.getElementById('vs-username-input');
+			if (!cleaned || cleaned.length < 2) {
+				if (input) {
+					input.classList.add('needs-attention');
+					input.focus();
+				}
+				this.showLobbyNotice('Create a username above (2–14 chars) so opponents can see who they\'re playing!');
+				return false;
+			}
+			if (input) {
+				input.classList.remove('needs-attention');
+				input.value = cleaned;
+			}
+			this.syncProfileToServer();
+			return true;
+		},
+
+		syncProfileToServer: function () {
+			if (!this.playerUsername || this.playerUsername.length < 2) return;
+			var endpoints = this.getServerEndpoints();
+			fetch(endpoints.httpBase + '/api/profile', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					playerId: this.playerId,
+					username: this.playerUsername,
+					avatar: this.playerAvatar
+				})
+			}).catch(function () {});
+		},
+
+		getAvatarPath: function (fileName) {
+			if (typeof fileName === 'number' && this.AVATARS[fileName]) {
+				fileName = this.AVATARS[fileName];
+			}
+			return 'OriginalTileImages/' + (fileName || 'Character_8.png');
+		},
+
+		pickPreviewOpponent: function () {
+			var pool = this.AVATARS.filter(function (a) { return a !== MultiplayerManager.playerAvatar; });
+			if (this.opponentAvatar === this.playerAvatar || pool.indexOf(this.opponentAvatar) === -1) {
+				this.opponentAvatar = (this.playerAvatar === 'Character_9.png') ? 'Character_8.png' : 'Character_9.png';
+			}
+		},
+
+		syncTitleButtonAvatars: function () {
+			var p1Img = document.getElementById('title-vs-p1-img');
+			var p2Img = document.getElementById('title-vs-p2-img');
+			if (p1Img) p1Img.src = this.getAvatarPath(this.playerAvatar);
+			if (p2Img) p2Img.src = this.getAvatarPath(this.opponentAvatar);
+		},
+
+		getCalibratedPlayerWpm: function () {
+			if (this.recentWpms && this.recentWpms.length > 0) {
+				var sum = 0;
+				for (var i = 0; i < this.recentWpms.length; i++) {
+					sum += this.recentWpms[i];
+				}
+				var avg = sum / this.recentWpms.length;
+				return Math.max(7, Math.min(40, Math.round(avg)));
+			}
+			if (typeof SpeedometerManager !== 'undefined' && SpeedometerManager.getOverallStats) {
+				var stats = SpeedometerManager.getOverallStats();
+				if (stats && stats.completedCount > 0 && stats.avgWpm > 0) {
+					return Math.max(7, Math.min(40, Math.round(stats.avgWpm * 0.85)));
+				}
+			}
+			return 12;
+		},
+
+		recordMatchWpm: function (wpm) {
+			if (!wpm || !isFinite(wpm) || wpm <= 0) return;
+			var clamped = Math.max(6, Math.min(55, Math.round(wpm * 10) / 10));
+			this.recentWpms.push(clamped);
+			if (this.recentWpms.length > 6) {
+				this.recentWpms = this.recentWpms.slice(-6);
+			}
+			this.saveStats();
+			this.updateProfileUI();
+		},
+
+		getWordCrowns: function () {
+			return this.wordCrowns || 0;
+		},
+
+		addWordCrowns: function (count) {
+			if (!count || count <= 0) return;
+			this.wordCrowns = (this.wordCrowns || 0) + count;
+			try {
+				localStorage.setItem(this.WORD_CROWNS_KEY, String(this.wordCrowns));
+			} catch (e) {}
+			this.updateProfileUI();
+		},
+
+		recordMatchResult: function (won) {
+			this.matchesPlayed = (this.matchesPlayed || 0) + 1;
+			if (won) {
+				this.matchesWon = (this.matchesWon || 0) + 1;
+			}
+			this.saveStats();
+			this.updateProfileUI();
+		},
+
+		saveStats: function () {
+			try {
+				localStorage.setItem(this.STATS_STORAGE_KEY, JSON.stringify({
+					recentWpms: this.recentWpms,
+					matchesPlayed: this.matchesPlayed || 0,
+					matchesWon: this.matchesWon || 0
+				}));
+			} catch (e) {}
+		},
+
+		getAverageWpm: function () {
+			var pvpWpm = 0;
+			if (this.recentWpms && this.recentWpms.length > 0) {
+				var sum = 0;
+				for (var i = 0; i < this.recentWpms.length; i++) {
+					sum += this.recentWpms[i];
+				}
+				pvpWpm = sum / this.recentWpms.length;
+			}
+			var soloWpm = 0;
+			if (typeof SpeedometerManager !== 'undefined' && SpeedometerManager.getOverallStats) {
+				var stats = SpeedometerManager.getOverallStats();
+				if (stats && stats.completedCount > 0 && stats.avgWpm > 0) {
+					soloWpm = stats.avgWpm;
+				}
+			}
+			if (pvpWpm > 0 && soloWpm > 0) {
+				return Math.round((pvpWpm + soloWpm) / 2);
+			} else if (pvpWpm > 0) {
+				return Math.round(pvpWpm);
+			} else if (soloWpm > 0) {
+				return Math.round(soloWpm);
+			}
+			return 12;
+		},
+
+		renderAvatarGrid: function () {
+			var grid = document.getElementById('vs-avatar-grid');
+			if (!grid) return;
+			grid.innerHTML = '';
+			var self = this;
+
+			this.AVATARS.forEach(function (fileName, idx) {
+				var btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'vs-avatar-option' + (fileName === self.playerAvatar ? ' selected' : '');
+				btn.setAttribute('aria-label', 'Avatar ' + (idx + 1));
+
+				var img = document.createElement('img');
+				img.src = self.getAvatarPath(fileName);
+				img.alt = 'Avatar ' + (idx + 1);
+				btn.appendChild(img);
+
+				btn.addEventListener('click', function () {
+					self.selectAvatar(fileName);
+					AudioManager.play('tilehit', 0.9);
+					AudioManager.haptic(16);
+				});
+
+				grid.appendChild(btn);
+			});
+		},
+
+		selectAvatar: function (fileName) {
+			if (this.AVATARS.indexOf(fileName) === -1) return;
+			this.playerAvatar = fileName;
+			try {
+				localStorage.setItem(this.AVATAR_STORAGE_KEY, fileName);
+			} catch (e) {}
+			this.pickPreviewOpponent();
+			this.syncTitleButtonAvatars();
+			this.updateProfileUI();
+
+			var grid = document.getElementById('vs-avatar-grid');
+			if (grid) {
+				var buttons = grid.querySelectorAll('.vs-avatar-option');
+				for (var i = 0; i < buttons.length; i++) {
+					buttons[i].classList.toggle('selected', this.AVATARS[i] === fileName);
+				}
+			}
+			this.syncProfileToServer();
+		},
+
+		// ----------------------------------------------------------------------
+		// Profile Modal & Career Stats
+		// ----------------------------------------------------------------------
+		openProfileModal: function () {
+			this.tempProfileAvatar = this.playerAvatar || 'Character_8.png';
+			this.renderProfileAvatarGrid();
+			this.updateProfileUI();
+
+			var modal = document.getElementById('profile-modal');
+			var usernameInput = document.getElementById('profile-username-input');
+			if (usernameInput) {
+				usernameInput.value = this.playerUsername || '';
+			}
+			if (modal) {
+				modal.classList.add('show');
+				if (!this.playerUsername && usernameInput) {
+					setTimeout(function () {
+						try { usernameInput.focus(); } catch (e) {}
+					}, 180);
+				}
+			}
+			if (typeof AudioManager !== 'undefined') {
+				AudioManager.play('tilehit', 0.8);
+			}
+		},
+
+		closeProfileModal: function () {
+			var modal = document.getElementById('profile-modal');
+			if (modal) modal.classList.remove('show');
+		},
+
+		renderProfileAvatarGrid: function () {
+			var grid = document.getElementById('profile-avatar-grid');
+			if (!grid) return;
+			grid.innerHTML = '';
+			var self = this;
+			var activeAvatar = this.tempProfileAvatar || this.playerAvatar || 'Character_8.png';
+
+			this.AVATARS.forEach(function (fileName, idx) {
+				var btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'profile-avatar-option' + (fileName === activeAvatar ? ' selected' : '');
+				btn.setAttribute('aria-label', 'Avatar ' + (idx + 1));
+
+				var img = document.createElement('img');
+				img.src = self.getAvatarPath(fileName);
+				img.alt = 'Avatar ' + (idx + 1);
+				btn.appendChild(img);
+
+				btn.addEventListener('click', function () {
+					self.selectProfileAvatar(fileName);
+					if (typeof AudioManager !== 'undefined') {
+						AudioManager.play('tilehit', 0.9);
+						AudioManager.haptic(16);
+					}
+				});
+
+				grid.appendChild(btn);
+			});
+		},
+
+		selectProfileAvatar: function (fileName) {
+			if (this.AVATARS.indexOf(fileName) === -1) return;
+			this.tempProfileAvatar = fileName;
+			var largeImg = document.getElementById('profile-current-avatar-img');
+			if (largeImg) {
+				largeImg.src = this.getAvatarPath(fileName);
+			}
+			var grid = document.getElementById('profile-avatar-grid');
+			if (grid) {
+				var buttons = grid.querySelectorAll('.profile-avatar-option');
+				for (var i = 0; i < buttons.length; i++) {
+					buttons[i].classList.toggle('selected', this.AVATARS[i] === fileName);
+				}
+			}
+		},
+
+		saveProfile: function () {
+			var usernameInput = document.getElementById('profile-username-input');
+			var nameVal = usernameInput ? usernameInput.value : '';
+			var cleaned = this.cleanUsername(nameVal);
+
+			this.playerUsername = cleaned;
+			try {
+				if (cleaned) {
+					localStorage.setItem(this.USERNAME_STORAGE_KEY, cleaned);
+				} else {
+					localStorage.removeItem(this.USERNAME_STORAGE_KEY);
+				}
+			} catch (e) {}
+
+			if (this.tempProfileAvatar) {
+				this.playerAvatar = this.tempProfileAvatar;
+				try {
+					localStorage.setItem(this.AVATAR_STORAGE_KEY, this.playerAvatar);
+				} catch (e) {}
+			}
+
+			this.pickPreviewOpponent();
+			this.syncTitleButtonAvatars();
+			this.updateProfileUI();
+			this.syncProfileToServer();
+
+			// Sync with VS Lobby input and grid if present
+			var vsInput = document.getElementById('vs-username-input');
+			if (vsInput) vsInput.value = this.playerUsername || '';
+			var vsGrid = document.getElementById('vs-avatar-grid');
+			if (vsGrid) {
+				var vsButtons = vsGrid.querySelectorAll('.vs-avatar-option');
+				for (var j = 0; j < vsButtons.length; j++) {
+					vsButtons[j].classList.toggle('selected', this.AVATARS[j] === this.playerAvatar);
+				}
+			}
+
+			if (typeof AudioManager !== 'undefined') {
+				AudioManager.playSnap(1.3);
+				AudioManager.haptic(25);
+			}
+			if (typeof showToast === 'function') {
+				showToast(this.playerUsername ? ('Profile saved! Welcome, ' + this.playerUsername) : 'Profile saved!');
+			}
+
+			this.closeProfileModal();
+		},
+
+		updateProfileUI: function () {
+			var avatarSrc = this.getAvatarPath(this.playerAvatar);
+			var crowns = this.wordCrowns || 0;
+			var avgWpm = this.getAverageWpm();
+			var hasName = !!(this.playerUsername && this.playerUsername.trim().length > 0);
+
+			// 1. Title Screen Profile Widget
+			var titleImg = document.getElementById('title-profile-img');
+			if (titleImg) titleImg.src = avatarSrc;
+
+			var titleBtnText = document.getElementById('title-profile-btn-text');
+			var titleBtnIcon = document.getElementById('title-profile-btn-icon');
+			var titleSub = document.getElementById('title-profile-sub');
+			var titleCrowns = document.getElementById('title-profile-crowns');
+			var titleWpm = document.getElementById('title-profile-wpm');
+
+			if (titleBtnText) {
+				titleBtnText.textContent = hasName ? this.playerUsername.toUpperCase() : 'Add Name';
+			}
+			if (titleBtnIcon) {
+				titleBtnIcon.textContent = hasName ? '✏️' : '➕';
+			}
+			if (titleSub) {
+				titleSub.style.display = hasName ? 'flex' : 'none';
+				if (titleCrowns) titleCrowns.textContent = '👑 ' + crowns + ' Crown' + (crowns === 1 ? '' : 's');
+				if (titleWpm) titleWpm.textContent = '⚡ ' + avgWpm + ' WPM';
+			}
+
+			// 2. In-Game Left Player Card
+			var hudAvatarImg = document.getElementById('hud-player-avatar-img');
+			if (hudAvatarImg) hudAvatarImg.src = avatarSrc;
+
+			var btnHudAddName = document.getElementById('btn-hud-add-name');
+			var hudPlayerInfo = document.getElementById('hud-player-info');
+			var hudPlayerName = document.getElementById('hud-player-name');
+			var hudPlayerWpm = document.getElementById('hud-player-wpm');
+			var hudPlayerCrowns = document.getElementById('hud-player-crowns');
+
+			if (!hasName) {
+				if (btnHudAddName) btnHudAddName.style.display = 'block';
+				if (hudPlayerInfo) hudPlayerInfo.style.display = 'none';
+			} else {
+				if (btnHudAddName) btnHudAddName.style.display = 'none';
+				if (hudPlayerInfo) hudPlayerInfo.style.display = 'flex';
+				if (hudPlayerName) hudPlayerName.textContent = this.playerUsername.toUpperCase();
+				if (hudPlayerWpm) hudPlayerWpm.textContent = '⚡ ' + avgWpm + ' WPM';
+				if (hudPlayerCrowns) hudPlayerCrowns.style.display = 'none';
+			}
+
+			// 3. Profile Modal Elements
+			var modalAvatarImg = document.getElementById('profile-current-avatar-img');
+			if (modalAvatarImg) {
+				modalAvatarImg.src = this.getAvatarPath(this.tempProfileAvatar || this.playerAvatar);
+			}
+			var statCrowns = document.getElementById('stat-word-crowns');
+			if (statCrowns) statCrowns.textContent = crowns;
+			var statWpm = document.getElementById('stat-avg-wpm');
+			if (statWpm) statWpm.textContent = avgWpm;
+			var statPvpMatches = document.getElementById('stat-pvp-matches');
+			if (statPvpMatches) statPvpMatches.textContent = this.matchesPlayed || 0;
+			var statPvpWins = document.getElementById('stat-pvp-wins');
+			if (statPvpWins) statPvpWins.textContent = this.matchesWon || 0;
+
+			var soloStats = (typeof SpeedometerManager !== 'undefined' && SpeedometerManager.getOverallStats)
+				? SpeedometerManager.getOverallStats()
+				: { totalStars: 0, completedCount: 0 };
+			var statSoloStars = document.getElementById('stat-solo-stars');
+			if (statSoloStars) statSoloStars.textContent = soloStats.totalStars || 0;
+			var statSoloLevels = document.getElementById('stat-solo-levels');
+			if (statSoloLevels) statSoloLevels.textContent = soloStats.completedCount || 0;
+		},
+
+		showLobbyNotice: function (msg) {
+			var el = document.getElementById('vs-lobby-notice');
+			if (!el) return;
+			if (!msg) {
+				el.style.display = 'none';
+				el.textContent = '';
+			} else {
+				el.textContent = msg;
+				el.style.display = 'block';
+			}
+		},
+
+		pulseHudAvatar: function (which) {
+			var sel = (which === 'p1')
+				? '#hud-vs-bar .vs-p1 .vs-hud-avatar-ring'
+				: '#hud-vs-bar .vs-p2 .vs-hud-avatar-ring';
+			var ring = document.querySelector(sel);
+			if (!ring) return;
+			ring.classList.remove('solve-pulse');
+			void ring.offsetWidth;
+			ring.classList.add('solve-pulse');
+			setTimeout(function () {
+				if (ring) ring.classList.remove('solve-pulse');
+			}, 1050);
+		},
+
+		getRowWordLength: function (rowIdx) {
+			if (currentLevelData && currentLevelData.words && currentLevelData.words[rowIdx] && currentLevelData.words[rowIdx].answer) {
+				return currentLevelData.words[rowIdx].answer.length;
+			}
+			if (chainRowData && chainRowData[rowIdx] && chainRowData[rowIdx].wordLen) {
+				return chainRowData[rowIdx].wordLen;
+			}
+			return 5;
+		},
+
+		triggerFlyingCrown: function (winnerSlot, rowIdx, points) {
+			var self = this;
+			var pts = points || this.getRowWordLength(rowIdx) || 5;
+
+			// 1. Calculate origin screen coordinates (from 3D tray)
+			var startX = window.innerWidth * 0.5;
+			var startY = window.innerHeight * 0.45;
+			try {
+				if (camera && chainRowData && chainRowData[rowIdx] && chainRowData[rowIdx].rackMesh) {
+					var v = new THREE.Vector3();
+					chainRowData[rowIdx].rackMesh.getWorldPosition(v);
+					v.project(camera);
+					startX = (v.x * 0.5 + 0.5) * window.innerWidth;
+					startY = (-(v.y * 0.5) + 0.5) * window.innerHeight;
+				}
+			} catch (e) {}
+
+			// 2. Calculate destination screen coordinates (winner's avatar ring in VS top bar)
+			var ringEl = document.querySelector(winnerSlot === 'p1' ? '.vs-hud-player.vs-p1 .vs-hud-avatar-ring' : '.vs-hud-player.vs-p2 .vs-hud-avatar-ring');
+			var destX = (winnerSlot === 'p1') ? window.innerWidth * 0.28 : window.innerWidth * 0.72;
+			var destY = 56;
+			if (ringEl) {
+				var rect = ringEl.getBoundingClientRect();
+				destX = rect.left + rect.width / 2;
+				destY = rect.top + rect.height / 2;
+			}
+
+			// 3. Create floating burst pill
+			var burst = document.createElement('div');
+			burst.className = 'vs-flying-crown-particle';
+			burst.innerHTML = '👑 +' + pts;
+			burst.style.left = startX + 'px';
+			burst.style.top = startY + 'px';
+			burst.style.opacity = '1';
+			document.body.appendChild(burst);
+
+			// 4. Create 2 mini sparkling crown sparkles alongside it
+			var sparkles = [];
+			for (var s = 0; s < 2; s++) {
+				var sp = document.createElement('div');
+				sp.className = 'vs-flying-crown-sparkle';
+				sp.textContent = '👑';
+				var offX = (s === 0 ? -18 : 18);
+				var offY = (s === 0 ? 14 : -14);
+				sp.style.left = (startX + offX) + 'px';
+				sp.style.top = (startY + offY) + 'px';
+				document.body.appendChild(sp);
+				sparkles.push({ el: sp, offX: offX, offY: offY });
+			}
+
+			// 5. Trigger flight on next animation frame
+			requestAnimationFrame(function () {
+				burst.style.left = destX + 'px';
+				burst.style.top = destY + 'px';
+				burst.style.transform = 'translate(-50%, -50%) scale(0.9)';
+				burst.style.opacity = '0.95';
+
+				sparkles.forEach(function (item) {
+					item.el.style.left = (destX + item.offX * 0.35) + 'px';
+					item.el.style.top = (destY + item.offY * 0.35) + 'px';
+					item.el.style.transform = 'translate(-50%, -50%) scale(0.65)';
+					item.el.style.opacity = '0.9';
+				});
+			});
+
+			// 6. Arrival payoff after flight duration (600ms)
+			setTimeout(function () {
+				try {
+					burst.style.opacity = '0';
+					burst.style.transform = 'translate(-50%, -50%) scale(1.4)';
+					sparkles.forEach(function (item) {
+						item.el.style.opacity = '0';
+					});
+				} catch (e) {}
+
+				setTimeout(function () {
+					try {
+						if (burst.parentNode) burst.parentNode.removeChild(burst);
+						sparkles.forEach(function (item) {
+							if (item.el.parentNode) item.el.parentNode.removeChild(item.el);
+						});
+					} catch (e) {}
+				}, 240);
+
+				// Update match crown badges
+				var crownBadge = document.getElementById(winnerSlot === 'p1' ? 'vs-p1-crowns' : 'vs-p2-crowns');
+				var curCount = (winnerSlot === 'p1') ? self.p1MatchCrowns : self.p2MatchCrowns;
+				if (crownBadge) {
+					crownBadge.textContent = '👑 ' + curCount;
+					crownBadge.classList.add('bump');
+					setTimeout(function () { crownBadge.classList.remove('bump'); }, 300);
+				}
+
+				// Pulse avatar ring with gold celebration glow
+				if (ringEl) {
+					ringEl.classList.remove('crown-absorb-pulse');
+					void ringEl.offsetWidth; // trigger reflow
+					ringEl.classList.add('crown-absorb-pulse');
+					setTimeout(function () { ringEl.classList.remove('crown-absorb-pulse'); }, 700);
+				}
+
+				// Play chime sound
+				if (typeof AudioManager !== 'undefined') {
+					AudioManager.play('word_chain_chime', 0.5);
+				}
+			}, 620);
+		},
+
+		// ----------------------------------------------------------------------
+		// Lobby & Friend Room UI Events
+		// ----------------------------------------------------------------------
+		bindModalEvents: function () {
+			var self = this;
+			var modal = document.getElementById('vs-lobby-modal');
+			var btnClose = document.getElementById('btn-vs-lobby-close');
+			var usernameInput = document.getElementById('vs-username-input');
+			var btnFind = document.getElementById('btn-vs-find-match');
+			var btnCreateFriend = document.getElementById('btn-vs-create-friend');
+			var btnJoinFriend = document.getElementById('btn-vs-join-friend');
+			var codeInput = document.getElementById('vs-friend-code-input');
+			var btnCopyInvite = document.getElementById('btn-vs-copy-invite');
+			var btnCancel = document.getElementById('btn-vs-cancel-search');
+
+			if (usernameInput) {
+				if (this.playerUsername) {
+					usernameInput.value = this.playerUsername;
+				}
+				usernameInput.addEventListener('input', function () {
+					usernameInput.classList.remove('needs-attention');
+					self.saveUsernameFromInput();
+				});
+				usernameInput.addEventListener('blur', function () {
+					var cleaned = self.saveUsernameFromInput();
+					usernameInput.value = cleaned;
+					self.syncProfileToServer();
+				});
+				usernameInput.addEventListener('keydown', function (e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						var cleaned = self.saveUsernameFromInput();
+						usernameInput.value = cleaned;
+						if (codeInput && codeInput.value.trim().length === 4) {
+							self.joinFriendRoom(codeInput.value.trim().toUpperCase());
+						} else {
+							self.startSearch();
+						}
+					}
+				});
+			}
+
+			if (btnClose) {
+				btnClose.addEventListener('click', function () {
+					AudioManager.play('tilehit', 0.8);
+					self.leaveRoomSilently();
+					self.closeLobby();
+				});
+			}
+			if (btnFind) {
+				btnFind.addEventListener('click', function () {
+					AudioManager.playSnap(1.3);
+					AudioManager.haptic(25);
+					self.startSearch();
+				});
+			}
+			if (btnCreateFriend) {
+				btnCreateFriend.addEventListener('click', function () {
+					AudioManager.playSnap(1.3);
+					AudioManager.haptic(25);
+					self.createFriendRoom();
+				});
+			}
+			if (btnJoinFriend) {
+				btnJoinFriend.addEventListener('click', function () {
+					var val = codeInput ? codeInput.value.trim().toUpperCase() : '';
+					AudioManager.playSnap(1.3);
+					AudioManager.haptic(25);
+					self.joinFriendRoom(val);
+				});
+			}
+			if (codeInput) {
+				codeInput.addEventListener('keydown', function (e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						var val = codeInput.value.trim().toUpperCase();
+						self.joinFriendRoom(val);
+					}
+				});
+			}
+			if (btnCopyInvite) {
+				btnCopyInvite.addEventListener('click', function () {
+					if (!self.roomCode) return;
+					var baseUrl = window.location.origin + window.location.pathname;
+					var inviteUrl = baseUrl + '?room=' + encodeURIComponent(self.roomCode);
+					if (navigator.clipboard && navigator.clipboard.writeText) {
+						navigator.clipboard.writeText(inviteUrl).then(function () {
+							btnCopyInvite.textContent = 'COPIED INVITE LINK!';
+							setTimeout(function () {
+								btnCopyInvite.textContent = 'COPY INVITE LINK';
+							}, 1800);
+						}).catch(function () {});
+					}
+					AudioManager.play('tilehit', 0.9);
+				});
+			}
+			if (btnCancel) {
+				btnCancel.addEventListener('click', function () {
+					AudioManager.play('tilehit', 0.8);
+					self.leaveRoomSilently();
+					self.cancelSearchToSelect();
+				});
+			}
+			if (modal) {
+				modal.addEventListener('click', function (e) {
+					if (e.target === modal && !self.isSearching) {
+						self.closeLobby();
+					}
+				});
+			}
+
+			// Post-Match Results Modal Buttons (guarded against accidental carryover taps)
+			var btnResNext = document.getElementById('btn-vs-results-next');
+			var btnResLobby = document.getElementById('btn-vs-results-lobby');
+			var btnResClose = document.getElementById('btn-vs-results-close');
+
+			if (btnResNext) {
+				btnResNext.addEventListener('click', function (e) {
+					if (e) e.stopPropagation();
+					if (performance.now() < self.resultsInteractiveAt) return;
+					AudioManager.playSnap(1.3);
+					AudioManager.haptic(25);
+					stopWinCelebration();
+					self.onPostMatchNext();
+				});
+			}
+			if (btnResLobby) {
+				btnResLobby.addEventListener('click', function (e) {
+					if (e) e.stopPropagation();
+					if (performance.now() < self.resultsInteractiveAt) return;
+					AudioManager.play('tilehit', 0.85);
+					AudioManager.haptic(20);
+					stopWinCelebration();
+					self.clearRematchTimer();
+					self.hideMatchResults();
+					self.leaveRoomSilently();
+					self.openLobby(false);
+				});
+			}
+			if (btnResClose) {
+				btnResClose.addEventListener('click', function (e) {
+					if (e) e.stopPropagation();
+					if (performance.now() < self.resultsInteractiveAt) return;
+					AudioManager.play('tilehit', 0.8);
+					stopWinCelebration();
+					self.clearRematchTimer();
+					self.hideMatchResults();
+					self.exitVsMode();
+					if (typeof self.showTitleScreenFn === 'function') {
+						self.showTitleScreenFn();
+					}
+				});
+			}
+
+			// Profile Modal & HUD Card bindings
+			var titleProfileWidget = document.getElementById('title-profile-widget');
+			var btnTitleProfile = document.getElementById('btn-title-profile');
+			var hudPlayerCard = document.getElementById('hud-player-card');
+			var btnHudAddName = document.getElementById('btn-hud-add-name');
+			var profileModal = document.getElementById('profile-modal');
+			var btnProfileClose = document.getElementById('btn-profile-close');
+			var btnProfileSave = document.getElementById('btn-profile-save');
+			var profileUsernameInput = document.getElementById('profile-username-input');
+
+			if (titleProfileWidget) {
+				titleProfileWidget.addEventListener('click', function (e) {
+					e.stopPropagation();
+					self.openProfileModal();
+				});
+			}
+			if (btnTitleProfile) {
+				btnTitleProfile.addEventListener('click', function (e) {
+					e.stopPropagation();
+					self.openProfileModal();
+				});
+			}
+			if (hudPlayerCard) {
+				hudPlayerCard.addEventListener('click', function (e) {
+					e.stopPropagation();
+					self.openProfileModal();
+				});
+			}
+			if (btnHudAddName) {
+				btnHudAddName.addEventListener('click', function (e) {
+					e.stopPropagation();
+					self.openProfileModal();
+				});
+			}
+			if (btnProfileClose) {
+				btnProfileClose.addEventListener('click', function () {
+					if (typeof AudioManager !== 'undefined') AudioManager.play('tilehit', 0.8);
+					self.closeProfileModal();
+				});
+			}
+			if (btnProfileSave) {
+				btnProfileSave.addEventListener('click', function () {
+					self.saveProfile();
+				});
+			}
+			if (profileUsernameInput) {
+				profileUsernameInput.addEventListener('keydown', function (e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						self.saveProfile();
+					}
+				});
+			}
+			if (profileModal) {
+				profileModal.addEventListener('click', function (e) {
+					if (e.target === profileModal) {
+						self.closeProfileModal();
+					}
+				});
+			}
+		},
+
+		scheduleMatchResultsReveal: function (delayMs) {
+			var self = this;
+			if (this.resultsRevealTimeout) {
+				clearTimeout(this.resultsRevealTimeout);
+			}
+			this.resultsRevealTimeout = setTimeout(function () {
+				self.resultsRevealTimeout = null;
+				if (self.isActive) {
+					self.showMatchResults();
+				}
+			}, typeof delayMs === 'number' ? delayMs : 380);
+		},
+
+		hideMatchResults: function () {
+			if (this.resultsRevealTimeout) {
+				clearTimeout(this.resultsRevealTimeout);
+				this.resultsRevealTimeout = null;
+			}
+			var resModal = document.getElementById('vs-results-modal');
+			if (resModal) resModal.classList.remove('show');
+		},
+
+		populateMatchResultsDOM: function () {
+			var summary = this.lastMatchSummary || {};
+			var localWin = (this.winner !== 'p2');
+			var totalRows = summary.totalRows || (currentLevelData && currentLevelData.words ? currentLevelData.words.length - 1 : 4);
+
+			var myWpm = Math.round((this.mySlot === 'p1' ? summary.p1Wpm : summary.p2Wpm) || this.playerLiveWpm || this.playerBaseWpm || 0);
+			var oppWpm = Math.round((this.mySlot === 'p1' ? summary.p2Wpm : summary.p1Wpm) || this.opponentLiveWpm || this.opponentTargetWpm || 0);
+
+			var myRows = (summary.p1Rows !== undefined && summary.p2Rows !== undefined)
+				? (this.mySlot === 'p1' ? summary.p1Rows : summary.p2Rows)
+				: (localWin ? totalRows : this.playerRowsSolved);
+			var oppRows = (summary.p1Rows !== undefined && summary.p2Rows !== undefined)
+				? (this.mySlot === 'p1' ? summary.p2Rows : summary.p1Rows)
+				: (!localWin ? totalRows : this.opponentRowsSolved);
+
+			var myFinishMs = (this.mySlot === 'p1') ? summary.p1FinishMs : summary.p2FinishMs;
+			var oppFinishMs = (this.mySlot === 'p1') ? summary.p2FinishMs : summary.p1FinishMs;
+
+			var myName = (this.mySlot === 'p1' ? summary.p1Username : summary.p2Username) || this.getDisplayUsername();
+			var oppName = (this.mySlot === 'p1' ? summary.p2Username : summary.p1Username) || this.opponentUsername || 'Opponent';
+
+			var cardEl = document.getElementById('vs-results-card');
+			var modeTagEl = document.getElementById('vs-results-mode-tag');
+			var outcomeEl = document.getElementById('vs-results-outcome');
+			var subEl = document.getElementById('vs-results-sub');
+			var p1AvatarEl = document.getElementById('vs-res-p1-avatar');
+			var p2AvatarEl = document.getElementById('vs-res-p2-avatar');
+			var p1CrownEl = document.getElementById('vs-res-p1-crown');
+			var p2CrownEl = document.getElementById('vs-res-p2-crown');
+			var p1NameEl = document.getElementById('vs-res-p1-name');
+			var p2NameEl = document.getElementById('vs-res-p2-name');
+			var p1RoleEl = document.getElementById('vs-res-p1-role');
+			var p2RoleEl = document.getElementById('vs-res-p2-role');
+			var p1WpmEl = document.getElementById('vs-res-p1-wpm');
+			var p2WpmEl = document.getElementById('vs-res-p2-wpm');
+			var p1MetaEl = document.getElementById('vs-res-p1-meta');
+			var p2MetaEl = document.getElementById('vs-res-p2-meta');
+			var pillsEl = document.getElementById('vs-results-chain-pills');
+			var btnNextEl = document.getElementById('btn-vs-results-next');
+
+			if (cardEl) {
+				cardEl.classList.toggle('outcome-win', localWin);
+				cardEl.classList.toggle('outcome-loss', !localWin);
+			}
+			if (modeTagEl) {
+				modeTagEl.textContent = (this.matchMode === 'friend')
+					? 'FRIEND MATCH RESULTS'
+					: (this.matchMode === 'ghost' ? 'GHOST MATCH RESULTS' : 'PVP MATCH RESULTS');
+			}
+			if (outcomeEl) {
+				outcomeEl.textContent = localWin ? 'VICTORY!' : 'DEFEAT';
+			}
+			if (subEl) {
+				var crownsSuffix = (this.lastEarnedCrowns !== undefined && this.lastEarnedCrowns > 0)
+					? (' • 👑 +' + this.lastEarnedCrowns + ' Word Crown' + (this.lastEarnedCrowns > 1 ? 's' : ''))
+					: '';
+				if (summary.byForfeit && localWin) {
+					subEl.textContent = oppName + ' disconnected — you win!' + crownsSuffix;
+				} else if (localWin) {
+					subEl.textContent = 'You beat ' + oppName + ' to complete the chain!' + crownsSuffix;
+				} else {
+					subEl.textContent = oppName + ' completed the chain first!' + crownsSuffix;
+				}
+			}
+
+			if (p1AvatarEl) p1AvatarEl.src = this.getAvatarPath(this.playerAvatar);
+			if (p2AvatarEl) p2AvatarEl.src = this.getAvatarPath(this.opponentAvatar);
+			if (p1CrownEl) p1CrownEl.classList.toggle('show', localWin);
+			if (p2CrownEl) p2CrownEl.classList.toggle('show', !localWin);
+			if (p1NameEl) p1NameEl.textContent = myName;
+			if (p2NameEl) p2NameEl.textContent = oppName;
+			if (p1RoleEl) p1RoleEl.textContent = 'YOU';
+			if (p2RoleEl) {
+				p2RoleEl.textContent = (this.matchMode === 'ghost')
+					? 'GHOST'
+					: (this.matchMode === 'friend' ? 'FRIEND' : 'OPPONENT');
+			}
+
+			if (p1WpmEl) p1WpmEl.textContent = myWpm + ' WPM';
+			if (p2WpmEl) p2WpmEl.textContent = oppWpm + ' WPM';
+
+			var myTimeStr = myFinishMs ? (' • ' + (myFinishMs / 1000).toFixed(1) + 's') : '';
+			var oppTimeStr = oppFinishMs ? (' • ' + (oppFinishMs / 1000).toFixed(1) + 's') : '';
+			var p1MetaCrowns = ' • 👑 ' + (this.p1MatchCrowns || this.lastEarnedCrowns || 0);
+			var p2MetaCrowns = ' • 👑 ' + (this.p2MatchCrowns || 0);
+			if (p1MetaEl) p1MetaEl.textContent = myRows + '/' + totalRows + ' Words' + p1MetaCrowns + myTimeStr;
+			if (p2MetaEl) p2MetaEl.textContent = oppRows + '/' + totalRows + ' Words' + p2MetaCrowns + oppTimeStr;
+
+			if (pillsEl) {
+				pillsEl.innerHTML = '';
+				var words = (currentLevelData && currentLevelData.words) ? currentLevelData.words : [];
+				for (var i = 0; i < words.length; i++) {
+					var span = document.createElement('span');
+					var cls = 'vs-chain-pill';
+					var solver = this.firstSolverByRow[i];
+					if (i === 0) {
+						cls += ' pill-anchor';
+						span.textContent = words[i].answer;
+					} else {
+						if (solver === 'p1') {
+							cls += ' pill-blue';
+						} else if (solver === 'p2') {
+							cls += ' pill-red';
+						}
+						var avatarImg = document.createElement('img');
+						avatarImg.className = 'vs-pill-avatar-img';
+						var avFile = (solver === 'p2') ? this.opponentAvatar : this.playerAvatar;
+						avatarImg.src = this.getAvatarPath(avFile);
+						avatarImg.alt = (solver === 'p2') ? this.opponentUsername : 'You';
+						span.appendChild(avatarImg);
+
+						var crownPts = (words[i] && words[i].answer) ? words[i].answer.length : 5;
+						var crownBadge = solver ? (' (+' + crownPts + ' 👑)') : '';
+						var textNode = document.createTextNode(words[i].answer + crownBadge);
+						span.appendChild(textNode);
+					}
+					span.className = cls;
+					pillsEl.appendChild(span);
+				}
+			}
+
+			if (btnNextEl) {
+				btnNextEl.disabled = false;
+				btnNextEl.classList.remove('vs-pulse-rematch');
+				btnNextEl.textContent = (this.canRematch && this.room) ? 'REMATCH' : 'NEXT MATCH';
+			}
+		},
+
+		showMatchResults: function () {
+			var resModal = document.getElementById('vs-results-modal');
+			if (!resModal) return;
+			this.populateMatchResultsDOM();
+			this.resultsInteractiveAt = performance.now() + 480;
+			resModal.classList.add('show');
+		},
+
+		openLobby: function (autoStartSearch, prefillCode) {
+			this.hideMatchResults();
+			this.clearSearchTimers();
+			this.renderAvatarGrid();
+			this.showLobbyNotice('');
+
+			var modal = document.getElementById('vs-lobby-modal');
+			var stepSelect = document.getElementById('vs-step-select');
+			var stepSearch = document.getElementById('vs-step-search');
+			var codeBox = document.getElementById('vs-friend-room-box');
+			var codeInput = document.getElementById('vs-friend-code-input');
+			var usernameInput = document.getElementById('vs-username-input');
+			if (!modal) return;
+
+			if (usernameInput) {
+				usernameInput.classList.remove('needs-attention');
+				usernameInput.value = this.playerUsername || '';
+			}
+
+			if (codeBox) codeBox.style.display = 'none';
+			if (prefillCode && codeInput) {
+				codeInput.value = String(prefillCode).trim().toUpperCase().slice(0, 4);
+			}
+
+			var canAutoSearch = autoStartSearch && this.playerUsername && this.playerUsername.length >= 2;
+			if (stepSelect) stepSelect.style.display = canAutoSearch ? 'none' : 'block';
+			if (stepSearch) stepSearch.style.display = canAutoSearch ? 'block' : 'none';
+
+			modal.classList.add('show');
+
+			if (canAutoSearch) {
+				this.startSearch();
+			} else if (!this.playerUsername && usernameInput) {
+				setTimeout(function () {
+					try { usernameInput.focus(); } catch (e) {}
+				}, 180);
+			}
+		},
+
+		closeLobby: function () {
+			this.clearSearchTimers();
+			var modal = document.getElementById('vs-lobby-modal');
+			if (modal) modal.classList.remove('show');
+			if (this.isActive && this.matchFinished) {
+				this.exitVsMode();
+				if (typeof this.showTitleScreenFn === 'function') {
+					this.showTitleScreenFn();
+				}
+			}
+		},
+
+		cancelSearchToSelect: function (noticeMsg) {
+			this.clearSearchTimers();
+			var stepSelect = document.getElementById('vs-step-select');
+			var stepSearch = document.getElementById('vs-step-search');
+			var codeBox = document.getElementById('vs-friend-room-box');
+			if (codeBox) codeBox.style.display = 'none';
+			if (stepSearch) stepSearch.style.display = 'none';
+			if (stepSelect) stepSelect.style.display = 'block';
+			if (noticeMsg) {
+				this.showLobbyNotice(noticeMsg);
+			}
+		},
+
+		clearSearchTimers: function () {
+			this.clearRematchTimer();
+			this.isSearching = false;
+			if (this.searchInterval) {
+				clearInterval(this.searchInterval);
+				this.searchInterval = null;
+			}
+			if (this.searchTimeout) {
+				clearTimeout(this.searchTimeout);
+				this.searchTimeout = null;
+			}
+			var p2Ring = document.getElementById('vs-search-p2-ring');
+			if (p2Ring) p2Ring.classList.remove('vs-searching-spin');
+		},
+
+		leaveRoomSilently: function () {
+			this.clearRematchTimer();
+			this.canRematch = false;
+			this.roomCode = null;
+			if (this.room) {
+				var r = this.room;
+				this.room = null;
+				try { r.leave(); } catch (e) {}
+			}
+		},
+
+		startAvatarSpinner: function () {
+			var self = this;
+			var p2RingEl = document.getElementById('vs-search-p2-ring');
+			var p2AvatarEl = document.getElementById('vs-search-p2-avatar');
+			if (p2RingEl) p2RingEl.classList.add('vs-searching-spin');
+
+			var candidatePool = this.AVATARS.filter(function (a) { return a !== self.playerAvatar; });
+			var spinIdx = 0;
+			if (this.searchInterval) clearInterval(this.searchInterval);
+			this.searchInterval = setInterval(function () {
+				spinIdx = (spinIdx + 1) % candidatePool.length;
+				if (p2AvatarEl) {
+					p2AvatarEl.src = self.getAvatarPath(candidatePool[spinIdx]);
+				}
+			}, 125);
+		},
+
+		prepareSearchStageUI: function (statusText, showFriendBox) {
+			var stepSelect = document.getElementById('vs-step-select');
+			var stepSearch = document.getElementById('vs-step-search');
+			var p1AvatarEl = document.getElementById('vs-search-p1-avatar');
+			var p1WpmEl = document.getElementById('vs-search-p1-wpm');
+			var p2WpmEl = document.getElementById('vs-search-p2-wpm');
+			var p1NameEl = document.getElementById('vs-search-p1-name');
+			var p2NameEl = document.getElementById('vs-search-p2-name');
+			var statusEl = document.getElementById('vs-search-status');
+			var btnCancel = document.getElementById('btn-vs-cancel-search');
+			var codeBox = document.getElementById('vs-friend-room-box');
+
+			this.showLobbyNotice('');
+			this.playerBaseWpm = this.getCalibratedPlayerWpm();
+
+			if (stepSelect) stepSelect.style.display = 'none';
+			if (stepSearch) stepSearch.style.display = 'block';
+			if (codeBox) codeBox.style.display = showFriendBox ? 'block' : 'none';
+			if (p1AvatarEl) p1AvatarEl.src = this.getAvatarPath(this.playerAvatar);
+			if (p1WpmEl) p1WpmEl.textContent = this.playerBaseWpm + 'WPM';
+			if (p2WpmEl) p2WpmEl.textContent = '--WPM';
+			if (p1NameEl) p1NameEl.textContent = this.getDisplayUsername();
+			if (p2NameEl) p2NameEl.textContent = showFriendBox ? 'Waiting...' : 'Searching...';
+			if (statusEl) statusEl.textContent = statusText || 'Searching for opponent...';
+			if (btnCancel) btnCancel.style.visibility = 'visible';
+		},
+
+		// ----------------------------------------------------------------------
+		// Colyseus Matchmaking: Quick Match & Friend Room
+		// ----------------------------------------------------------------------
+		startSearch: function () {
+			var self = this;
+			if (!this.requireValidUsername()) {
+				return;
+			}
+			this.leaveRoomSilently();
+			this.clearSearchTimers();
+
+			var client = this.getColyseusClient();
+			if (!client) {
+				this.cancelSearchToSelect('Colyseus SDK failed to load. Please refresh the page.');
+				return;
+			}
+
+			this.isSearching = true;
+			this.prepareSearchStageUI('Searching for live opponent...', false);
+			this.startAvatarSpinner();
+
+			this.flushPendingRuns().then(function () {
+				if (!self.isSearching) return;
+				return client.joinOrCreate('vs_match', {
+					mode: 'quick',
+					playerId: self.playerId,
+					username: self.playerUsername,
+					avatar: self.playerAvatar,
+					wpm: self.playerBaseWpm,
+					lastLevelIndex: self.lastVsLevelIndex
+				});
+			}).then(function (room) {
+				if (!room) return;
+				if (!self.isSearching) {
+					try { room.leave(); } catch (e) {}
+					return;
+				}
+				self.attachRoomHandlers(room);
+			}).catch(function () {
+				self.cancelSearchToSelect('Multiplayer server is offline. Start Colyseus with: cd server && npm start');
+			});
+		},
+
+		createFriendRoom: function () {
+			var self = this;
+			if (!this.requireValidUsername()) {
+				return;
+			}
+			this.leaveRoomSilently();
+			this.clearSearchTimers();
+
+			var client = this.getColyseusClient();
+			if (!client) {
+				this.showLobbyNotice('Colyseus SDK failed to load.');
+				return;
+			}
+
+			this.isSearching = true;
+			this.prepareSearchStageUI('Creating private friend room...', true);
+			var codeDisplay = document.getElementById('vs-friend-room-code');
+			if (codeDisplay) codeDisplay.textContent = '....';
+			this.startAvatarSpinner();
+
+			this.flushPendingRuns().then(function () {
+				return client.create('vs_match', {
+					mode: 'friend',
+					playerId: self.playerId,
+					username: self.playerUsername,
+					avatar: self.playerAvatar,
+					wpm: self.playerBaseWpm,
+					lastLevelIndex: self.lastVsLevelIndex
+				});
+			}).then(function (room) {
+				if (!self.isSearching) {
+					try { room.leave(); } catch (e) {}
+					return;
+				}
+				self.attachRoomHandlers(room);
+			}).catch(function () {
+				self.cancelSearchToSelect('Multiplayer server is offline. Start Colyseus with: cd server && npm start');
+			});
+		},
+
+		joinFriendRoom: function (code) {
+			var self = this;
+			if (!this.requireValidUsername()) {
+				return;
+			}
+			var normalized = String(code || '').trim().toUpperCase();
+			if (normalized.length < 4) {
+				this.showLobbyNotice('Enter your friend\'s 4-letter Room Code first.');
+				return;
+			}
+
+			var client = this.getColyseusClient();
+			if (!client) {
+				this.showLobbyNotice('Colyseus SDK failed to load.');
+				return;
+			}
+
+			this.leaveRoomSilently();
+			this.clearSearchTimers();
+			this.isSearching = true;
+			this.prepareSearchStageUI('Joining friend room ' + normalized + '...', false);
+			this.startAvatarSpinner();
+
+			var endpoints = this.getServerEndpoints();
+			this.flushPendingRuns().then(function () {
+				return fetch(endpoints.httpBase + '/api/friend-room/' + encodeURIComponent(normalized));
+			}).then(function (res) {
+				return res.json().then(function (body) {
+					if (!res.ok || !body || !body.ok || !body.roomId) {
+						throw new Error((body && body.error) || 'Room code not found or already full.');
+					}
+					return body.roomId;
+				});
+			}).then(function (roomId) {
+				return client.joinById(roomId, {
+					mode: 'friend',
+					roomCode: normalized,
+					playerId: self.playerId,
+					username: self.playerUsername,
+					avatar: self.playerAvatar,
+					wpm: self.playerBaseWpm,
+					lastLevelIndex: self.lastVsLevelIndex
+				});
+			}).then(function (room) {
+				if (!self.isSearching) {
+					try { room.leave(); } catch (e) {}
+					return;
+				}
+				self.attachRoomHandlers(room);
+			}).catch(function (err) {
+				var msg = (err && err.message && err.message.indexOf('Failed to fetch') === -1)
+					? err.message
+					: 'Multiplayer server is offline. Start Colyseus with: cd server && npm start';
+				self.cancelSearchToSelect(msg);
+			});
+		},
+
+		clearRematchTimer: function () {
+			if (this.rematchWaitTimer) {
+				clearInterval(this.rematchWaitTimer);
+				this.rematchWaitTimer = null;
+			}
+			if (this.rematchAbortTimer) {
+				clearTimeout(this.rematchAbortTimer);
+				this.rematchAbortTimer = null;
+			}
+		},
+
+		handleRematchTimeout: function (customMsg) {
+			var self = this;
+			this.clearRematchTimer();
+			this.canRematch = false;
+			var oppName = this.opponentUsername || 'Opponent';
+			var msg = customMsg || ('No response from ' + oppName + '. Returning to lobby...');
+
+			var btnNextEl = document.getElementById('btn-vs-results-next');
+			var subEl = document.getElementById('vs-results-sub');
+			if (btnNextEl) {
+				btnNextEl.textContent = 'RETURNING TO LOBBY...';
+				btnNextEl.disabled = true;
+				btnNextEl.classList.remove('vs-pulse-rematch');
+			}
+			if (subEl) {
+				subEl.textContent = msg;
+			}
+			if (typeof AudioManager !== 'undefined') {
+				AudioManager.play('tilehit', 0.6);
+			}
+
+			this.rematchAbortTimer = setTimeout(function () {
+				self.clearRematchTimer();
+				self.hideMatchResults();
+				self.leaveRoomSilently();
+				self.openLobby(false);
+			}, 1800);
+		},
+
+		onPostMatchNext: function () {
+			if (this.canRematch && this.room) {
+				var btnNextEl = document.getElementById('btn-vs-results-next');
+				var subEl = document.getElementById('vs-results-sub');
+				var oppName = this.opponentUsername || 'Opponent';
+				var isAccepting = btnNextEl && (btnNextEl.textContent === 'ACCEPT REMATCH' || btnNextEl.classList.contains('vs-pulse-rematch'));
+
+				this.clearRematchTimer();
+
+				if (isAccepting) {
+					if (btnNextEl) {
+						btnNextEl.textContent = 'ACCEPTING REMATCH...';
+						btnNextEl.disabled = true;
+						btnNextEl.classList.remove('vs-pulse-rematch');
+					}
+					if (subEl) {
+						subEl.textContent = 'Accepting rematch with ' + oppName + '! Starting...';
+					}
+					AudioManager.playSnap(1.4);
+					AudioManager.haptic(25);
+					try {
+						this.room.send('request_rematch');
+					} catch (e) {
+						this.handleRematchTimeout('Connection lost. Returning to lobby...');
+						return;
+					}
+					var self = this;
+					this.rematchAbortTimer = setTimeout(function () {
+						self.handleRematchTimeout('No response from room. Returning to lobby...');
+					}, 6000);
+					return;
+				}
+
+				// Initiating Rematch request — overlay stays open while waiting for opponent
+				if (btnNextEl) {
+					btnNextEl.textContent = 'WAITING FOR OPPONENT...';
+					btnNextEl.disabled = true;
+					btnNextEl.classList.remove('vs-pulse-rematch');
+				}
+				var secondsLeft = 12;
+				if (subEl) {
+					subEl.textContent = '⚡ Rematch requested! Waiting for ' + oppName + ' (' + secondsLeft + 's)...';
+				}
+				AudioManager.playSnap(1.2);
+				AudioManager.haptic(20);
+
+				try {
+					this.room.send('request_rematch');
+				} catch (e) {
+					this.handleRematchTimeout('Connection lost. Returning to lobby...');
+					return;
+				}
+
+				var self = this;
+				this.rematchWaitTimer = setInterval(function () {
+					secondsLeft--;
+					if (secondsLeft > 0) {
+						if (subEl) {
+							subEl.textContent = '⚡ Rematch requested! Waiting for ' + oppName + ' (' + secondsLeft + 's)...';
+						}
+					} else {
+						self.handleRematchTimeout('No response from ' + oppName + '. Returning to lobby...');
+					}
+				}, 1000);
+				return;
+			}
+			this.clearRematchTimer();
+			this.hideMatchResults();
+			this.leaveRoomSilently();
+			this.openLobby(true);
+		},
+
+		attachRoomHandlers: function (room) {
+			var self = this;
+			this.room = room;
+
+			room.onMessage('friend_room_created', function (payload) {
+				self.roomCode = payload.roomCode;
+				var codeDisplay = document.getElementById('vs-friend-room-code');
+				var codeBox = document.getElementById('vs-friend-room-box');
+				var statusEl = document.getElementById('vs-search-status');
+				if (codeBox) codeBox.style.display = 'block';
+				if (codeDisplay) codeDisplay.textContent = payload.roomCode;
+				if (statusEl) statusEl.textContent = 'Waiting for friend to join...';
+			});
+
+			room.onMessage('searching_live', function () {
+				var statusEl = document.getElementById('vs-search-status');
+				if (statusEl) statusEl.textContent = 'Searching for opponent...';
+			});
+
+			// STRICT: Server rejects fake empty matches when no live opponent & 0 saved ghost runs exist
+			room.onMessage('no_opponent_found', function (payload) {
+				self.leaveRoomSilently();
+				self.cancelSearchToSelect(
+					(payload && payload.message) ||
+					'No live opponent online and 0 recorded runs yet! Play 1 Solo round first or create a Friend Room.'
+				);
+			});
+
+			room.onMessage('match_found', function (payload) {
+				if (self.room !== room) return;
+				self.clearRematchTimer();
+				self.clearSearchTimers();
+
+				self.mySlot = payload.yourSlot || 'p1';
+				self.matchMode = payload.matchMode || 'live';
+				self.roomCode = payload.roomCode || null;
+				self.canRematch = false;
+
+				var opp = payload.opponent || {};
+				self.opponentUsername = opp.username || 'Opponent';
+				self.opponentAvatar = opp.avatar || 'Character_9.png';
+				self.opponentTargetWpm = opp.baseWpm || 12;
+				self.syncTitleButtonAvatars();
+
+				var p2RingEl = document.getElementById('vs-search-p2-ring');
+				var p2AvatarEl = document.getElementById('vs-search-p2-avatar');
+				var p2WpmEl = document.getElementById('vs-search-p2-wpm');
+				var p1NameEl = document.getElementById('vs-search-p1-name');
+				var p2NameEl = document.getElementById('vs-search-p2-name');
+				var statusEl = document.getElementById('vs-search-status');
+				var btnCancel = document.getElementById('btn-vs-cancel-search');
+				var codeBox = document.getElementById('vs-friend-room-box');
+
+				if (p2RingEl) p2RingEl.classList.remove('vs-searching-spin');
+				if (p2AvatarEl) p2AvatarEl.src = self.getAvatarPath(self.opponentAvatar);
+				if (p2WpmEl) p2WpmEl.textContent = self.opponentTargetWpm + 'WPM';
+				if (p1NameEl) p1NameEl.textContent = self.getDisplayUsername();
+				if (p2NameEl) p2NameEl.textContent = self.opponentUsername;
+				if (codeBox) codeBox.style.display = 'none';
+				if (btnCancel) btnCancel.style.visibility = 'hidden';
+
+				if (statusEl) {
+					statusEl.textContent = (self.matchMode === 'friend')
+						? ('Matched with ' + self.opponentUsername + '! Starting...')
+						: ('Matched vs ' + self.opponentUsername + '! Starting...');
+				}
+
+				AudioManager.playSnap(1.45);
+				AudioManager.haptic(30);
+
+				self.searchTimeout = setTimeout(function () {
+					if (btnCancel) btnCancel.style.visibility = 'visible';
+					self.beginSyncedMatch(payload.levelIndex);
+				}, 520);
+			});
+
+			room.onMessage('race_start', function () {
+				if (!self.isActive || self.room !== room) return;
+				self.raceStarted = true;
+				self.raceStartTime = performance.now();
+				updateOpponentBeaconAppearance(self.opponentAvatar, self.opponentUsername);
+				setOpponentActiveRow(self.opponentRowsSolved + 1, false);
+			});
+
+			room.onMessage('row_update', function (payload) {
+				if (!self.isActive || self.room !== room) return;
+
+				var row = Number(payload.row);
+				var firstLocal = (payload.firstSolverSlot === self.mySlot) ? 'p1' : 'p2';
+				var solverLocal = (payload.solverSlot === self.mySlot) ? 'p1' : 'p2';
+
+				var prevFirst = self.firstSolverByRow[row];
+				self.firstSolverByRow[row] = firstLocal;
+				self.applyRowClaimMaterial(row);
+
+				var pts = self.getRowWordLength(row);
+				if (!prevFirst) {
+					if (firstLocal === 'p1') {
+						self.p1MatchCrowns = (self.p1MatchCrowns || 0) + pts;
+					} else {
+						self.p2MatchCrowns = (self.p2MatchCrowns || 0) + pts;
+					}
+					self.triggerFlyingCrown(firstLocal, row, pts);
+				} else if (prevFirst !== firstLocal) {
+					if (prevFirst === 'p1') {
+						self.p1MatchCrowns = Math.max(0, (self.p1MatchCrowns || 0) - pts);
+					} else {
+						self.p2MatchCrowns = Math.max(0, (self.p2MatchCrowns || 0) - pts);
+					}
+					if (firstLocal === 'p1') {
+						self.p1MatchCrowns = (self.p1MatchCrowns || 0) + pts;
+					} else {
+						self.p2MatchCrowns = (self.p2MatchCrowns || 0) + pts;
+					}
+					self.triggerFlyingCrown(firstLocal, row, pts);
+				}
+
+				var myWpm = (self.mySlot === 'p1') ? payload.p1Wpm : payload.p2Wpm;
+				var oppWpm = (self.mySlot === 'p1') ? payload.p2Wpm : payload.p1Wpm;
+				var oppRows = (self.mySlot === 'p1') ? payload.p2Rows : payload.p1Rows;
+
+				self.playerLiveWpm = myWpm || 0;
+				self.opponentLiveWpm = oppWpm || 0;
+				var prevOppRows = self.opponentRowsSolved;
+				self.opponentRowsSolved = oppRows || 0;
+
+				var hudP1Wpm = document.getElementById('vs-p1-wpm');
+				var hudP2Wpm = document.getElementById('vs-p2-wpm');
+				if (hudP1Wpm && self.playerLiveWpm > 0) hudP1Wpm.textContent = Math.round(self.playerLiveWpm) + 'WPM';
+				if (hudP2Wpm && self.opponentLiveWpm > 0) hudP2Wpm.textContent = Math.round(self.opponentLiveWpm) + 'WPM';
+
+				self.pulseHudAvatar(solverLocal);
+				if (solverLocal === 'p2') {
+					AudioManager.play('tilehit', 0.30);
+				}
+
+				// Update 3D Opponent Avatar Beacon position on active tray
+				if (oppRows !== prevOppRows) {
+					setOpponentActiveRow(self.opponentRowsSolved + 1, true);
+				} else {
+					setOpponentActiveRow(self.opponentRowsSolved + 1, false);
+				}
+			});
+
+			room.onMessage('match_finished', function (payload) {
+				if (!self.isActive || self.room !== room) return;
+
+				self.matchFinished = true;
+				if (opponentRowIndicatorGroup) {
+					opponentRowIndicatorGroup.visible = false;
+				}
+				self.lastMatchSummary = payload || null;
+				self.canRematch = !!payload.canRematch;
+				var oppSummaryName = (self.mySlot === 'p1') ? payload.p2Username : payload.p1Username;
+				if (oppSummaryName) {
+					self.opponentUsername = oppSummaryName;
+				}
+				var localWinner = (payload.winnerSlot === self.mySlot) ? 'p1' : 'p2';
+				self.winner = localWinner;
+
+				// Sync authoritative row claim map & award Word Crowns (1 point per letter per word)
+				var earnedCrowns = 0;
+				var words = (currentLevelData && currentLevelData.words) ? currentLevelData.words : [];
+				var authoritativeClaims = payload.firstSolverByRow || self.firstSolverByRow || {};
+
+				Object.keys(authoritativeClaims).forEach(function (rk) {
+					var rIdx = Number(rk);
+					var isLocalFirst = (authoritativeClaims[rk] === self.mySlot || authoritativeClaims[rk] === 'p1');
+					self.firstSolverByRow[rIdx] = isLocalFirst ? 'p1' : 'p2';
+					self.applyRowClaimMaterial(rIdx);
+					if (isLocalFirst && rIdx > 0 && rIdx < words.length) {
+						var wordLen = (words[rIdx] && words[rIdx].answer) ? words[rIdx].answer.length : 5;
+						earnedCrowns += wordLen;
+					}
+				});
+
+				self.lastEarnedCrowns = earnedCrowns;
+				if (earnedCrowns > 0) {
+					self.addWordCrowns(earnedCrowns);
+				}
+				self.recordMatchResult(localWinner === 'p1');
+
+				var myFinalWpm = (self.mySlot === 'p1') ? payload.p1Wpm : payload.p2Wpm;
+				var oppFinalWpm = (self.mySlot === 'p1') ? payload.p2Wpm : payload.p1Wpm;
+				if (myFinalWpm > 0) {
+					self.recordMatchWpm(myFinalWpm);
+					var hudP1Wpm = document.getElementById('vs-p1-wpm');
+					if (hudP1Wpm) hudP1Wpm.textContent = Math.round(myFinalWpm) + 'WPM';
+				}
+				if (oppFinalWpm > 0) {
+					var hudP2Wpm = document.getElementById('vs-p2-wpm');
+					if (hudP2Wpm) hudP2Wpm.textContent = Math.round(oppFinalWpm) + 'WPM';
+				}
+
+				// If Match Results modal is already visible, refresh with authoritative server totals
+				var resModal = document.getElementById('vs-results-modal');
+				if (resModal && resModal.classList.contains('show')) {
+					self.populateMatchResultsDOM();
+				}
+
+				var p1Crown = document.getElementById('vs-p1-crown');
+				var p2Crown = document.getElementById('vs-p2-crown');
+				if (localWinner === 'p1') {
+					if (p1Crown) p1Crown.classList.add('show');
+					// If opponent forfeited mid-race while local player hadn't finished the final row yet, trigger win celebration now
+					if (payload.byForfeit && !isCelebratingWin) {
+						self.abortActiveBoardInteraction();
+						setTimeout(function () {
+							if (self.isActive && !isCelebratingWin) triggerWinCelebration();
+						}, 260);
+					}
+				} else {
+					if (p2Crown) p2Crown.classList.add('show');
+					self.abortActiveBoardInteraction();
+					setTimeout(function () {
+						if (self.isActive && self.winner === 'p2' && !isCelebratingWin) {
+							triggerWinCelebration();
+						}
+					}, 260);
+				}
+			});
+
+			room.onMessage('rematch_status', function (payload) {
+				if (!self.room || self.room !== room) return;
+				var votes = payload.votes || [];
+				var myVoted = votes.indexOf(self.mySlot) !== -1;
+				var oppSlot = (self.mySlot === 'p1') ? 'p2' : 'p1';
+				var oppVoted = votes.indexOf(oppSlot) !== -1;
+
+				var btnNextEl = document.getElementById('btn-vs-results-next');
+				var subEl = document.getElementById('vs-results-sub');
+
+				if (oppVoted && !myVoted) {
+					// Opponent wants a rematch!
+					if (btnNextEl) {
+						btnNextEl.textContent = 'ACCEPT REMATCH';
+						btnNextEl.disabled = false;
+						btnNextEl.classList.add('vs-pulse-rematch');
+					}
+					if (subEl) {
+						var reqName = payload.requesterUsername || self.opponentUsername || 'Opponent';
+						subEl.textContent = '⚡ ' + reqName + ' requested a Rematch!';
+					}
+					AudioManager.playSnap(1.4);
+					AudioManager.haptic(25);
+				} else if (myVoted && !oppVoted) {
+					// We requested rematch, waiting for opponent
+					if (btnNextEl) {
+						btnNextEl.textContent = 'WAITING FOR OPPONENT...';
+						btnNextEl.disabled = true;
+						btnNextEl.classList.remove('vs-pulse-rematch');
+					}
+					if (subEl && !self.rematchWaitTimer) {
+						subEl.textContent = 'Rematch requested! Waiting for ' + (self.opponentUsername || 'opponent') + ' to accept...';
+					}
+				}
+			});
+
+			room.onMessage('rematch_unavailable', function (payload) {
+				self.canRematch = false;
+				var oppName = self.opponentUsername || 'Opponent';
+				var msg = (payload && payload.message) || (oppName + ' left the match.');
+				if (self.isSearching) {
+					self.leaveRoomSilently();
+					self.cancelSearchToSelect(msg);
+				} else {
+					self.handleRematchTimeout(msg + ' Returning to lobby...');
+				}
+			});
+
+			room.onLeave(function () {
+				if (self.room === room) {
+					self.room = null;
+					self.canRematch = false;
+					if (self.rematchWaitTimer || self.rematchAbortTimer) {
+						self.handleRematchTimeout('Match room closed. Returning to lobby...');
+					} else {
+						var btnNextEl = document.getElementById('btn-vs-results-next');
+						if (btnNextEl) {
+							btnNextEl.textContent = 'NEXT MATCH';
+							btnNextEl.disabled = false;
+							btnNextEl.classList.remove('vs-pulse-rematch');
+						}
+					}
+				}
+			});
+		},
+
+		abortActiveBoardInteraction: function () {
+			if (activeTile) {
+				activeTile.isDragging = false;
+				if (activeTile.currentSlot) {
+					activeTile.setTarget(activeTile.currentSlot.worldPos.x, activeTile.currentSlot.worldPos.y, activeTile.currentSlot.worldPos.z);
+					activeTile.targetRotation.set(0, 0, 0);
+				}
+				activeTile = null;
+			}
+			if (hoverSlotHighlightMesh) hoverSlotHighlightMesh.visible = false;
+			isRowShaking = false;
+			isComboPlaying = false;
+		},
+
+		beginSyncedMatch: function (serverLevelIndex) {
+			this.hideMatchResults();
+			this.clearSearchTimers();
+
+			var modal = document.getElementById('vs-lobby-modal');
+			if (modal) modal.classList.remove('show');
+
+			var btnNextEl = document.getElementById('btn-vs-results-next');
+			if (btnNextEl) {
+				btnNextEl.disabled = false;
+				btnNextEl.classList.remove('vs-pulse-rematch');
+			}
+
+			this.isActive = true;
+			this.raceStarted = false;
+			this.raceStartTime = performance.now();
+			this.playerRowsSolved = 0;
+			this.opponentRowsSolved = 0;
+			this.firstSolverByRow = {};
+			this.matchFinished = false;
+			this.lastMatchSummary = null;
+			this.winner = null;
+			this.lastEarnedCrowns = 0;
+			this.p1MatchCrowns = 0;
+			this.p2MatchCrowns = 0;
+			this.playerLiveWpm = 0;
+			this.opponentLiveWpm = 0;
+			this.lastVsLevelIndex = serverLevelIndex;
+
+			document.body.classList.add('vs-mode-active');
+
+			var hudP1Img = document.getElementById('vs-p1-avatar');
+			var hudP2Img = document.getElementById('vs-p2-avatar');
+			var hudP1Wpm = document.getElementById('vs-p1-wpm');
+			var hudP2Wpm = document.getElementById('vs-p2-wpm');
+			var hudP1Name = document.getElementById('vs-p1-name');
+			var hudP2Name = document.getElementById('vs-p2-name');
+			var p1Crown = document.getElementById('vs-p1-crown');
+			var p2Crown = document.getElementById('vs-p2-crown');
+			var p1CrownsEl = document.getElementById('vs-p1-crowns');
+			var p2CrownsEl = document.getElementById('vs-p2-crowns');
+
+			if (hudP1Img) hudP1Img.src = this.getAvatarPath(this.playerAvatar);
+			if (hudP2Img) hudP2Img.src = this.getAvatarPath(this.opponentAvatar);
+			if (hudP1Wpm) hudP1Wpm.textContent = '0WPM';
+			if (hudP2Wpm) hudP2Wpm.textContent = '0WPM';
+			if (hudP1Name) hudP1Name.textContent = this.getDisplayUsername();
+			if (hudP2Name) hudP2Name.textContent = this.opponentUsername || 'Opponent';
+			if (p1Crown) p1Crown.classList.remove('show');
+			if (p2Crown) p2Crown.classList.remove('show');
+			if (p1CrownsEl) p1CrownsEl.textContent = '👑 0';
+			if (p2CrownsEl) p2CrownsEl.textContent = '👑 0';
+
+			var toast = document.getElementById('toast-banner');
+			if (toast) toast.classList.remove('show');
+
+			if (typeof this.hideTitleScreenFn === 'function') {
+				this.hideTitleScreenFn();
+			} else if (titleScreenEl) {
+				titleScreenEl.classList.add('hide');
+				titleScreenEl.classList.add('hidden');
+				titleScreenEl.style.display = 'none';
+			}
+
+			loadLevel(serverLevelIndex);
+			requestAnimationFrame(function () {
+				updateCameraFraming();
+			});
+		},
+
+		onRaceStart: function () {
+			if (!this.isActive || this.matchFinished) return;
+			if (!this.raceStarted) {
+				this.raceStarted = true;
+				this.raceStartTime = performance.now();
+			}
+			updateOpponentBeaconAppearance(this.opponentAvatar, this.opponentUsername);
+			setOpponentActiveRow(this.opponentRowsSolved + 1, false);
+			if (this.room) {
+				try {
+					this.room.send('ready_for_race');
+				} catch (e) {}
+			}
+		},
+
+		getRowFirstSolver: function (rowIdx) {
+			return this.firstSolverByRow[rowIdx] || null;
+		},
+
+		applyRowClaimMaterial: function (rowIdx) {
+			if (!this.isActive || rowIdx < 1) return;
+			var rowInfo = chainRowData[rowIdx];
+			if (!rowInfo || !rowInfo.rackMesh || !rowInfo.lipMesh) return;
+			var solver = this.firstSolverByRow[rowIdx];
+			if (!solver) return;
+
+			if (solver === 'p1' && materials.vsTrayBlue) {
+				rowInfo.rackMesh.material = materials.vsTrayBlue;
+				rowInfo.lipMesh.material = materials.vsTrayBlue;
+			} else if (solver === 'p2' && materials.vsTrayRed) {
+				rowInfo.rackMesh.material = materials.vsTrayRed;
+				rowInfo.lipMesh.material = materials.vsTrayRed;
+			}
+		},
+
+		onPlayerSolvedRow: function (rowIdx, totalRows, spelledWord) {
+			if (!this.isActive || this.matchFinished) return;
+
+			this.playerRowsSolved = rowIdx;
+			// Optimistic local visual feedback while server confirms authoritative order
+			if (!this.firstSolverByRow[rowIdx]) {
+				this.firstSolverByRow[rowIdx] = 'p1';
+				this.applyRowClaimMaterial(rowIdx);
+				this.pulseHudAvatar('p1');
+				var pts = this.getRowWordLength(rowIdx);
+				this.p1MatchCrowns = (this.p1MatchCrowns || 0) + pts;
+				this.triggerFlyingCrown('p1', rowIdx, pts);
+			}
+
+			if (this.room) {
+				try {
+					this.room.send('row_solved', {
+						row: rowIdx,
+						word: spelledWord
+					});
+				} catch (e) {}
+			}
+
+			// Optimistic local finish guard if completing the final word first
+			if (rowIdx >= totalRows - 1 && !this.winner) {
+				this.winner = 'p1';
+				var p1Crown = document.getElementById('vs-p1-crown');
+				if (p1Crown) p1Crown.classList.add('show');
+			}
+
+			// Ensure opponent beacon stays correctly positioned relative to local player row
+			setOpponentActiveRow(this.opponentRowsSolved + 1, false);
+		},
+
+		exitVsMode: function () {
+			this.hideMatchResults();
+			this.clearSearchTimers();
+			this.leaveRoomSilently();
+			if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
+			if (opponentRowIndicatorGroup) opponentRowIndicatorGroup.visible = false;
+			var wasActive = this.isActive;
+			this.isActive = false;
+			this.raceStarted = false;
+			this.matchFinished = false;
+			this.lastMatchSummary = null;
+			this.winner = null;
+			this.firstSolverByRow = {};
+			this.lastEarnedCrowns = 0;
+			this.p1MatchCrowns = 0;
+			this.p2MatchCrowns = 0;
+
+			document.body.classList.remove('vs-mode-active');
+			var p1Crown = document.getElementById('vs-p1-crown');
+			var p2Crown = document.getElementById('vs-p2-crown');
+			if (p1Crown) p1Crown.classList.remove('show');
+			if (p2Crown) p2Crown.classList.remove('show');
+			var p1CrownsEl = document.getElementById('vs-p1-crowns');
+			var p2CrownsEl = document.getElementById('vs-p2-crowns');
+			if (p1CrownsEl) p1CrownsEl.textContent = '👑 0';
+			if (p2CrownsEl) p2CrownsEl.textContent = '👑 0';
+
+			this.updateProfileUI();
+
+			if (wasActive) {
+				requestAnimationFrame(function () {
+					updateCameraFraming();
+				});
+			}
+		}
+	};
+
+	// --------------------------------------------------------------------------
 	// 3D Engine & Game State
 	// --------------------------------------------------------------------------
 	var scene, camera, renderer;
@@ -3349,6 +5424,22 @@
 	var chevronMesh = null;
 	var chevronRightMesh = null;
 	var hoverSlotHighlightMesh = null;
+
+	// 3D Opponent Active Row Indicator (Floating Beacon tracking Opponent's active tray in PVP)
+	var opponentRowIndicatorGroup = null;
+	var opponentChevronMesh = null;
+	var opponentAvatarMesh = null;
+	var opponentAvatarTexture = null;
+	var opponentNameSprite = null;
+	var opponentIndicatorState = {
+		activeRow: 1,
+		targetPos: new THREE.Vector3(0, 0, 0),
+		fromPos: new THREE.Vector3(0, 0, 0),
+		currentPos: new THREE.Vector3(0, 0, 0),
+		isTransitioning: false,
+		transitionStart: 0,
+		transitionDuration: 420
+	};
 
 	// 3D Phrase Coupler: Visually connecting the two current solvable trays (e.g. TENNIS-MATCH or MATCH-POINT)
 	var phraseCouplerGroup = null;
@@ -3486,6 +5577,35 @@
 			color: 0xffffff,
 			roughness: trayTheme.dimmedRoughness,
 			metalness: 0.0
+		});
+
+		// VS Mode Player 1 (Blue) claimed tray wood (rich deep royal blue matching avatar ring)
+		materials.vsTrayBlue = new THREE.MeshStandardMaterial({
+			map: TextureManager.getHardwoodTexture('#07477a', '#032645', '#0e639c'),
+			color: 0xffffff,
+			emissive: 0x031a30,
+			emissiveIntensity: 0.08,
+			roughness: 0.68,
+			metalness: 0.0
+		});
+
+		// VS Mode Player 2 (Red) claimed tray wood (rich deep crimson matching avatar ring)
+		materials.vsTrayRed = new THREE.MeshStandardMaterial({
+			map: TextureManager.getHardwoodTexture('#78080c', '#420305', '#9e0b0f'),
+			color: 0xffffff,
+			emissive: 0x260203,
+			emissiveIntensity: 0.08,
+			roughness: 0.68,
+			metalness: 0.0
+		});
+
+		// VS Opponent Active Row Indicator Materials (Crisp crimson & red ring)
+		materials.opponentChevron = new THREE.MeshBasicMaterial({
+			color: 0xef4444
+		});
+
+		materials.opponentRing = new THREE.MeshBasicMaterial({
+			color: 0xef4444
 		});
 
 		// Letter Holder Tray Body (Player hand / staging tray - always visually distinct!)
@@ -3902,6 +6022,9 @@
 
 		// 5. 3D Phrase Coupler (Visually chains the two current solvable trays together)
 		initPhraseCoupler();
+
+		// 6. 3D Opponent Active Row Indicator (Floating Beacon tracking Opponent's active tray in PVP)
+		initOpponentRowIndicator();
 	}
 
 	/**
@@ -3967,6 +6090,31 @@
 		scene.add(phraseCouplerGroup);
 	}
 
+	function isGamePlayActive() {
+		// 1. Title Screen visible: game has NOT started!
+		var titleEl = document.getElementById('title-screen');
+		if (titleEl && !titleEl.classList.contains('hidden') && !titleEl.classList.contains('hide') && titleEl.style.display !== 'none') {
+			return false;
+		}
+		// 2. Win celebration / Level completed: chain must be hidden!
+		if (isCelebratingWin) {
+			return false;
+		}
+		// 3. Level entrance cascading in progress: trays are not all present yet!
+		if (levelEntranceState && levelEntranceState.active) {
+			return false;
+		}
+		// 4. Level solved or beyond valid words
+		if (!currentLevelData || !currentLevelData.words || currentWordIndex < 1 || currentWordIndex >= currentLevelData.words.length) {
+			return false;
+		}
+		// 5. No trays present in scene
+		if (!chainRowData || chainRowData.length < 2) {
+			return false;
+		}
+		return true;
+	}
+
 	function triggerChainSnapSparks(x, y, z) {
 		if (typeof createSparkleBurst === 'function') {
 			createSparkleBurst(x, y + 0.12, z, 12, false);
@@ -3975,6 +6123,10 @@
 
 	function triggerChainCouplerSnap(prevRow, currRow) {
 		if (!phraseCouplerGroup) return;
+		if (!isGamePlayActive() || !prevRow || !currRow) {
+			phraseCouplerGroup.visible = false;
+			return;
+		}
 		updatePhraseCoupler(prevRow, currRow);
 		phraseCouplerGroup.visible = true;
 
@@ -3989,6 +6141,10 @@
 
 	function updatePhraseCoupler(prevRow, currRow) {
 		if (!phraseCouplerGroup) return;
+		if (!isGamePlayActive() || !prevRow || !currRow) {
+			phraseCouplerGroup.visible = false;
+			return;
+		}
 		phraseCouplerGroup.visible = true;
 
 		var zPrev = prevRow.rz;
@@ -4093,6 +6249,217 @@
 			stagingZ: stagingZ,
 			trayGap: trayGap
 		};
+	}
+
+	/**
+	 * 3D Opponent Active Row Indicator (Opponent Avatar Beacon)
+	 * Floating 3D beacon displaying the opponent's face, red emissive outer ring,
+	 * red chevron pointer, and glowing name tag sprite.
+	 * Dynamically tracks and indicates which word the opponent is currently solving in PVP mode.
+	 */
+	function initOpponentRowIndicator() {
+		opponentRowIndicatorGroup = new THREE.Group();
+		opponentRowIndicatorGroup.visible = false;
+		opponentRowIndicatorGroup.renderOrder = 9;
+
+		// 1. Red Extruded Chevron pointing left towards tray ◀
+		var arrowShape = new THREE.Shape();
+		arrowShape.moveTo(-0.14, -0.16);
+		arrowShape.lineTo(0.18, 0);
+		arrowShape.lineTo(-0.14, 0.16);
+		arrowShape.lineTo(-0.07, 0);
+		arrowShape.closePath();
+
+		var arrowGeom = new THREE.ExtrudeGeometry(arrowShape, {
+			steps: 1,
+			depth: 0.09,
+			bevelEnabled: true,
+			bevelThickness: 0.02,
+			bevelSize: 0.02,
+			bevelSegments: 2
+		});
+
+		opponentChevronMesh = new THREE.Mesh(arrowGeom, materials.opponentChevron);
+		opponentChevronMesh.rotation.x = -Math.PI * 0.5;
+		opponentChevronMesh.rotation.z = Math.PI; // Flip 180 to point left
+		opponentChevronMesh.position.set(-0.20, 0, 0);
+		opponentRowIndicatorGroup.add(opponentChevronMesh);
+
+		// 2. Opponent Avatar Disc (Outer glowing red ring + inner avatar face)
+		var discHolder = new THREE.Group();
+		discHolder.position.set(0.30, 0, 0);
+		discHolder.rotation.x = -Math.PI * 0.5; // Flat to camera looking down from +Y
+
+		// Red outer ring casing
+		var ringGeom = new THREE.TorusGeometry(0.40, 0.045, 16, 32);
+		var ringMesh = new THREE.Mesh(ringGeom, materials.opponentRing);
+		discHolder.add(ringMesh);
+
+		// Dark backing plate
+		var backPlate = new THREE.Mesh(
+			new THREE.CircleGeometry(0.40, 32),
+			new THREE.MeshBasicMaterial({ color: 0x0f172a, side: THREE.DoubleSide })
+		);
+		discHolder.add(backPlate);
+
+		// Avatar circle face
+		var defaultCanvas = document.createElement('canvas');
+		defaultCanvas.width = 128;
+		defaultCanvas.height = 128;
+		var dCtx = defaultCanvas.getContext('2d');
+		dCtx.fillStyle = '#0f172a';
+		dCtx.fillRect(0, 0, 128, 128);
+		opponentAvatarTexture = new THREE.CanvasTexture(defaultCanvas);
+
+		var avatarMat = new THREE.MeshBasicMaterial({
+			map: opponentAvatarTexture,
+			transparent: true,
+			side: THREE.DoubleSide
+		});
+		opponentAvatarMesh = new THREE.Mesh(new THREE.CircleGeometry(0.39, 32), avatarMat);
+		opponentAvatarMesh.position.z = 0.01;
+		discHolder.add(opponentAvatarMesh);
+
+		opponentRowIndicatorGroup.add(discHolder);
+
+		// 3. Floating Name Tag Sprite above the avatar disc
+		var spriteCanvas = document.createElement('canvas');
+		spriteCanvas.width = 320;
+		spriteCanvas.height = 76;
+		var spriteTex = new THREE.CanvasTexture(spriteCanvas);
+		var spriteMat = new THREE.SpriteMaterial({
+			map: spriteTex,
+			transparent: true,
+			depthTest: false
+		});
+		opponentNameSprite = new THREE.Sprite(spriteMat);
+		opponentNameSprite.position.set(0.30, 0.12, -0.56);
+		opponentNameSprite.scale.set(1.08, 0.26, 1.0);
+		opponentRowIndicatorGroup.add(opponentNameSprite);
+
+		scene.add(opponentRowIndicatorGroup);
+	}
+
+	function updateOpponentBeaconAppearance(avatarFileName, opponentName) {
+		var avatarFile = avatarFileName || MultiplayerManager.opponentAvatar || 'Character_9.png';
+		var avatarSrc = MultiplayerManager.getAvatarPath(avatarFile);
+		var img = new Image();
+		img.crossOrigin = 'anonymous';
+		img.onload = function () {
+			var canvas = document.createElement('canvas');
+			canvas.width = 256;
+			canvas.height = 256;
+			var ctx = canvas.getContext('2d');
+
+			// Circular dark background
+			ctx.beginPath();
+			ctx.arc(128, 128, 124, 0, Math.PI * 2);
+			ctx.fillStyle = '#0f172a';
+			ctx.fill();
+
+			// Clip avatar inside circle
+			ctx.save();
+			ctx.beginPath();
+			ctx.arc(128, 128, 120, 0, Math.PI * 2);
+			ctx.clip();
+			ctx.drawImage(img, 0, 0, 256, 256);
+			ctx.restore();
+
+			// Crisp red border
+			ctx.beginPath();
+			ctx.arc(128, 128, 120, 0, Math.PI * 2);
+			ctx.lineWidth = 8;
+			ctx.strokeStyle = '#ef4444';
+			ctx.stroke();
+
+			if (opponentAvatarTexture) {
+				opponentAvatarTexture.image = canvas;
+				opponentAvatarTexture.needsUpdate = true;
+			}
+		};
+		img.src = avatarSrc;
+
+		// Name Tag Sprite
+		if (opponentNameSprite) {
+			var nCanvas = document.createElement('canvas');
+			nCanvas.width = 320;
+			nCanvas.height = 76;
+			var nCtx = nCanvas.getContext('2d');
+
+			// Pill background
+			nCtx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+			nCtx.strokeStyle = '#ef4444';
+			nCtx.lineWidth = 3;
+			nCtx.beginPath();
+			if (typeof nCtx.roundRect === 'function') {
+				nCtx.roundRect(4, 4, 312, 68, 28);
+			} else {
+				nCtx.rect(4, 4, 312, 68);
+			}
+			nCtx.fill();
+			nCtx.stroke();
+
+			// Glowing red indicator pip
+			nCtx.fillStyle = '#ef4444';
+			nCtx.beginPath();
+			nCtx.arc(36, 38, 9, 0, Math.PI * 2);
+			nCtx.fill();
+
+			// Opponent name text
+			nCtx.font = 'bold 30px Fredoka, -apple-system, sans-serif';
+			nCtx.fillStyle = '#ffffff';
+			nCtx.textBaseline = 'middle';
+			var name = (opponentName || MultiplayerManager.opponentUsername || 'OPPONENT').toUpperCase();
+			if (name.length > 9) name = name.slice(0, 8) + '…';
+			nCtx.fillText(name, 58, 40);
+
+			if (opponentNameSprite.material && opponentNameSprite.material.map) {
+				opponentNameSprite.material.map.image = nCanvas;
+				opponentNameSprite.material.map.needsUpdate = true;
+			}
+		}
+	}
+
+	function setOpponentActiveRow(rowIdx, animateTransition) {
+		if (!opponentRowIndicatorGroup) return;
+		if (!MultiplayerManager.isActive || MultiplayerManager.matchFinished) {
+			opponentRowIndicatorGroup.visible = false;
+			return;
+		}
+
+		var totalRows = (currentLevelData && currentLevelData.words) ? (currentLevelData.words.length - 1) : 4;
+		if (rowIdx < 1 || rowIdx > totalRows) {
+			opponentRowIndicatorGroup.visible = false;
+			return;
+		}
+
+		var rowData = chainRowData[rowIdx];
+		if (!rowData) {
+			opponentRowIndicatorGroup.visible = false;
+			return;
+		}
+
+		opponentIndicatorState.activeRow = rowIdx;
+		var xPos = rowData.rackWidth * 0.5 + 1.02;
+		var yPos = 0.28 + (rowData.rowY || 0);
+		var zPos = rowData.rz;
+
+		if (!opponentRowIndicatorGroup.visible || !animateTransition) {
+			opponentIndicatorState.currentPos.set(xPos, yPos, zPos);
+			opponentIndicatorState.targetPos.set(xPos, yPos, zPos);
+			opponentRowIndicatorGroup.position.set(xPos, yPos, zPos);
+			opponentIndicatorState.isTransitioning = false;
+			opponentRowIndicatorGroup.visible = true;
+		} else {
+			opponentIndicatorState.fromPos.copy(opponentRowIndicatorGroup.position);
+			opponentIndicatorState.targetPos.set(xPos, yPos, zPos);
+			opponentIndicatorState.isTransitioning = true;
+			opponentIndicatorState.transitionStart = performance.now();
+			opponentRowIndicatorGroup.visible = true;
+			if (typeof AudioManager !== 'undefined') {
+				AudioManager.play('tilehit', 0.25);
+			}
+		}
 	}
 
 	/**
@@ -4292,9 +6659,9 @@
 				brackets: rowBrackets
 			});
 
-			// 3D Gift Box Spawn: strictly 1 gift box per eligible level on row 2 (or row 1 if short level)
+			// 3D Gift Box Spawn: strictly 1 gift box per eligible level on row 2 (or row 1 if short level) - Solo mode only
 			var targetGiftRow = (numRows > 3) ? 2 : 1;
-			if (r === targetGiftRow) {
+			if (!MultiplayerManager.isActive && r === targetGiftRow) {
 				var rowReward = UnlockManager.getRewardForLevelRow(currentLevelIndex, 2);
 				if (rowReward && !UnlockManager.isOwned(rowReward.type, rowReward.id)) {
 					var giftBox = create3DGiftBox(r, rowReward, rackWidth, rz, rackHeight, rowY, rackTilt);
@@ -4311,10 +6678,14 @@
 	function updateActiveRowVisuals(skipCoupler) {
 		for (var r = 0; r < chainRowData.length; r++) {
 			var rowInfo = chainRowData[r];
+			var vsSolver = (MultiplayerManager.isActive && r >= 1) ? MultiplayerManager.getRowFirstSolver(r) : null;
+			var vsClaimMat = (vsSolver === 'p1') ? materials.vsTrayBlue : ((vsSolver === 'p2') ? materials.vsTrayRed : null);
+
 			if (r === currentWordIndex) {
-				// ACTIVE ROW: Highlighted golden wood & active spotlight
-				rowInfo.rackMesh.material = materials.yellowTrayActive;
-				rowInfo.lipMesh.material = materials.yellowTrayActive;
+				// ACTIVE ROW: Highlighted golden wood (or VS first-solver color if opponent already claimed it)
+				var activeMat = vsClaimMat || materials.yellowTrayActive;
+				rowInfo.rackMesh.material = activeMat;
+				rowInfo.lipMesh.material = activeMat;
 
 				// Reposition 3D active row indicator chevrons
 				if (activeRowIndicatorGroup) {
@@ -4328,32 +6699,35 @@
 						chevronMesh.position.set(-halfW - 0.85, 0.28 + rowY, rowInfo.rz);
 						chevronMesh.rotation.x = -Math.PI * 0.5 + rackTilt;
 					}
-					// Right chevron points left ◀
+					// Right chevron points left ◀ (yield right flank to opponent beacon in VS mode)
 					if (chevronRightMesh) {
+						chevronRightMesh.visible = !MultiplayerManager.isActive;
 						chevronRightMesh.position.set(halfW + 0.85, 0.28 + rowY, rowInfo.rz);
 						chevronRightMesh.rotation.x = -Math.PI * 0.5 + rackTilt;
 					}
 				}
 			} else if (r === currentWordIndex - 1) {
-				// CONNECTED PHRASE PARTNER ROW: Warm luminous amber wood coupling the phrase
-				rowInfo.rackMesh.material = materials.yellowTrayPartner;
-				rowInfo.lipMesh.material = materials.yellowTrayPartner;
+				// CONNECTED PHRASE PARTNER ROW: First-solver color in VS mode, or warm luminous amber wood
+				var partnerMat = vsClaimMat || materials.yellowTrayPartner;
+				rowInfo.rackMesh.material = partnerMat;
+				rowInfo.lipMesh.material = partnerMat;
 			} else if (r < currentWordIndex - 1) {
-				// OLD SOLVED ROW: Muted antique settled wood
-				rowInfo.rackMesh.material = materials.yellowTraySolved;
-				rowInfo.lipMesh.material = materials.yellowTraySolved;
+				// OLD SOLVED ROW: First-solver color in VS mode, or muted antique settled wood
+				var solvedMat = vsClaimMat || materials.yellowTraySolved;
+				rowInfo.rackMesh.material = solvedMat;
+				rowInfo.lipMesh.material = solvedMat;
 			} else {
-				// PENDING ROW: Dimmed wood
-				rowInfo.rackMesh.material = materials.yellowTrayDimmed;
-				rowInfo.lipMesh.material = materials.yellowTrayDimmed;
+				// PENDING ROW: First-solver color if opponent already solved ahead, else dimmed wood
+				var pendingMat = vsClaimMat || materials.yellowTrayDimmed;
+				rowInfo.rackMesh.material = pendingMat;
+				rowInfo.lipMesh.material = pendingMat;
 			}
 		}
 
 		// Update 3D Phrase Coupler linking row (currentWordIndex - 1) and row (currentWordIndex)
-		if (!skipCoupler && currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
+		// Only show if gameplay is active and trays are present
+		if (!skipCoupler && isGamePlayActive() && currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
 			updatePhraseCoupler(chainRowData[currentWordIndex - 1], chainRowData[currentWordIndex]);
-		} else if (skipCoupler) {
-			if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
 		} else {
 			if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
 		}
@@ -4823,9 +7197,19 @@
 
 					// SEQUENCE: The trays appear FIRST!
 					updateActiveRowVisuals(true);
+					if (MultiplayerManager.isActive) {
+						MultiplayerManager.onRaceStart();
+					} else {
+						MultiplayerManager.onSoloEntranceReady(currentLevelIndex);
+					}
 
 					// Then the chain appears AFTER to link the two solvable trays together with swing & snap!
+					// The chain is the LAST element to appear on level/tray creation!
 					setTimeout(function () {
+						if (!isGamePlayActive()) {
+							if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
+							return;
+						}
 						if (currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
 							triggerChainCouplerSnap(chainRowData[currentWordIndex - 1], chainRowData[currentWordIndex]);
 						}
@@ -4879,7 +7263,16 @@
 		}
 		// SEQUENCE: Trays appear FIRST!
 		updateActiveRowVisuals(true);
+		if (MultiplayerManager.isActive) {
+			MultiplayerManager.onRaceStart();
+		} else {
+			MultiplayerManager.onSoloEntranceReady(currentLevelIndex);
+		}
 		setTimeout(function () {
+			if (!isGamePlayActive()) {
+				if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
+				return;
+			}
 			if (currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
 				triggerChainCouplerSnap(chainRowData[currentWordIndex - 1], chainRowData[currentWordIndex]);
 			}
@@ -4893,12 +7286,19 @@
 		stopWinCelebration();
 		dismissGhostTile();
 		wordsSolvedCount = 0;
+		if (opponentRowIndicatorGroup && !MultiplayerManager.isActive) {
+			opponentRowIndicatorGroup.visible = false;
+		}
 		var targetIndex = levelIndex % (window.WORD_CHAIN_LEVELS ? window.WORD_CHAIN_LEVELS.length : 30);
-		UnlockManager.checkTrialExpiration(targetIndex);
+		if (!MultiplayerManager.isActive) {
+			UnlockManager.checkTrialExpiration(targetIndex);
+		}
 		currentLevelIndex = targetIndex;
-		try {
-			localStorage.setItem('word_chain_last_level', String(targetIndex));
-		} catch (e) {}
+		if (!MultiplayerManager.isActive) {
+			try {
+				localStorage.setItem('word_chain_last_level', String(targetIndex));
+			} catch (e) {}
+		}
 		var allLevels = window.WORD_CHAIN_LEVELS || [];
 		currentLevelData = allLevels[currentLevelIndex] || {
 			id: 1,
@@ -4966,7 +7366,7 @@
 			TextureManager.updateTrayTheme();
 		}
 
-		if (typeof SpeedometerManager !== 'undefined') {
+		if (!MultiplayerManager.isActive && typeof SpeedometerManager !== 'undefined') {
 			SpeedometerManager.startLevel(currentLevelIndex);
 		}
 	}
@@ -5453,6 +7853,7 @@
 					hideThemeModal();
 					hideLevelSelectModal();
 					closeTileStorageModal();
+					MultiplayerManager.closeLobby();
 				}
 				return;
 			}
@@ -5466,8 +7867,12 @@
 				return;
 			}
 
-			// Win Celebration: Enter, Space, or any key advances to next level
+			// Win Celebration: Enter, Space, or any key advances to next level (Solo Play only; VS Mode requires explicit button press on Match Results)
 			if (isCelebratingWin) {
+				if (MultiplayerManager.isActive) {
+					if (e.key === 'Enter' || e.key === ' ') e.preventDefault();
+					return;
+				}
 				if (e.key === 'Enter' || e.key === ' ' || /^[a-zA-Z]$/.test(e.key)) {
 					e.preventDefault();
 					if (performance.now() - winCelebrationStartTime > 600) {
@@ -5680,17 +8085,27 @@
 			dismissGhostTile();
 			wordsSolvedCount++;
 
-			if (typeof SpeedometerManager !== 'undefined') {
-				SpeedometerManager.onWordSolved(currentWordIndex, currentLevelData.words.length);
+			if (MultiplayerManager.isActive) {
+				MultiplayerManager.onPlayerSolvedRow(currentWordIndex, currentLevelData.words.length, spelled);
+			} else {
+				if (typeof SpeedometerManager !== 'undefined') {
+					SpeedometerManager.onWordSolved(currentWordIndex, currentLevelData.words.length);
+				}
+				MultiplayerManager.onSoloRowSolved(currentWordIndex, currentLevelData.words.length);
 			}
 
 			var isLevelComplete = (currentWordIndex + 1 >= currentLevelData.words.length);
 
 			if (isLevelComplete) {
 				// ALL CHAINS HAVE BEEN SOLVED!
+				// FIRST TO DISAPPEAR ON LEVEL SOLUTION: Instantly hide the in-game chain coupler and active indicators!
+				if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
+				if (activeRowIndicatorGroup) activeRowIndicatorGroup.visible = false;
+
 				// Immediately record level completion, freeze speedometer & timer, and save stars!
-				if (typeof SpeedometerManager !== 'undefined') {
+				if (!MultiplayerManager.isActive && typeof SpeedometerManager !== 'undefined') {
 					SpeedometerManager.onLevelCompleted(currentLevelIndex);
+					MultiplayerManager.updateProfileUI();
 				}
 				AudioManager.playSnap(1.6);
 			} else {
@@ -5719,6 +8134,9 @@
 
 			playChainComboSequence(word1Row, word2Row, function () {
 				function proceedToNextStep() {
+					if (isCelebratingWin || (MultiplayerManager.isActive && MultiplayerManager.matchFinished && MultiplayerManager.winner === 'p2')) {
+						return;
+					}
 					// Hide previous chain coupler immediately as the previous pair has finished
 					if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
 
@@ -5726,11 +8144,14 @@
 
 					if (currentWordIndex >= currentLevelData.words.length) {
 						// LEVEL COMPLETE!
-						if (typeof SpeedometerManager !== 'undefined') {
-							SpeedometerManager.onLevelCompleted(currentLevelIndex);
-						}
-						if (typeof UnlockManager !== 'undefined' && typeof UnlockManager.onLevelCompleted === 'function') {
-							UnlockManager.onLevelCompleted(currentLevelIndex);
+						if (!MultiplayerManager.isActive) {
+							if (typeof SpeedometerManager !== 'undefined') {
+								SpeedometerManager.onLevelCompleted(currentLevelIndex);
+							}
+							if (typeof UnlockManager !== 'undefined' && typeof UnlockManager.onLevelCompleted === 'function') {
+								UnlockManager.onLevelCompleted(currentLevelIndex);
+							}
+							MultiplayerManager.updateProfileUI();
 						}
 						if (activeRowIndicatorGroup) activeRowIndicatorGroup.visible = false;
 						if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
@@ -5745,7 +8166,10 @@
 
 						// Chain appears AFTER to link the two trays together with swing & snap!
 						setTimeout(function () {
-							if (isCelebratingWin) return;
+							if (!isGamePlayActive()) {
+								if (phraseCouplerGroup) phraseCouplerGroup.visible = false;
+								return;
+							}
 							if (currentWordIndex >= 1 && chainRowData[currentWordIndex] && chainRowData[currentWordIndex - 1]) {
 								triggerChainCouplerSnap(chainRowData[currentWordIndex - 1], chainRowData[currentWordIndex]);
 							}
@@ -5767,7 +8191,7 @@
 		} else {
 			// INCORRECT WORD! Hard brake on speedometer to penalize wrong entries
 			isRowShaking = true;
-			if (typeof SpeedometerManager !== 'undefined') {
+			if (!MultiplayerManager.isActive && typeof SpeedometerManager !== 'undefined') {
 				SpeedometerManager.onIncorrectWord();
 			}
 			AudioManager.play('wrong', 0.85);
@@ -5784,7 +8208,9 @@
 
 			// Automatically return non-locked letters back to letter tray after headshake!
 			setTimeout(function () {
-				recallActiveRow();
+				if (!isCelebratingWin) {
+					recallActiveRow();
+				}
 				isRowShaking = false;
 			}, 520);
 		}
@@ -6151,6 +8577,11 @@
 
 	var toastTimeout = null;
 	function showToast(msg) {
+		// Suppress extra UI notifications during active VS Mode matches per clean HUD design
+		if (MultiplayerManager.isActive) {
+			var settingsOpen = document.querySelector('#theme-modal.show, #tile-storage-modal.show');
+			if (!settingsOpen) return;
+		}
 		var toast = document.getElementById('toast-banner');
 		var text = document.getElementById('toast-text');
 		if (!toast || !text) return;
@@ -6252,6 +8683,16 @@
 		victoryMessageTiles = [];
 
 		var pair = WIN_MESSAGES[Math.floor(Math.random() * WIN_MESSAGES.length)];
+		var vsVictoryBeamMat = null;
+		if (MultiplayerManager.isActive) {
+			if (MultiplayerManager.winner === 'p2') {
+				pair = { r1: 'RED', r2: 'WINS' };
+				vsVictoryBeamMat = materials.vsTrayRed;
+			} else {
+				pair = { r1: 'YOU', r2: 'WIN' };
+				vsVictoryBeamMat = materials.vsTrayBlue;
+			}
+		}
 		if (winCelebrationState) winCelebrationState.victoryMessage = pair;
 
 		victoryTrayGroup = new THREE.Group();
@@ -6273,15 +8714,17 @@
 			var trayGroup = new THREE.Group();
 			trayGroup.position.set(initialX, 0, trayZ);
 
-			// Main wooden beam (Active illuminated tray hardwood)
+			// Main wooden beam (Winner's color in VS mode, or active illuminated tray hardwood)
+			var beamMat = vsVictoryBeamMat || materials.yellowTrayActive || materials.yellowTray;
 			var beamGeom = new THREE.BoxGeometry(rackWidth, rackHeight, rackDepth);
-			var beam = new THREE.Mesh(beamGeom, materials.yellowTrayActive || materials.yellowTray);
+			var beam = new THREE.Mesh(beamGeom, beamMat);
 			beam.position.y = rackHeight * 0.5;
 			trayGroup.add(beam);
 
-			// Front retaining lip (Distinct champagne brass / active lip)
+			// Front retaining lip (Winner's color in VS mode, or distinct champagne brass / active lip)
+			var lipMat = vsVictoryBeamMat || materials.feederTrayLip || materials.yellowTrayActive;
 			var lipGeom = new THREE.BoxGeometry(rackWidth + 0.04, 0.15, 0.15);
-			var lip = new THREE.Mesh(lipGeom, materials.feederTrayLip || materials.yellowTrayActive);
+			var lip = new THREE.Mesh(lipGeom, lipMat);
 			lip.position.set(0, rackHeight + 0.075, rackDepth * 0.5 - 0.075);
 			trayGroup.add(lip);
 
@@ -6481,10 +8924,14 @@
 				AudioManager.playSnap(1.4);
 				AudioManager.haptic(45);
 
-				// Reveal the NEXT button at the bottom of the screen!
-				var btnNext = document.getElementById('btn-floating-next');
-				if (btnNext) {
-					btnNext.classList.add('show');
+				// In VS Mode, show the dedicated Match Results screen; in Solo Play, reveal the raised NEXT button
+				if (MultiplayerManager.isActive) {
+					MultiplayerManager.scheduleMatchResultsReveal(380);
+				} else {
+					var btnNext = document.getElementById('btn-floating-next');
+					if (btnNext) {
+						btnNext.classList.add('show');
+					}
 				}
 			} else {
 				// Gentle periodic domino wave on the congratulatory blocks while waiting for NEXT
@@ -6505,6 +8952,9 @@
 	var winCelebrationStartTime = 0;
 
 	function triggerWinCelebration() {
+		if (levelEntranceState && levelEntranceState.active) {
+			completeLevelEntranceImmediately();
+		}
 		isCelebratingWin = true;
 		dismissGhostTile();
 
@@ -6582,8 +9032,8 @@
 			lastPeriodicWave: performance.now()
 		};
 
-		// Keep stars lit and continue star fireworks periodically from the speedometer
-		if (typeof SpeedometerManager !== 'undefined' && SpeedometerManager.startPeriodicStarFireworks) {
+		// Keep stars lit and continue star fireworks periodically from the speedometer (Solo mode only)
+		if (!MultiplayerManager.isActive && typeof SpeedometerManager !== 'undefined' && SpeedometerManager.startPeriodicStarFireworks) {
 			var earnedStars = (SpeedometerManager.lastCompletionResult && SpeedometerManager.lastCompletionResult.starsEarned)
 				|| SpeedometerManager.peakStarsAchieved
 				|| SpeedometerManager.lastStarsLit
@@ -6592,9 +9042,14 @@
 		}
 
 		// Play celebratory fanfare sound & haptics
-		AudioManager.play('greatJob', 1.0);
-		AudioManager.haptic(50);
-		setTimeout(function () { AudioManager.haptic(35); }, 200);
+		if (MultiplayerManager.isActive && MultiplayerManager.winner === 'p2') {
+			AudioManager.playSnap(1.1);
+			AudioManager.haptic(35);
+		} else {
+			AudioManager.play('greatJob', 1.0);
+			AudioManager.haptic(50);
+			setTimeout(function () { AudioManager.haptic(35); }, 200);
+		}
 	}
 
 	function stopWinCelebration() {
@@ -6943,8 +9398,48 @@
 			}
 		}
 
+		// Animate 3D Opponent Active Row Indicator (Opponent Avatar Beacon in PVP)
+		if (opponentRowIndicatorGroup && opponentRowIndicatorGroup.visible && MultiplayerManager.isActive && !MultiplayerManager.matchFinished) {
+			if (opponentIndicatorState.isTransitioning) {
+				var transElapsed = now - opponentIndicatorState.transitionStart;
+				var p = Math.min(1.0, transElapsed / opponentIndicatorState.transitionDuration);
+				var ease = 1 - Math.pow(1 - p, 3);
+				var curX = THREE.MathUtils.lerp(opponentIndicatorState.fromPos.x, opponentIndicatorState.targetPos.x, ease);
+				var curZ = THREE.MathUtils.lerp(opponentIndicatorState.fromPos.z, opponentIndicatorState.targetPos.z, ease);
+				var hopHeight = 0.55;
+				var curY = THREE.MathUtils.lerp(opponentIndicatorState.fromPos.y, opponentIndicatorState.targetPos.y, ease) + Math.sin(p * Math.PI) * hopHeight;
+
+				opponentRowIndicatorGroup.position.set(curX, curY, curZ);
+				opponentIndicatorState.currentPos.set(curX, curY, curZ);
+
+				if (p >= 1.0) {
+					opponentIndicatorState.isTransitioning = false;
+				}
+			} else {
+				var oppBobX = Math.sin(now * 0.005) * 0.05;
+				var oppBobY = Math.sin(now * 0.0035) * 0.03;
+				opponentRowIndicatorGroup.position.x = opponentIndicatorState.targetPos.x - oppBobX;
+				opponentRowIndicatorGroup.position.y = opponentIndicatorState.targetPos.y + oppBobY;
+				opponentRowIndicatorGroup.position.z = opponentIndicatorState.targetPos.z;
+			}
+
+			var oppPulse = 0.70 + Math.sin(now * 0.006) * 0.30;
+			if (materials.opponentChevron && materials.opponentChevron.emissiveIntensity !== undefined) {
+				materials.opponentChevron.emissiveIntensity = oppPulse;
+			}
+			if (materials.opponentRing && materials.opponentRing.emissiveIntensity !== undefined) {
+				materials.opponentRing.emissiveIntensity = oppPulse * 0.8;
+			}
+		} else if (opponentRowIndicatorGroup && opponentRowIndicatorGroup.visible && (!MultiplayerManager.isActive || MultiplayerManager.matchFinished)) {
+			opponentRowIndicatorGroup.visible = false;
+		}
+
 		// Animate 3D Phrase Coupler connecting the two solvable trays
-		if (phraseCouplerGroup && phraseCouplerGroup.visible) {
+		if (!isGamePlayActive()) {
+			if (phraseCouplerGroup && phraseCouplerGroup.visible) {
+				phraseCouplerGroup.visible = false;
+			}
+		} else if (phraseCouplerGroup && phraseCouplerGroup.visible) {
 			var couplerPulse = Math.sin(now * 0.005);
 
 			// Intense golden radiance glow
@@ -7077,14 +9572,14 @@
 		// Update 3D Confetti and Stars physics
 		updateCelebrationParticles(dt, now);
 
-		// Update Live Speedometer Gauge
-		if (typeof SpeedometerManager !== 'undefined') {
-			SpeedometerManager.updateLoop();
-		}
-
-		// Render 3D HUD Stars with Three.js Lighting & Glow
-		if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.render === 'function') {
-			Star3DManager.render(now, dt);
+		// Update Live Speedometer Gauge & 3D HUD Stars (Solo mode only; hidden in VS mode)
+		if (!MultiplayerManager.isActive) {
+			if (typeof SpeedometerManager !== 'undefined') {
+				SpeedometerManager.updateLoop();
+			}
+			if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.render === 'function') {
+				Star3DManager.render(now, dt);
+			}
 		}
 
 		// Idle title screen camera breathing to make the 3D world feel living & dynamic
@@ -7161,6 +9656,7 @@
 		if (typeof SpeedometerManager !== 'undefined') {
 			SpeedometerManager.init();
 		}
+		MultiplayerManager.init();
 
 		var totalLevels = (window.WORD_CHAIN_LEVELS && window.WORD_CHAIN_LEVELS.length) ? window.WORD_CHAIN_LEVELS.length : 30;
 
@@ -7209,6 +9705,12 @@
 		}
 
 		function showTitleScreen() {
+			if (phraseCouplerGroup) {
+				phraseCouplerGroup.visible = false;
+			}
+			if (activeRowIndicatorGroup) {
+				activeRowIndicatorGroup.visible = false;
+			}
 			if (titleScreenEl) {
 				titleScreenEl.classList.remove('hidden');
 				titleScreenEl.classList.remove('hide');
@@ -7218,6 +9720,9 @@
 			startTitleShowcase();
 			if (typeof SpeedometerManager !== 'undefined') {
 				SpeedometerManager.updateTitleScreenUI();
+			}
+			if (typeof MultiplayerManager !== 'undefined') {
+				MultiplayerManager.updateProfileUI();
 			}
 		}
 
@@ -7234,9 +9739,14 @@
 			}
 			updateCameraFraming();
 			AudioManager.unlockAudio();
+			if (typeof MultiplayerManager !== 'undefined') {
+				MultiplayerManager.updateProfileUI();
+			}
 		}
 
 		// Initial start of Title Screen Word Chain Showcase
+		MultiplayerManager.showTitleScreenFn = showTitleScreen;
+		MultiplayerManager.hideTitleScreenFn = hideTitleScreen;
 		startTitleShowcase();
 
 		// 1. SOLO PLAY Button (Touch & Click debounced)
@@ -7247,10 +9757,9 @@
 			if (now - lastSoloTap < 350) return;
 			lastSoloTap = now;
 
+			MultiplayerManager.exitVsMode();
 			var resumeIdx = (typeof SpeedometerManager !== 'undefined') ? SpeedometerManager.getResumeLevelIndex() : 0;
-			if (currentLevelIndex !== resumeIdx) {
-				loadLevel(resumeIdx);
-			}
+			loadLevel(resumeIdx);
 			hideTitleScreen();
 			AudioManager.play('tilehit', 1.0);
 			AudioManager.haptic(30);
@@ -7264,7 +9773,7 @@
 			}, { passive: false });
 		}
 
-		// 2. VS MODE Button
+		// 2. VS MODE Button (Opens Avatar Selection & Opponent Matchmaking Lobby)
 		var lastVsTap = 0;
 		function triggerVsMode(e) {
 			if (e) e.stopPropagation();
@@ -7274,7 +9783,7 @@
 
 			AudioManager.playSnap(1.3);
 			AudioManager.haptic(25);
-			showToast('⚔️ VS MODE: 2-Player Head-to-Head & AI Battles coming soon in Season 2!');
+			MultiplayerManager.openLobby(false);
 		}
 
 		if (btnTitleVs) {
@@ -7355,6 +9864,7 @@
 		}
 		if (btnReturnTitle) {
 			btnReturnTitle.addEventListener('click', function () {
+				MultiplayerManager.exitVsMode();
 				hideThemeModal();
 				showTitleScreen();
 			});
@@ -7520,14 +10030,20 @@
 				AudioManager.play('tilehit', 1.0);
 				AudioManager.haptic(35);
 				stopWinCelebration();
-				loadLevel(currentLevelIndex + 1);
+				if (MultiplayerManager.isActive) {
+					MultiplayerManager.onPostMatchNext();
+				} else {
+					loadLevel(currentLevelIndex + 1);
+				}
 			});
 		}
 
-		// Tap anywhere during win celebration (once congratulatory trays have landed) to advance level
+		// Tap anywhere during Solo win celebration (once congratulatory trays have landed) to advance level.
+		// Disabled in VS Mode so players never accidentally skip Match Results into another PvP match!
 		window.addEventListener('click', function (e) {
+			if (MultiplayerManager.isActive) return;
 			if (isCelebratingWin && winCelebrationState && winCelebrationState.victoryLanded) {
-				if (e.target && e.target.closest && e.target.closest('#btn-open-settings, .btn-settings, #settings-modal, #level-select-modal')) {
+				if (e.target && e.target.closest && e.target.closest('#btn-open-settings, .btn-settings, #btn-settings, #hud-bottom, #theme-modal, #settings-modal, #level-select-modal, #vs-lobby-modal, #vs-results-modal')) {
 					return;
 				}
 				AudioManager.play('tilehit', 1.0);
@@ -7666,6 +10182,10 @@
 			hideThemeModal: hideThemeModal,
 			showTitle: showTitleScreen,
 			hideTitle: hideTitleScreen,
+			isChainVisible: function () { return !!(phraseCouplerGroup && phraseCouplerGroup.visible); },
+			isGameActive: isGamePlayActive,
+			checkWord: checkWordCompletion,
+			getLevelEntrance: function () { return levelEntranceState; },
 			speedometer: SpeedometerManager,
 			getSpeedRanking: function () {
 				return SpeedometerManager.getOverallStats();
@@ -7699,6 +10219,8 @@
 				return {
 					level: currentLevelIndex + 1,
 					activeRow: currentWordIndex + 1,
+					currentWordIndex: currentWordIndex,
+					currentWordAnswer: (currentLevelData && currentLevelData.words && currentLevelData.words[currentWordIndex]) ? currentLevelData.words[currentWordIndex].answer : null,
 					totalRows: currentLevelData ? currentLevelData.words.length : 0,
 					skin: TextureManager.getCurrentSkin ? TextureManager.getCurrentSkin() : 'classic',
 					tileTone: curSkin ? curSkin.tone : 'light',
@@ -7762,7 +10284,7 @@
 		var initialLevel = (!isNaN(startLvl) && startLvl > 0) ? (startLvl - 1) : resumeLvl;
 		loadLevel(initialLevel);
 
-		var shouldStartPlaying = (urlParams.get('autostart') === '1' || urlParams.get('play') === '1' || urlParams.get('hint') === '1' || urlParams.get('win') === '1' || urlParams.get('gift') === '1' || urlParams.get('ad') === '1' || urlParams.get('settings') === '1' || urlParams.get('trialend') === '1');
+		var shouldStartPlaying = (urlParams.get('autostart') === '1' || urlParams.get('play') === '1' || urlParams.get('hint') === '1' || urlParams.get('win') === '1' || urlParams.get('vsplay') === '1' || urlParams.get('vsresults') === '1' || urlParams.get('gift') === '1' || urlParams.get('ad') === '1' || urlParams.get('settings') === '1' || urlParams.get('trialend') === '1');
 
 		if (shouldStartPlaying) {
 			hideTitleScreen();
@@ -7802,6 +10324,115 @@
 			}, 300);
 		}
 
+		var inviteRoomCode = urlParams.get('room');
+		if (inviteRoomCode) {
+			setTimeout(function () {
+				MultiplayerManager.openLobby(false, inviteRoomCode);
+			}, 250);
+		} else if (urlParams.get('vs') === '1') {
+			setTimeout(function () {
+				MultiplayerManager.openLobby(false);
+			}, 250);
+		} else if (urlParams.get('vsplay') === '1') {
+			setTimeout(function () {
+				document.body.classList.add('vs-mode-active');
+				MultiplayerManager.isActive = true;
+				MultiplayerManager.mySlot = 'p1';
+				MultiplayerManager.matchMode = 'pvp';
+				MultiplayerManager.playerUsername = 'Uptimistik';
+				MultiplayerManager.opponentUsername = 'Marcus';
+				MultiplayerManager.playerAvatar = 'Character_8.png';
+				MultiplayerManager.opponentAvatar = 'Character_9.png';
+				MultiplayerManager.firstSolverByRow = { 1: 'p1', 2: 'p2' };
+				MultiplayerManager.applyRowClaimMaterial(1);
+				MultiplayerManager.applyRowClaimMaterial(2);
+				var hudP1Img = document.getElementById('vs-p1-avatar');
+				var hudP2Img = document.getElementById('vs-p2-avatar');
+				var hudP1Wpm = document.getElementById('vs-p1-wpm');
+				var hudP2Wpm = document.getElementById('vs-p2-wpm');
+				var hudP1Name = document.getElementById('vs-p1-name');
+				var hudP2Name = document.getElementById('vs-p2-name');
+				if (hudP1Img) hudP1Img.src = MultiplayerManager.getAvatarPath('Character_8.png');
+				if (hudP2Img) hudP2Img.src = MultiplayerManager.getAvatarPath('Character_9.png');
+				if (hudP1Wpm) hudP1Wpm.textContent = '18WPM';
+				if (hudP2Wpm) hudP2Wpm.textContent = '16WPM';
+				if (hudP1Name) hudP1Name.textContent = 'Uptimistik';
+				if (hudP2Name) hudP2Name.textContent = 'Marcus';
+				MultiplayerManager.p1MatchCrowns = 5;
+				MultiplayerManager.p2MatchCrowns = 4;
+				var p1CrownsEl = document.getElementById('vs-p1-crowns');
+				var p2CrownsEl = document.getElementById('vs-p2-crowns');
+				if (p1CrownsEl) p1CrownsEl.textContent = '👑 5';
+				if (p2CrownsEl) p2CrownsEl.textContent = '👑 4';
+				updateOpponentBeaconAppearance(MultiplayerManager.opponentAvatar, MultiplayerManager.opponentUsername);
+				setOpponentActiveRow(1, false);
+				updateCameraFraming();
+			}, 300);
+		} else if (urlParams.get('vsresults') === '1') {
+			setTimeout(function () {
+				var ts = document.getElementById('title-screen');
+				if (ts) {
+					ts.classList.add('hidden');
+					ts.style.display = 'none';
+				}
+				document.body.classList.remove('title-screen-active');
+				document.body.classList.add('vs-mode-active');
+				MultiplayerManager.isActive = true;
+				MultiplayerManager.mySlot = 'p1';
+				MultiplayerManager.matchMode = 'pvp';
+				MultiplayerManager.winner = 'p1';
+				MultiplayerManager.playerUsername = 'Uptimistik';
+				MultiplayerManager.opponentUsername = 'Marcus';
+				MultiplayerManager.playerAvatar = 'Character_8.png';
+				MultiplayerManager.opponentAvatar = 'Character_9.png';
+				MultiplayerManager.firstSolverByRow = { 1: 'p1', 2: 'p2', 3: 'p1', 4: 'p1' };
+				var totalRows = (currentLevelData && currentLevelData.words) ? (currentLevelData.words.length - 1) : 4;
+				for (var r = 1; r <= totalRows; r++) {
+					if (!MultiplayerManager.firstSolverByRow[r]) {
+						MultiplayerManager.firstSolverByRow[r] = (r % 2 === 0) ? 'p2' : 'p1';
+					}
+					MultiplayerManager.applyRowClaimMaterial(r);
+				}
+				var hudP1Img = document.getElementById('vs-p1-avatar');
+				var hudP2Img = document.getElementById('vs-p2-avatar');
+				var hudP1Wpm = document.getElementById('vs-p1-wpm');
+				var hudP2Wpm = document.getElementById('vs-p2-wpm');
+				var hudP1Name = document.getElementById('vs-p1-name');
+				var hudP2Name = document.getElementById('vs-p2-name');
+				var p1Crown = document.getElementById('vs-p1-crown');
+				if (hudP1Img) hudP1Img.src = MultiplayerManager.getAvatarPath('Character_8.png');
+				if (hudP2Img) hudP2Img.src = MultiplayerManager.getAvatarPath('Character_9.png');
+				if (hudP1Wpm) hudP1Wpm.textContent = '19WPM';
+				if (hudP2Wpm) hudP2Wpm.textContent = '17WPM';
+				if (hudP1Name) hudP1Name.textContent = 'Uptimistik';
+				if (hudP2Name) hudP2Name.textContent = 'Marcus';
+				if (p1Crown) p1Crown.classList.add('show');
+				MultiplayerManager.p1MatchCrowns = 14;
+				MultiplayerManager.p2MatchCrowns = 4;
+				MultiplayerManager.lastEarnedCrowns = 14;
+				var p1CrownsEl = document.getElementById('vs-p1-crowns');
+				var p2CrownsEl = document.getElementById('vs-p2-crowns');
+				if (p1CrownsEl) p1CrownsEl.textContent = '👑 14';
+				if (p2CrownsEl) p2CrownsEl.textContent = '👑 4';
+				MultiplayerManager.lastMatchSummary = {
+					winnerSlot: 'p1',
+					matchType: 'pvp',
+					totalRows: totalRows,
+					p1Username: 'Uptimistik',
+					p2Username: 'Marcus',
+					p1Wpm: 19,
+					p2Wpm: 17,
+					p1Rows: totalRows,
+					p2Rows: Math.max(1, totalRows - 1),
+					p1FinishMs: 18400,
+					p2FinishMs: null,
+					canRematch: false
+				};
+				triggerWinCelebration();
+				MultiplayerManager.showMatchResults();
+			}, 300);
+		}
+
 		// 8. Start Loop
 		lastTime = performance.now();
 		requestAnimationFrame(animate);
@@ -7814,7 +10445,10 @@
 	}
 
 	// Global export for native WebView bridges (Android & iOS background lifecycle hooks)
+	MultiplayerManager.setOpponentActiveRow = setOpponentActiveRow;
+	MultiplayerManager.updateOpponentBeaconAppearance = updateOpponentBeaconAppearance;
 	global.AudioManager = AudioManager;
+	global.MultiplayerManager = MultiplayerManager;
 
 })(window);
 

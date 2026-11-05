@@ -12,3 +12,8 @@ android/app/src/main/assets/www/
 
 # macOS system files
 .DS_Store
+
+# Colyseus server dependencies & runtime DB WAL files
+server/node_modules/
+server/data/*.sqlite-shm
+server/data/*.sqlite-wal
