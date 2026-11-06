@@ -153,9 +153,9 @@
 	//   - soft cloud shadows drift over the hills and grass
 	//   - slowly rotating sun rays + gentle exposure "breathing"
 	// Rendered at <=30fps and capped resolution to stay cool on phones.
-	// All photographic scenes enabled for HD live ambient animation except 'peaks',
-	// which renders as a true real-time Three.js 3D Alpine Ski Resort scene!
-	var LIVE_SCENES = { sakura: true, volcano: true, snowtown: true, peaks: false, ocean: true };
+	// All photographic scenes enabled for HD live ambient animation except 'peaks' and 'ocean',
+	// which render as true real-time Three.js 3D scenes (Alpine Ski Resort & Tropical Pier)!
+	var LIVE_SCENES = { sakura: true, volcano: true, snowtown: true, peaks: false, ocean: false };
 
 	var live = {
 		supported: null,
@@ -1168,11 +1168,13 @@
 		window.addEventListener('resize', function () {
 			liveResize();
 			peaks3DResize();
+			if (typeof ocean3DResize === 'function') ocean3DResize();
 		});
 		window.addEventListener('orientationchange', function () {
 			setTimeout(function () {
 				liveResize();
 				peaks3DResize();
+				if (typeof ocean3DResize === 'function') ocean3DResize();
 			}, 250);
 		});
 	}
@@ -2142,6 +2144,14 @@
 			r.clearDepth();
 			return true;
 		}
+		if (typeof ocean3D !== 'undefined' && ocean3D.active && ocean3D.initialized && ocean3D.scene && ocean3D.camera) {
+			r.autoClear = false;
+			r.setClearColor(0x0284c7, 1);
+			r.clear(true, true, true);
+			r.render(ocean3D.scene, ocean3D.camera);
+			r.clearDepth();
+			return true;
+		}
 		if (r.autoClear === false) {
 			r.autoClear = true;
 			r.setClearColor(0x000000, 0);
@@ -2160,6 +2170,958 @@
 		} else {
 			peaks3D.active = false;
 			if (peaks3D.canvas) peaks3D.canvas.classList.remove('active');
+		}
+	}
+
+	// --------------------------------------------------------------------------
+	// REAL-TIME THREE.JS 3D TROPICAL PIER & LAGOON SCENE (PIGEON POINT TOBAGO)
+	// Lightweight, High-Performance, True 3D Photorealistic Tropical Boardwalk:
+	// - High-DPI Feathered Soft Natural Cumulus Cloud System (No Pixelated Artifacts)
+	// - Full 3D Weathered Wooden Pier Boardwalk & Underwater Pilings
+	// - Authentic Pitched Thatched Cabana / Gazebo (Pigeon Point) at the Pier End
+	// - Physically-Based Tropical Water Shader (Gerstner Waves, Shallows Caustics, Specular Glints & Turquoise Palette)
+	// - Authentic Bobbing Boats (Left Passenger Water Taxi & Right Speedboat)
+	// - Soaring White Sea Terns / Seagulls in the Upper Azure Sky
+	// --------------------------------------------------------------------------
+	var ocean3D = {
+		initialized: false,
+		active: false,
+		canvas: null,
+		renderer: null,
+		scene: null,
+		camera: null,
+		width: 0,
+		height: 0,
+		startTime: 0,
+		waterMesh: null,
+		waterMaterial: null,
+		clouds: [],
+		boat1: null,
+		boat2: null,
+		seagulls: []
+	};
+
+	function createTropicalSkyTexture() {
+		var c = document.createElement('canvas');
+		c.width = 64;
+		c.height = 512;
+		var ctx = c.getContext('2d');
+		var grad = ctx.createLinearGradient(0, 0, 0, 512);
+		grad.addColorStop(0.00, '#005ba6'); // Zenith deep Caribbean blue
+		grad.addColorStop(0.18, '#0275d8'); // Radiant tropical azure
+		grad.addColorStop(0.38, '#0ea5e9'); // Clear sky blue
+		grad.addColorStop(0.58, '#38bdf8'); // Bright tropical cyan
+		grad.addColorStop(0.78, '#7dd3fc'); // Soft trade wind sky
+		grad.addColorStop(0.92, '#bae6fd'); // Sun-warmed light cyan
+		grad.addColorStop(0.98, '#dff2fd'); // Horizon haze
+		grad.addColorStop(1.00, '#bbf2f6'); // Aqua horizon sea line
+		ctx.fillStyle = grad;
+		ctx.fillRect(0, 0, 64, 512);
+		var tex = new THREE.CanvasTexture(c);
+		tex.generateMipmaps = false;
+		tex.minFilter = THREE.LinearFilter;
+		tex.magFilter = THREE.LinearFilter;
+		return tex;
+	}
+
+	function createSoftCumulusCloudTexture(typeIndex) {
+		var c = document.createElement('canvas');
+		c.width = 512;
+		c.height = 256;
+		var ctx = c.getContext('2d');
+		ctx.clearRect(0, 0, 512, 256);
+
+		function drawPuff(x, y, rx, ry, sunIntensity, shadowAmount) {
+			ctx.save();
+			ctx.translate(x, y);
+			ctx.scale(rx, ry);
+			var grad = ctx.createRadialGradient(0, -0.22, 0.05, 0, 0.12, 1.0);
+			var topR = Math.round(255 * sunIntensity);
+			var topG = Math.round(253 * sunIntensity);
+			var topB = Math.round(248 * sunIntensity);
+			var botR = Math.round(188 + (1 - shadowAmount) * 58);
+			var botG = Math.round(210 + (1 - shadowAmount) * 42);
+			var botB = Math.round(235 + (1 - shadowAmount) * 20);
+			grad.addColorStop(0.0, 'rgba(' + topR + ',' + topG + ',' + topB + ', 0.88)');
+			grad.addColorStop(0.42, 'rgba(' + topR + ',' + topG + ',' + topB + ', 0.72)');
+			grad.addColorStop(0.74, 'rgba(' + botR + ',' + botG + ',' + botB + ', 0.36)');
+			grad.addColorStop(1.0, 'rgba(' + botR + ',' + botG + ',' + botB + ', 0.0)');
+			ctx.fillStyle = grad;
+			ctx.beginPath();
+			ctx.arc(0, 0, 1.0, 0, Math.PI * 2);
+			ctx.fill();
+			ctx.restore();
+		}
+
+		if (typeIndex === 0) {
+			// Grand billowing tropical cumulus (center hero cloud)
+			drawPuff(256, 175, 170, 48, 0.95, 0.45);
+			drawPuff(180, 170, 120, 42, 0.92, 0.40);
+			drawPuff(330, 172, 130, 44, 0.94, 0.42);
+			drawPuff(220, 135, 105, 52, 0.98, 0.25);
+			drawPuff(300, 130, 110, 55, 0.99, 0.22);
+			drawPuff(145, 150, 85, 38, 0.92, 0.35);
+			drawPuff(375, 148, 90, 40, 0.95, 0.32);
+			drawPuff(255, 95, 92, 58, 1.0, 0.10);
+			drawPuff(210, 108, 70, 48, 0.99, 0.12);
+			drawPuff(295, 102, 75, 50, 1.0, 0.10);
+		} else if (typeIndex === 1) {
+			// Elongated trade wind cumulus (drifting flat base)
+			drawPuff(256, 160, 210, 36, 0.94, 0.45);
+			drawPuff(190, 140, 110, 42, 0.98, 0.28);
+			drawPuff(310, 145, 120, 40, 0.96, 0.30);
+			drawPuff(250, 115, 80, 45, 1.0, 0.12);
+			drawPuff(130, 155, 80, 32, 0.92, 0.40);
+			drawPuff(390, 155, 75, 30, 0.93, 0.38);
+		} else if (typeIndex === 2) {
+			// Delicate breezy trade wind cloudlet
+			drawPuff(256, 150, 140, 38, 0.96, 0.35);
+			drawPuff(210, 130, 80, 42, 0.99, 0.20);
+			drawPuff(285, 135, 90, 40, 0.98, 0.22);
+			drawPuff(150, 152, 65, 30, 0.92, 0.40);
+			drawPuff(345, 150, 70, 32, 0.94, 0.38);
+		} else {
+			// Wispy high-altitude cirrus feather streak
+			drawPuff(256, 140, 190, 22, 0.92, 0.20);
+			drawPuff(180, 135, 130, 20, 0.94, 0.18);
+			drawPuff(330, 142, 140, 21, 0.93, 0.19);
+			drawPuff(260, 128, 90, 18, 0.96, 0.15);
+		}
+
+		var tex = new THREE.CanvasTexture(c);
+		tex.generateMipmaps = true;
+		tex.minFilter = THREE.LinearMipmapLinearFilter;
+		tex.magFilter = THREE.LinearFilter;
+		return tex;
+	}
+
+	function buildTropicalWaterMaterial() {
+		return new THREE.ShaderMaterial({
+			uniforms: {
+				uTime: { value: 0 },
+				uSunDir: { value: new THREE.Vector3(0.38, 0.82, -0.42).normalize() },
+				uWaterColorShallow: { value: new THREE.Color(0x28decb) },
+				uWaterColorMid: { value: new THREE.Color(0x0bb5cf) },
+				uWaterColorDeep: { value: new THREE.Color(0x026aa0) },
+				uSkyColor: { value: new THREE.Color(0xafe3fd) },
+				uSunColor: { value: new THREE.Color(0xfffaea) }
+			},
+			vertexShader: [
+				'uniform float uTime;',
+				'varying vec3 vWorldPos;',
+				'varying vec3 vNormal;',
+				'varying vec2 vUv;',
+				'',
+				'vec3 gerstnerWave(vec2 dir, float steepness, float wavelength, float speed, vec3 p, inout vec3 tangent, inout vec3 binormal) {',
+				'    float k = 2.0 * 3.14159265 / wavelength;',
+				'    float c = sqrt(9.8 / k) * speed;',
+				'    vec2 d = normalize(dir);',
+				'    float f = k * (dot(d, p.xz) - c * uTime * 0.22);',
+				'    float a = steepness / k;',
+				'    tangent += vec3(-d.x * d.x * (steepness * sin(f)), d.x * (steepness * cos(f)), -d.x * d.y * (steepness * sin(f)));',
+				'    binormal += vec3(-d.x * d.y * (steepness * sin(f)), d.y * (steepness * cos(f)), -d.y * d.y * (steepness * sin(f)));',
+				'    return vec3(d.x * (a * cos(f)), a * sin(f), d.y * (a * cos(f)));',
+				'}',
+				'',
+				'void main() {',
+				'    vUv = uv;',
+				'    vec3 pos = position;',
+				'    vec3 tangent = vec3(1.0, 0.0, 0.0);',
+				'    vec3 binormal = vec3(0.0, 0.0, 1.0);',
+				'    pos += gerstnerWave(vec2(0.12, -0.99), 0.14, 16.0, 1.05, position, tangent, binormal);',
+				'    pos += gerstnerWave(vec2(-0.68, -0.73), 0.10, 9.2, 1.25, position, tangent, binormal);',
+				'    pos += gerstnerWave(vec2(0.82, -0.57), 0.06, 4.6, 1.70, position, tangent, binormal);',
+				'    vec3 norm = normalize(cross(binormal, tangent));',
+				'    vNormal = normalMatrix * norm;',
+				'    vec4 worldPos = modelMatrix * vec4(pos, 1.0);',
+				'    vWorldPos = worldPos.xyz;',
+				'    gl_Position = projectionMatrix * viewMatrix * worldPos;',
+				'}'
+			].join('\n'),
+			fragmentShader: [
+				'uniform float uTime;',
+				'uniform vec3 uSunDir;',
+				'uniform vec3 uWaterColorShallow;',
+				'uniform vec3 uWaterColorMid;',
+				'uniform vec3 uWaterColorDeep;',
+				'uniform vec3 uSkyColor;',
+				'uniform vec3 uSunColor;',
+				'varying vec3 vWorldPos;',
+				'varying vec3 vNormal;',
+				'varying vec2 vUv;',
+				'',
+				'float causticWeb(vec2 p) {',
+				'    vec2 p1 = p * 1.6 + vec2(uTime * 0.10, uTime * 0.07);',
+				'    vec2 p2 = p * 2.1 - vec2(uTime * 0.08, -uTime * 0.11);',
+				'    float c1 = sin(p1.x * 3.0 + cos(p1.y * 3.4)) * sin(p1.y * 2.8 + cos(p1.x * 3.1));',
+				'    float c2 = cos(p2.x * 3.1 + sin(p2.y * 2.8)) * cos(p2.y * 3.3 + sin(p2.x * 2.6));',
+				'    return pow(clamp((c1 + c2) * 0.5 + 0.5, 0.0, 1.0), 3.5);',
+				'}',
+				'',
+				'void main() {',
+				'    vec3 N = normalize(vNormal);',
+				'    vec3 V = normalize(cameraPosition - vWorldPos);',
+				'    vec3 L = normalize(uSunDir);',
+				'    vec3 H = normalize(L + V);',
+				'    float dist = length(vWorldPos.xz - vec2(0.0, 12.0));',
+				'    float depthFactor = smoothstep(12.0, 115.0, dist);',
+				'    vec3 waterColor = mix(uWaterColorShallow, uWaterColorMid, smoothstep(0.0, 0.45, depthFactor));',
+				'    waterColor = mix(waterColor, uWaterColorDeep, smoothstep(0.40, 1.0, depthFactor));',
+				'    if (vWorldPos.z > -48.0) {',
+				'        float shallowMask = smoothstep(-48.0, 8.0, vWorldPos.z);',
+				'        float caust = causticWeb(vWorldPos.xz * 0.45);',
+				'        waterColor += vec3(0.55, 1.0, 0.95) * caust * 0.32 * shallowMask;',
+				'    }',
+				'    float fresnel = 0.04 + 0.96 * pow(1.0 - max(0.0, dot(N, V)), 4.0);',
+				'    vec3 col = mix(waterColor, uSkyColor, fresnel * 0.68);',
+				'    float NdotH = max(0.0, dot(N, H));',
+				'    float spec = pow(NdotH, 85.0) * 1.15;',
+				'    float microSpec = pow(NdotH, 28.0) * 0.25;',
+				'    col += uSunColor * (spec + microSpec);',
+				'    if (abs(vWorldPos.x) < 2.5 && vWorldPos.z > -36.0 && vWorldPos.z < 18.0) {',
+				'        float distToPier = max(0.0, abs(vWorldPos.x) - 1.82);',
+				'        float foam = smoothstep(0.50, 0.0, distToPier) * (sin(uTime * 2.8 + vWorldPos.z * 1.6) * 0.2 + 0.8);',
+				'        col = mix(col, vec3(0.95, 0.98, 1.0), foam * 0.32);',
+				'    }',
+				'    gl_FragColor = vec4(col, 1.0);',
+				'}'
+			].join('\n'),
+			side: THREE.DoubleSide
+		});
+	}
+
+	function buildPierAndCabanaGeometries() {
+		var pierPos = [];
+		var pierCol = [];
+		var thatchPos = [];
+		var thatchCol = [];
+		var m = new THREE.Matrix4();
+		var rotM = new THREE.Matrix4();
+		var transM = new THREE.Matrix4();
+
+		var plankColors = [0xc8bcab, 0xbfb2a0, 0xb5a794, 0xccc1b0, 0xaaa08d, 0x9f917e];
+		var beamColor = 0x5e4933;
+		var pilingColor = 0x54422e;
+		var pilingWetColor = 0x2b3831;
+		var railColor = 0xa89984;
+
+		// 1. PIER WALKWAY PLANKS (from Z = 16.0 down to Z = -18.0)
+		var plankGeom = new THREE.BoxGeometry(3.60, 0.08, 0.28);
+		var plankSpacing = 0.32;
+		var zStart = 15.8;
+		var zEnd = -18.0;
+		var pCount = Math.floor((zStart - zEnd) / plankSpacing);
+
+		for (var p = 0; p < pCount; p++) {
+			var pz = zStart - p * plankSpacing;
+			var py = 1.35 + ((p % 7 === 0) ? 0.008 : 0.0);
+			m.makeTranslation(0, py, pz);
+			var pCol = plankColors[p % plankColors.length];
+			appendGeometryWithColor(plankGeom, m, pCol, pierPos, pierCol);
+		}
+
+		// Pier side kickboards / toe-rails
+		var railLength = zStart - zEnd;
+		var sideRailGeom = new THREE.BoxGeometry(0.12, 0.16, railLength);
+		m.makeTranslation(-1.75, 1.44, (zStart + zEnd) * 0.5);
+		appendGeometryWithColor(sideRailGeom, m, beamColor, pierPos, pierCol);
+		m.makeTranslation(1.75, 1.44, (zStart + zEnd) * 0.5);
+		appendGeometryWithColor(sideRailGeom, m, beamColor, pierPos, pierCol);
+
+		// Substructure: longitudinal stringer beams under planks
+		var stringerGeom = new THREE.BoxGeometry(0.18, 0.28, railLength);
+		m.makeTranslation(-1.50, 1.20, (zStart + zEnd) * 0.5);
+		appendGeometryWithColor(stringerGeom, m, beamColor, pierPos, pierCol);
+		m.makeTranslation(1.50, 1.20, (zStart + zEnd) * 0.5);
+		appendGeometryWithColor(stringerGeom, m, beamColor, pierPos, pierCol);
+
+		// Crossbeams and round pilings every 2.8m along the pier
+		var crossBeamGeom = new THREE.BoxGeometry(3.80, 0.24, 0.24);
+		var pilingGeom = new THREE.CylinderGeometry(0.14, 0.14, 3.8, 8);
+		var pilingWetGeom = new THREE.CylinderGeometry(0.145, 0.145, 1.2, 8);
+
+		var bentsCount = Math.floor(railLength / 2.8);
+		for (var b = 0; b <= bentsCount; b++) {
+			var bz = zStart - b * 2.8;
+			// Crossbeam
+			m.makeTranslation(0, 1.05, bz);
+			appendGeometryWithColor(crossBeamGeom, m, beamColor, pierPos, pierCol);
+
+			// Left Piling
+			m.makeTranslation(-1.55, -0.65, bz);
+			appendGeometryWithColor(pilingGeom, m, pilingColor, pierPos, pierCol);
+			// Left Wet waterline collar
+			m.makeTranslation(-1.55, 0.15, bz);
+			appendGeometryWithColor(pilingWetGeom, m, pilingWetColor, pierPos, pierCol);
+
+			// Right Piling
+			m.makeTranslation(1.55, -0.65, bz);
+			appendGeometryWithColor(pilingGeom, m, pilingColor, pierPos, pierCol);
+			// Right Wet waterline collar
+			m.makeTranslation(1.55, 0.15, bz);
+			appendGeometryWithColor(pilingWetGeom, m, pilingWetColor, pierPos, pierCol);
+		}
+
+		// Approach railings leading up to the gazebo (from Z = -12.0 to -18.0)
+		var postGeom = new THREE.BoxGeometry(0.10, 1.10, 0.10);
+		var topHandrailGeom = new THREE.BoxGeometry(0.12, 0.08, 6.2);
+		var midHandrailGeom = new THREE.BoxGeometry(0.08, 0.06, 6.2);
+
+		m.makeTranslation(-1.75, 2.38, -15.0);
+		appendGeometryWithColor(topHandrailGeom, m, railColor, pierPos, pierCol);
+		m.makeTranslation(-1.75, 1.90, -15.0);
+		appendGeometryWithColor(midHandrailGeom, m, railColor, pierPos, pierCol);
+
+		m.makeTranslation(1.75, 2.38, -15.0);
+		appendGeometryWithColor(topHandrailGeom, m, railColor, pierPos, pierCol);
+		m.makeTranslation(1.75, 1.90, -15.0);
+		appendGeometryWithColor(midHandrailGeom, m, railColor, pierPos, pierCol);
+
+		for (var rz = -12.0; rz >= -18.1; rz -= 1.5) {
+			m.makeTranslation(-1.75, 1.90, rz);
+			appendGeometryWithColor(postGeom, m, railColor, pierPos, pierCol);
+			m.makeTranslation(1.75, 1.90, rz);
+			appendGeometryWithColor(postGeom, m, railColor, pierPos, pierCol);
+		}
+
+		// 2. THE PIGEON POINT CABANA / GAZEBO PLATFORM & OPEN-AIR TIMBER FRAME
+		// Platform deck extension (Z = -18.0 to -25.6, width 7.6m)
+		var cabanaPlankGeom = new THREE.BoxGeometry(7.60, 0.10, 0.28);
+		var cPlankCount = Math.floor(7.6 / plankSpacing);
+		for (var cp = 0; cp < cPlankCount; cp++) {
+			var cpz = -18.0 - cp * plankSpacing;
+			m.makeTranslation(0, 1.35, cpz);
+			appendGeometryWithColor(cabanaPlankGeom, m, plankColors[(cp + 3) % plankColors.length], pierPos, pierCol);
+		}
+
+		// 6 Sturdy Timber Roof Support Pillars (rises from deck Y=1.35 to tie-beam Y=6.20)
+		var pillarGeom = new THREE.BoxGeometry(0.26, 4.85, 0.26);
+		var pillarWetGeom = new THREE.CylinderGeometry(0.20, 0.20, 1.4, 8);
+		var pillarSubGeom = new THREE.CylinderGeometry(0.18, 0.18, 3.8, 8);
+		var pillarZs = [-18.6, -22.0, -25.4];
+
+		for (var pi = 0; pi < pillarZs.length; pi++) {
+			var pzPos = pillarZs[pi];
+			// Left post (above deck)
+			m.makeTranslation(-3.40, 3.77, pzPos);
+			appendGeometryWithColor(pillarGeom, m, beamColor, pierPos, pierCol);
+			// Left piling (under deck into water)
+			m.makeTranslation(-3.40, -0.65, pzPos);
+			appendGeometryWithColor(pillarSubGeom, m, pilingColor, pierPos, pierCol);
+			m.makeTranslation(-3.40, 0.15, pzPos);
+			appendGeometryWithColor(pillarWetGeom, m, pilingWetColor, pierPos, pierCol);
+
+			// Right post (above deck)
+			m.makeTranslation(3.40, 3.77, pzPos);
+			appendGeometryWithColor(pillarGeom, m, beamColor, pierPos, pierCol);
+			// Right piling (under deck into water)
+			m.makeTranslation(3.40, -0.65, pzPos);
+			appendGeometryWithColor(pillarSubGeom, m, pilingColor, pierPos, pierCol);
+			m.makeTranslation(3.40, 0.15, pzPos);
+			appendGeometryWithColor(pillarWetGeom, m, pilingWetColor, pierPos, pierCol);
+		}
+
+		// Front, Mid & Rear Open-Air A-Frame Trusses (Tobago Pigeon Point style)
+		var trussZs = [-18.6, -22.0, -25.4];
+		var tieBeamGeom = new THREE.BoxGeometry(7.20, 0.20, 0.20);
+		var rafterGeom = new THREE.BoxGeometry(0.18, 7.30, 0.18);
+		var kingPostGeom = new THREE.BoxGeometry(0.20, 6.40, 0.20);
+		var strutGeom = new THREE.BoxGeometry(0.14, 3.20, 0.14);
+
+		for (var ti = 0; ti < trussZs.length; ti++) {
+			var tz = trussZs[ti];
+			// Horizontal tie-beam at Y = 6.20
+			m.makeTranslation(0, 6.20, tz);
+			appendGeometryWithColor(tieBeamGeom, m, beamColor, pierPos, pierCol);
+
+			// Center vertical king post from Y = 6.20 to 12.60
+			m.makeTranslation(0, 9.40, tz);
+			appendGeometryWithColor(kingPostGeom, m, beamColor, pierPos, pierCol);
+
+			// Left angled rafter
+			rotM.makeRotationZ(-0.50);
+			transM.makeTranslation(-1.75, 9.40, tz);
+			m.multiplyMatrices(transM, rotM);
+			appendGeometryWithColor(rafterGeom, m, beamColor, pierPos, pierCol);
+
+			// Right angled rafter
+			rotM.makeRotationZ(0.50);
+			transM.makeTranslation(1.75, 9.40, tz);
+			m.multiplyMatrices(transM, rotM);
+			appendGeometryWithColor(rafterGeom, m, beamColor, pierPos, pierCol);
+
+			// Left diagonal strut brace
+			rotM.makeRotationZ(0.50);
+			transM.makeTranslation(-1.60, 7.40, tz);
+			m.multiplyMatrices(transM, rotM);
+			appendGeometryWithColor(strutGeom, m, beamColor, pierPos, pierCol);
+
+			// Right diagonal strut brace
+			rotM.makeRotationZ(-0.50);
+			transM.makeTranslation(1.60, 7.40, tz);
+			m.multiplyMatrices(transM, rotM);
+			appendGeometryWithColor(strutGeom, m, beamColor, pierPos, pierCol);
+		}
+
+		// Longitudinal Ridge Beam & Side Eave Purlins
+		var ridgeBeamGeom = new THREE.BoxGeometry(0.22, 0.22, 7.60);
+		m.makeTranslation(0, 12.60, -22.0);
+		appendGeometryWithColor(ridgeBeamGeom, m, beamColor, pierPos, pierCol);
+
+		var eavePurlinGeom = new THREE.BoxGeometry(0.20, 0.20, 7.60);
+		m.makeTranslation(-3.45, 6.20, -22.0);
+		appendGeometryWithColor(eavePurlinGeom, m, beamColor, pierPos, pierCol);
+		m.makeTranslation(3.45, 6.20, -22.0);
+		appendGeometryWithColor(eavePurlinGeom, m, beamColor, pierPos, pierCol);
+
+		// Built-in wooden bench seats inside the shelter (left & right)
+		var benchSeatGeom = new THREE.BoxGeometry(0.52, 0.08, 6.20);
+		var benchLegGeom = new THREE.BoxGeometry(0.12, 0.50, 0.12);
+		var benchBackGeom = new THREE.BoxGeometry(0.08, 0.40, 6.20);
+
+		// Left bench
+		m.makeTranslation(-2.95, 1.85, -22.0);
+		appendGeometryWithColor(benchSeatGeom, m, 0x8a6e4d, pierPos, pierCol);
+		m.makeTranslation(-3.25, 2.15, -22.0);
+		appendGeometryWithColor(benchBackGeom, m, 0x8a6e4d, pierPos, pierCol);
+		m.makeTranslation(-2.95, 1.60, -19.5);
+		appendGeometryWithColor(benchLegGeom, m, beamColor, pierPos, pierCol);
+		m.makeTranslation(-2.95, 1.60, -24.5);
+		appendGeometryWithColor(benchLegGeom, m, beamColor, pierPos, pierCol);
+
+		// Right bench
+		m.makeTranslation(2.95, 1.85, -22.0);
+		appendGeometryWithColor(benchSeatGeom, m, 0x8a6e4d, pierPos, pierCol);
+		m.makeTranslation(3.25, 2.15, -22.0);
+		appendGeometryWithColor(benchBackGeom, m, 0x8a6e4d, pierPos, pierCol);
+		m.makeTranslation(2.95, 1.60, -19.5);
+		appendGeometryWithColor(benchLegGeom, m, beamColor, pierPos, pierCol);
+		m.makeTranslation(2.95, 1.60, -24.5);
+		appendGeometryWithColor(benchLegGeom, m, beamColor, pierPos, pierCol);
+
+		// Nautical Signs from Reference Image!
+		// Right Post: Circular Speed / Warning Sign (white face with red border)
+		var signDiscGeom = new THREE.CylinderGeometry(0.36, 0.36, 0.04, 16);
+		rotM.makeRotationX(Math.PI / 2);
+		transM.makeTranslation(3.55, 6.50, -18.45);
+		m.multiplyMatrices(transM, rotM);
+		appendGeometryWithColor(signDiscGeom, m, 0xffffff, pierPos, pierCol);
+
+		var signRimGeom = new THREE.CylinderGeometry(0.38, 0.38, 0.03, 16);
+		m.multiplyMatrices(transM, rotM);
+		appendGeometryWithColor(signRimGeom, m, 0xd92626, pierPos, pierCol);
+
+		// Left Post: Rectangular Notice Board (white board with green top)
+		var noticeGeom = new THREE.BoxGeometry(0.55, 0.38, 0.04);
+		m.makeTranslation(-3.55, 6.70, -18.45);
+		appendGeometryWithColor(noticeGeom, m, 0xffffff, pierPos, pierCol);
+		var noticeHeaderGeom = new THREE.BoxGeometry(0.55, 0.10, 0.045);
+		m.makeTranslation(-3.55, 6.85, -18.45);
+		appendGeometryWithColor(noticeHeaderGeom, m, 0x1f8a4c, pierPos, pierCol);
+
+		// Pier End Lower Landing Platform (beyond cabana at Z = -25.6 to -28.0)
+		var endPlankGeom = new THREE.BoxGeometry(4.20, 0.08, 0.28);
+		for (var ep = 0; ep < 8; ep++) {
+			var epz = -25.6 - ep * plankSpacing;
+			m.makeTranslation(0, 1.35, epz);
+			appendGeometryWithColor(endPlankGeom, m, plankColors[(ep + 2) % plankColors.length], pierPos, pierCol);
+		}
+		// End Mooring Posts & Ladder Pilings
+		var mooringPostGeom = new THREE.CylinderGeometry(0.18, 0.18, 4.4, 8);
+		m.makeTranslation(-1.95, -0.65, -27.8);
+		appendGeometryWithColor(mooringPostGeom, m, 0x4a3b2b, pierPos, pierCol);
+		m.makeTranslation(1.95, -0.65, -27.8);
+		appendGeometryWithColor(mooringPostGeom, m, 0x4a3b2b, pierPos, pierCol);
+
+		// 3. AUTHENTIC PITCHED THATCHED PALM-FROND ROOF
+		var thatchColorDark = 0x8b6531;
+		var thatchColorMid = 0xa88448;
+		var thatchColorLight = 0xc29f5d;
+		var thatchColorWarm = 0xb89250;
+
+		// 3 Tiered overlapping thatch layers for rich natural depth & overhanging eaves
+		var tiersData = [
+			// Base tier (thick fringed thatch layer)
+			{ thickness: 0.36, length: 7.80, depth: 8.20, xL: -1.85, xR: 1.85, y: 9.50, col: thatchColorDark },
+			// Mid tier (overlapping mid layer)
+			{ thickness: 0.30, length: 7.50, depth: 7.80, xL: -1.82, xR: 1.82, y: 9.55, col: thatchColorMid },
+			// Top tier (golden crown near ridge)
+			{ thickness: 0.24, length: 7.20, depth: 7.40, xL: -1.80, xR: 1.80, y: 9.60, col: thatchColorWarm }
+		];
+
+		for (var ti = 0; ti < tiersData.length; ti++) {
+			var td = tiersData[ti];
+			var tierGeom = new THREE.BoxGeometry(td.thickness, td.length, td.depth);
+
+			// Left roof slope
+			rotM.makeRotationZ(-0.50);
+			transM.makeTranslation(td.xL, td.y, -22.0);
+			m.multiplyMatrices(transM, rotM);
+			appendGeometryWithColor(tierGeom, m, td.col, thatchPos, thatchCol);
+
+			// Right roof slope
+			rotM.makeRotationZ(0.50);
+			transM.makeTranslation(td.xR, td.y, -22.0);
+			m.multiplyMatrices(transM, rotM);
+			appendGeometryWithColor(tierGeom, m, td.col, thatchPos, thatchCol);
+		}
+
+		// Distinct Thick Overhanging Eave Fringe along the left and right gutters!
+		var fringeGeom = new THREE.BoxGeometry(0.38, 0.22, 0.42);
+		for (var fz = -25.6; fz <= -18.4; fz += 0.40) {
+			// Left eave fringe
+			m.makeTranslation(-3.85, 6.10, fz);
+			appendGeometryWithColor(fringeGeom, m, ((Math.round(fz * 10) % 2 === 0) ? thatchColorDark : thatchColorWarm), thatchPos, thatchCol);
+			// Right eave fringe
+			m.makeTranslation(3.85, 6.10, fz);
+			appendGeometryWithColor(fringeGeom, m, ((Math.round(fz * 10) % 2 === 0) ? thatchColorDark : thatchColorWarm), thatchPos, thatchCol);
+		}
+
+		// Woven Thatched Ridge Cap along top gable peak
+		var ridgeCapGeom = new THREE.CylinderGeometry(0.28, 0.28, 8.00, 8);
+		rotM.makeRotationX(Math.PI / 2);
+		transM.makeTranslation(0, 12.75, -22.0);
+		m.multiplyMatrices(transM, rotM);
+		appendGeometryWithColor(ridgeCapGeom, m, thatchColorWarm, thatchPos, thatchCol);
+
+		// MERGE BOTH BUFFER GEOMETRIES
+		var pierMergedGeom = new THREE.BufferGeometry();
+		pierMergedGeom.setAttribute('position', new THREE.Float32BufferAttribute(pierPos, 3));
+		pierMergedGeom.setAttribute('color', new THREE.Float32BufferAttribute(pierCol, 3));
+		pierMergedGeom.computeVertexNormals();
+
+		var thatchMergedGeom = new THREE.BufferGeometry();
+		thatchMergedGeom.setAttribute('position', new THREE.Float32BufferAttribute(thatchPos, 3));
+		thatchMergedGeom.setAttribute('color', new THREE.Float32BufferAttribute(thatchCol, 3));
+		thatchMergedGeom.computeVertexNormals();
+
+		return {
+			pierGeom: pierMergedGeom,
+			thatchGeom: thatchMergedGeom
+		};
+	}
+
+	function buildBoat1PassengerTaxi() {
+		// Boat 1 (Left): Tropical Passenger Water Taxi (White hull, orange-red gunwale & canopy)
+		var boatGroup = new THREE.Group();
+		var boatPos = [];
+		var boatCol = [];
+		var m = new THREE.Matrix4();
+		var rotM = new THREE.Matrix4();
+		var transM = new THREE.Matrix4();
+
+		// Main Hull
+		var hullGeom = new THREE.BoxGeometry(1.80, 0.85, 4.80);
+		m.makeTranslation(0, 0.15, 0);
+		appendGeometryWithColor(hullGeom, m, 0xffffff, boatPos, boatCol);
+
+		// Pointed Bow
+		var bowGeom = new THREE.ConeGeometry(0.90, 1.40, 4);
+		rotM.makeRotationX(-Math.PI / 2);
+		transM.makeTranslation(0, 0.15, -2.90);
+		m.multiplyMatrices(transM, rotM);
+		appendGeometryWithColor(bowGeom, m, 0xffffff, boatPos, boatCol);
+
+		// Vibrant Orange-Red Upper Gunwale Trim (matching photo!)
+		var gunwaleColor = 0xe84a20;
+		var gunwaleGeom = new THREE.BoxGeometry(1.92, 0.16, 4.85);
+		m.makeTranslation(0, 0.60, 0);
+		appendGeometryWithColor(gunwaleGeom, m, gunwaleColor, boatPos, boatCol);
+
+		// Passenger Canopy Support Posts
+		var postGeom = new THREE.BoxGeometry(0.08, 0.95, 0.08);
+		var postXs = [-0.85, 0.85];
+		var postZs = [-1.6, -0.5, 0.6, 1.7];
+		for (var px = 0; px < postXs.length; px++) {
+			for (var pz = 0; pz < postZs.length; pz++) {
+				m.makeTranslation(postXs[px], 1.10, postZs[pz]);
+				appendGeometryWithColor(postGeom, m, 0xffffff, boatPos, boatCol);
+			}
+		}
+
+		// Orange Canopy Roof
+		var canopyGeom = new THREE.BoxGeometry(1.95, 0.12, 3.80);
+		m.makeTranslation(0, 1.62, 0.10);
+		appendGeometryWithColor(canopyGeom, m, gunwaleColor, boatPos, boatCol);
+
+		// Passenger Benches
+		var benchGeom = new THREE.BoxGeometry(1.60, 0.08, 0.32);
+		m.makeTranslation(0, 0.40, -1.0);
+		appendGeometryWithColor(benchGeom, m, 0x5e4933, boatPos, boatCol);
+		m.makeTranslation(0, 0.40, 0.1);
+		appendGeometryWithColor(benchGeom, m, 0x5e4933, boatPos, boatCol);
+		m.makeTranslation(0, 0.40, 1.2);
+		appendGeometryWithColor(benchGeom, m, 0x5e4933, boatPos, boatCol);
+
+		var mergedGeom = new THREE.BufferGeometry();
+		mergedGeom.setAttribute('position', new THREE.Float32BufferAttribute(boatPos, 3));
+		mergedGeom.setAttribute('color', new THREE.Float32BufferAttribute(boatCol, 3));
+		mergedGeom.computeVertexNormals();
+
+		var mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+		var mesh = new THREE.Mesh(mergedGeom, mat);
+		boatGroup.add(mesh);
+
+		// Yellow Mooring Rope
+		var ropeGeom = new THREE.CylinderGeometry(0.03, 0.03, 7.5, 4);
+		var ropeMat = new THREE.MeshBasicMaterial({ color: 0xd4a528 });
+		var rope = new THREE.Mesh(ropeGeom, ropeMat);
+		rope.rotation.z = Math.PI / 2.3;
+		rope.position.set(3.8, 0.45, 0);
+		boatGroup.add(rope);
+
+		boatGroup.position.set(-6.4, 0, -20.0);
+		boatGroup.rotation.y = -0.32;
+		return boatGroup;
+	}
+
+	function buildBoat2Speedboat() {
+		// Boat 2 (Right): Sleek Open Speedboat (Cream hull, teak deck & outboard motor)
+		var boatGroup = new THREE.Group();
+		var boatPos = [];
+		var boatCol = [];
+		var m = new THREE.Matrix4();
+		var rotM = new THREE.Matrix4();
+		var transM = new THREE.Matrix4();
+
+		// Sleek Hull
+		var hullGeom = new THREE.BoxGeometry(1.50, 0.65, 4.20);
+		m.makeTranslation(0, 0.12, 0);
+		appendGeometryWithColor(hullGeom, m, 0xf6f6f2, boatPos, boatCol);
+
+		// Pointed V-Bow
+		var bowGeom = new THREE.ConeGeometry(0.75, 1.60, 4);
+		rotM.makeRotationX(-Math.PI / 2);
+		transM.makeTranslation(0, 0.12, -2.60);
+		m.multiplyMatrices(transM, rotM);
+		appendGeometryWithColor(bowGeom, m, 0xf6f6f2, boatPos, boatCol);
+
+		// Teak Wooden Foredeck & Gunwales
+		var teakGeom = new THREE.BoxGeometry(1.42, 0.08, 1.60);
+		m.makeTranslation(0, 0.46, -1.80);
+		appendGeometryWithColor(teakGeom, m, 0xaa7842, boatPos, boatCol);
+
+		// Small Windshield
+		var shieldGeom = new THREE.BoxGeometry(1.30, 0.28, 0.04);
+		rotM.makeRotationX(0.35);
+		transM.makeTranslation(0, 0.65, -0.90);
+		m.multiplyMatrices(transM, rotM);
+		appendGeometryWithColor(shieldGeom, m, 0x93c5fd, boatPos, boatCol);
+
+		// Outboard Motor at Stern
+		var motorGeom = new THREE.BoxGeometry(0.35, 0.65, 0.45);
+		m.makeTranslation(0, 0.25, 2.25);
+		appendGeometryWithColor(motorGeom, m, 0x222226, boatPos, boatCol);
+
+		var mergedGeom = new THREE.BufferGeometry();
+		mergedGeom.setAttribute('position', new THREE.Float32BufferAttribute(boatPos, 3));
+		mergedGeom.setAttribute('color', new THREE.Float32BufferAttribute(boatCol, 3));
+		mergedGeom.computeVertexNormals();
+
+		var mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+		var mesh = new THREE.Mesh(mergedGeom, mat);
+		boatGroup.add(mesh);
+
+		// Mooring Buoy nearby
+		var buoyGeom = new THREE.SphereGeometry(0.24, 8, 8);
+		var buoyMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
+		var buoy = new THREE.Mesh(buoyGeom, buoyMat);
+		buoy.position.set(-1.8, 0.08, -3.2);
+		boatGroup.add(buoy);
+
+		boatGroup.position.set(5.6, 0, -21.0);
+		boatGroup.rotation.y = 0.35;
+		return boatGroup;
+	}
+
+	function buildSeagullMesh() {
+		var g = new THREE.Group();
+		var bodyGeom = new THREE.ConeGeometry(0.12, 0.65, 4);
+		bodyGeom.rotateX(Math.PI / 2);
+		var whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+		var body = new THREE.Mesh(bodyGeom, whiteMat);
+		g.add(body);
+
+		var wingGeom = new THREE.BoxGeometry(0.68, 0.02, 0.18);
+		wingGeom.translate(0.34, 0, 0);
+		var leftWing = new THREE.Mesh(wingGeom, whiteMat);
+		var rightWing = new THREE.Mesh(wingGeom, whiteMat);
+		rightWing.rotation.y = Math.PI;
+		g.add(leftWing);
+		g.add(rightWing);
+		g.userData = { leftWing: leftWing, rightWing: rightWing };
+		return g;
+	}
+
+	function ocean3DInit() {
+		if (ocean3D.initialized) return true;
+		if (typeof THREE === 'undefined') return false;
+		var container = document.getElementById('scenery-container');
+		if (!container) return false;
+
+		try {
+			var canvas = null;
+			var renderer = null;
+			if (!IS_ANDROID) {
+				canvas = document.createElement('canvas');
+				canvas.id = 'scenery-ocean-3d-canvas';
+				canvas.className = 'scenery-ocean-3d-canvas';
+				var vignette = document.getElementById('scenery-vignette');
+				container.insertBefore(canvas, vignette || null);
+
+				renderer = new THREE.WebGLRenderer({
+					canvas: canvas,
+					antialias: true,
+					alpha: false,
+					powerPreference: 'high-performance'
+				});
+				renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+				renderer.setClearColor(0x0284c7, 1);
+				renderer.outputEncoding = THREE.sRGBEncoding;
+				if (typeof THREE.ACESFilmicToneMapping !== 'undefined') {
+					renderer.toneMapping = THREE.ACESFilmicToneMapping;
+					renderer.toneMappingExposure = 1.08;
+				}
+			}
+
+			var scene = new THREE.Scene();
+			scene.fog = new THREE.FogExp2(0xa0e0f8, 0.0008);
+
+			var camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 1.0, 500);
+
+			ocean3D.canvas = canvas;
+			ocean3D.renderer = renderer;
+			ocean3D.scene = scene;
+			ocean3D.camera = camera;
+			ocean3D.startTime = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+			// 1. Radiant Caribbean Sky Dome
+			var skyDome = new THREE.Mesh(
+				new THREE.SphereGeometry(320, 24, 16),
+				new THREE.MeshBasicMaterial({
+					map: createTropicalSkyTexture(),
+					side: THREE.BackSide,
+					fog: false,
+					depthWrite: false
+				})
+			);
+			skyDome.position.set(0, 0, -30);
+			scene.add(skyDome);
+
+			// 2. Tropical Sun & Sky Hemisphere Lighting
+			var hemiLight = new THREE.HemisphereLight(0xa5e5fc, 0xd5c4a1, 0.75);
+			scene.add(hemiLight);
+
+			var dirSun = new THREE.DirectionalLight(0xfffbe6, 1.40);
+			dirSun.position.set(32, 48, 18);
+			scene.add(dirSun);
+
+			var fillLight = new THREE.DirectionalLight(0xa5f3fc, 0.42);
+			fillLight.position.set(-28, 24, -12);
+			scene.add(fillLight);
+
+			// 3. High-DPI Soft Natural Cumulus Cloud System
+			ocean3D.clouds = [];
+			var cloudTex0 = createSoftCumulusCloudTexture(0);
+			var cloudTex1 = createSoftCumulusCloudTexture(1);
+			var cloudTex2 = createSoftCumulusCloudTexture(2);
+			var cloudTex3 = createSoftCumulusCloudTexture(3);
+
+			var cloudMats = [
+				new THREE.MeshBasicMaterial({ map: cloudTex0, transparent: true, depthWrite: false, opacity: 0.98, fog: false }),
+				new THREE.MeshBasicMaterial({ map: cloudTex1, transparent: true, depthWrite: false, opacity: 0.95, fog: false }),
+				new THREE.MeshBasicMaterial({ map: cloudTex2, transparent: true, depthWrite: false, opacity: 0.92, fog: false }),
+				new THREE.MeshBasicMaterial({ map: cloudTex3, transparent: true, depthWrite: false, opacity: 0.88, fog: false })
+			];
+
+			var cloudConfigs = [
+				{ x: -8,  y: 34, z: -70, sx: 56, sy: 26, speed: 0.28, matIdx: 0, minX: -65, maxX: 65, phase: 0.0 },
+				{ x: 22,  y: 30, z: -65, sx: 48, sy: 22, speed: 0.32, matIdx: 1, minX: -65, maxX: 65, phase: 1.4 },
+				{ x: -22, y: 26, z: -55, sx: 38, sy: 18, speed: 0.40, matIdx: 2, minX: -55, maxX: 55, phase: 2.8 },
+				{ x: 4,   y: 40, z: -90, sx: 70, sy: 22, speed: 0.20, matIdx: 3, minX: -75, maxX: 75, phase: 0.6 },
+				{ x: 30,  y: 22, z: -85, sx: 46, sy: 20, speed: 0.35, matIdx: 1, minX: -70, maxX: 70, phase: 4.0 },
+				{ x: -32, y: 24, z: -80, sx: 44, sy: 19, speed: 0.38, matIdx: 0, minX: -70, maxX: 70, phase: 5.2 }
+			];
+
+			var cloudGeom = new THREE.PlaneGeometry(1, 1);
+			for (var ci = 0; ci < cloudConfigs.length; ci++) {
+				var cfg = cloudConfigs[ci];
+				var cMesh = new THREE.Mesh(cloudGeom, cloudMats[cfg.matIdx]);
+				cMesh.position.set(cfg.x, cfg.y, cfg.z);
+				cMesh.scale.set(cfg.sx, cfg.sy, 1.0);
+				scene.add(cMesh);
+				ocean3D.clouds.push({
+					mesh: cMesh,
+					speed: cfg.speed,
+					baseY: cfg.y,
+					minX: cfg.minX,
+					maxX: cfg.maxX,
+					phase: cfg.phase
+				});
+			}
+
+			// 4. Distant Coral Barrier Reef Line
+			var reefGeom = new THREE.PlaneGeometry(280, 5.5);
+			var reefMat = new THREE.MeshBasicMaterial({ color: 0x01586d, transparent: true, opacity: 0.38 });
+			var reefMesh = new THREE.Mesh(reefGeom, reefMat);
+			reefMesh.rotation.x = -Math.PI / 2;
+			reefMesh.position.set(0, 0.01, -142);
+			scene.add(reefMesh);
+
+			// 5. Physically-Based Custom Tropical Water Shader
+			var waterGeom = new THREE.PlaneGeometry(280, 240, 110, 90);
+			waterGeom.rotateX(-Math.PI / 2);
+			var waterMat = buildTropicalWaterMaterial();
+			var waterMesh = new THREE.Mesh(waterGeom, waterMat);
+			waterMesh.position.set(0, 0, -20);
+			scene.add(waterMesh);
+			ocean3D.waterMesh = waterMesh;
+			ocean3D.waterMaterial = waterMat;
+
+			// 6. Full 3D Wooden Pier & Pigeon Point Thatched Cabana
+			var geoms = buildPierAndCabanaGeometries();
+			var woodMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+			var pierMesh = new THREE.Mesh(geoms.pierGeom, woodMat);
+			scene.add(pierMesh);
+
+			var thatchMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+			var thatchMesh = new THREE.Mesh(geoms.thatchGeom, thatchMat);
+			scene.add(thatchMesh);
+
+			// 7. Authentic Tropical Boats
+			ocean3D.boat1 = buildBoat1PassengerTaxi();
+			scene.add(ocean3D.boat1);
+
+			ocean3D.boat2 = buildBoat2Speedboat();
+			scene.add(ocean3D.boat2);
+
+			// 8. Soaring Sea Terns / Seagulls
+			ocean3D.seagulls = [];
+			var sConfigs = [
+				{ cx: 8,  cy: 24, cz: -65, r: 16, speed: 0.65, phase: 0.0 },
+				{ cx: -18, cy: 27, cz: -85, r: 22, speed: 0.52, phase: 2.2 },
+				{ cx: 28, cy: 22, cz: -55, r: 12, speed: 0.78, phase: 4.1 }
+			];
+			for (var si = 0; si < sConfigs.length; si++) {
+				var sc = sConfigs[si];
+				var sg = buildSeagullMesh();
+				scene.add(sg);
+				ocean3D.seagulls.push({
+					mesh: sg,
+					cx: sc.cx,
+					cy: sc.cy,
+					cz: sc.cz,
+					r: sc.r,
+					speed: sc.speed,
+					phase: sc.phase
+				});
+			}
+
+			ocean3D.initialized = true;
+			ocean3DResize();
+			return true;
+		} catch (e) {
+			console.error('WordChain: ocean3DInit exception', e);
+			return false;
+		}
+	}
+
+	function ocean3DResize() {
+		if (!ocean3D.initialized || !ocean3D.camera) return;
+		var w = window.innerWidth || 390;
+		var h = window.innerHeight || 844;
+		if (w === ocean3D.width && h === ocean3D.height) return;
+		ocean3D.width = w;
+		ocean3D.height = h;
+		if (ocean3D.renderer) {
+			ocean3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+			ocean3D.renderer.setSize(w, h, false);
+		}
+		var aspect = w / h;
+		ocean3D.camera.aspect = aspect;
+		ocean3D.camera.fov = (aspect < 0.65) ? 48 : 45;
+		ocean3D.camera.updateProjectionMatrix();
+	}
+
+	function ocean3DUpdate(dt, now) {
+		if (!ocean3D.active || !ocean3D.initialized) return;
+		dt = Math.min(dt || 0.016, 0.05);
+		var t = ((now - ocean3D.startTime) * 0.001);
+
+		// 1. Camera eye-level perspective standing on the wooden pier looking toward the cabana
+		var camX = Math.sin(t * 0.18) * 0.12;
+		var camY = 3.80 + Math.cos(t * 0.14) * 0.06;
+		ocean3D.camera.position.set(camX, camY, 14.0);
+		ocean3D.camera.lookAt(camX * 0.25, 3.30, -38.0);
+
+		// 2. Animate Water Waves & Caustics
+		if (ocean3D.waterMaterial && ocean3D.waterMaterial.uniforms) {
+			ocean3D.waterMaterial.uniforms.uTime.value = t;
+		}
+
+		// 3. Gentle Trade Wind Atmospheric Cloud Drift
+		for (var ci = 0; ci < ocean3D.clouds.length; ci++) {
+			var cObj = ocean3D.clouds[ci];
+			cObj.mesh.position.x += cObj.speed * dt * 2.2;
+			cObj.mesh.position.y = cObj.baseY + Math.sin(t * 0.22 + cObj.phase) * 0.28;
+			if (cObj.mesh.position.x > cObj.maxX) {
+				cObj.mesh.position.x = cObj.minX;
+			}
+		}
+
+		// 4. Bobbing Boats (Left Passenger Taxi & Right Speedboat)
+		if (ocean3D.boat1) {
+			var b1Heave = Math.sin(t * 1.45) * 0.09;
+			var b1Pitch = Math.cos(t * 1.25) * 0.042;
+			var b1Roll  = Math.sin(t * 1.55 + 0.6) * 0.052;
+			ocean3D.boat1.position.y = b1Heave;
+			ocean3D.boat1.rotation.x = b1Pitch;
+			ocean3D.boat1.rotation.z = b1Roll;
+		}
+		if (ocean3D.boat2) {
+			var b2Heave = Math.sin(t * 1.55 + 1.8) * 0.085;
+			var b2Pitch = Math.cos(t * 1.35 + 1.2) * 0.046;
+			var b2Roll  = Math.sin(t * 1.65 + 2.5) * 0.056;
+			ocean3D.boat2.position.y = b2Heave;
+			ocean3D.boat2.rotation.x = b2Pitch;
+			ocean3D.boat2.rotation.z = b2Roll;
+		}
+
+		// 5. Seagulls Soaring in Thermals
+		for (var si = 0; si < ocean3D.seagulls.length; si++) {
+			var sgObj = ocean3D.seagulls[si];
+			var ang = t * sgObj.speed + sgObj.phase;
+			var sx = sgObj.cx + Math.cos(ang) * sgObj.r;
+			var sz = sgObj.cz + Math.sin(ang) * (sgObj.r * 0.7);
+			var sy = sgObj.cy + Math.sin(t * 0.8 + sgObj.phase) * 1.2;
+			sgObj.mesh.position.set(sx, sy, sz);
+			sgObj.mesh.rotation.y = -ang + Math.PI / 2;
+
+			var ud = sgObj.mesh.userData;
+			if (ud && ud.leftWing && ud.rightWing) {
+				var flap = Math.sin(t * 3.8 + sgObj.phase) * 0.24;
+				ud.leftWing.rotation.z = flap;
+				ud.rightWing.rotation.z = -flap;
+			}
+		}
+
+		// Render on iOS / macOS / Desktop
+		if (ocean3D.renderer) {
+			ocean3D.renderer.render(ocean3D.scene, ocean3D.camera);
+		}
+	}
+
+	function ocean3DSetActive(isActive) {
+		if (isActive) {
+			if (ocean3DInit()) {
+				ocean3D.active = true;
+				ocean3DResize();
+				if (ocean3D.canvas) ocean3D.canvas.classList.add('active');
+				ocean3DUpdate(0.016, typeof performance !== 'undefined' ? performance.now() : Date.now());
+			}
+		} else {
+			ocean3D.active = false;
+			if (ocean3D.canvas) ocean3D.canvas.classList.remove('active');
 		}
 	}
 
@@ -2395,8 +3357,8 @@
 		var h = bgHeight;
 		if (w <= 0 || h <= 0) return;
 
-		// Skip 2D particle canvas when 3D Alpine Peaks scene is active (peaks3D already renders 3D snow)
-		if (currentScenery === 'peaks') {
+		// Skip 2D particle canvas when 3D Alpine Peaks or Tropical Pier scene is active
+		if (currentScenery === 'peaks' || currentScenery === 'ocean') {
 			if (!bgCanvasClearedForPeaks) {
 				bgCtx.clearRect(0, 0, w, h);
 				bgCanvasClearedForPeaks = true;
@@ -2828,11 +3790,11 @@
 			localStorage.setItem('word_chain_scenery', scId);
 		} catch (e) {}
 
-		// 1. Update DOM Photo Plates (Silky Smooth 1s Cross-Fade; 'peaks' uses real-time Three.js 3D scene instead of a photo plate)
+		// 1. Update DOM Photo Plates (Silky Smooth 1s Cross-Fade; 'peaks' and 'ocean' use real-time Three.js 3D scenes instead of photo plates)
 		SCENERY_CYCLE_ORDER.forEach(function (key) {
 			var plate = document.getElementById('scenery-plate-' + key);
 			if (plate) {
-				if (key === scId && scId !== 'peaks') {
+				if (key === scId && scId !== 'peaks' && scId !== 'ocean') {
 					plate.classList.add('active');
 				} else {
 					plate.classList.remove('active');
@@ -2846,10 +3808,10 @@
 			vignette.className = 'scenery-vignette ' + SCENERIES[scId].vignetteClass;
 		}
 
-		// 3. Update Ambient Glow (live scenes and 3D peaks scene light themselves)
+		// 3. Update Ambient Glow (live scenes and 3D scenes light themselves)
 		var glow = document.getElementById('scenery-ambient-glow');
 		if (glow) {
-			glow.className = 'scenery-ambient-glow' + ((LIVE_SCENES[scId] || scId === 'peaks') ? '' : ' ' + SCENERIES[scId].glowClass);
+			glow.className = 'scenery-ambient-glow' + ((LIVE_SCENES[scId] || scId === 'peaks' || scId === 'ocean') ? '' : ' ' + SCENERIES[scId].glowClass);
 		}
 
 		// 3b. Live animated backdrop (WebGL) for supported 2D shader scenes
@@ -2857,6 +3819,11 @@
 
 		// 3c. Real-Time Three.js 3D Alpine Ski Resort Scene for 'peaks'
 		peaks3DSetActive(scId === 'peaks');
+
+		// 3d. Real-Time Three.js 3D Tropical Pier Scene for 'ocean'
+		if (typeof ocean3DSetActive === 'function') {
+			ocean3DSetActive(scId === 'ocean');
+		}
 
 		// 4. Update Three.js 3D Lighting
 		applyLighting(scId);
@@ -2928,10 +3895,12 @@
 	function update(dt, now) {
 		dt = Math.min(dt || 0.016, 0.05);
 
-		// 0. Living backdrop (self-throttled to ~30fps) & Real-Time Three.js 3D Alpine Ski Resort
+		// 0. Living backdrop (self-throttled to ~30fps) & Real-Time Three.js 3D Alpine Ski Resort & Tropical Pier
 		liveUpdate();
 		if (currentScenery === 'peaks') {
 			peaks3DUpdate(dt, now);
+		} else if (currentScenery === 'ocean' && typeof ocean3DUpdate === 'function') {
+			ocean3DUpdate(dt, now);
 		}
 
 		// 1. Update & Render Background Particles (BEHIND the 3D board)

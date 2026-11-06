@@ -86,8 +86,9 @@ html, body {
 	opacity: 1;
 }
 
-/* Real-Time Three.js 3D Alpine Ski Resort Canvas (for 'peaks' scenery) */
-.scenery-peaks-3d-canvas {
+/* Real-Time Three.js 3D Alpine Ski Resort & Tropical Pier Canvases */
+.scenery-peaks-3d-canvas,
+.scenery-ocean-3d-canvas {
 	position: absolute;
 	top: 0;
 	left: 0;
@@ -100,7 +101,8 @@ html, body {
 	z-index: 1;
 }
 
-.scenery-peaks-3d-canvas.active {
+.scenery-peaks-3d-canvas.active,
+.scenery-ocean-3d-canvas.active {
 	opacity: 1;
 }
 
