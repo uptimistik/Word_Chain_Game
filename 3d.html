@@ -13,7 +13,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="css/word-chain-3d.css?v=27.0">
+	<link rel="stylesheet" href="css/word-chain-3d.css?v=28.0">
 	<script>
 		(function () {
 			var isAndroid = (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')) ||
@@ -1228,6 +1228,12 @@
 			-webkit-backface-visibility: hidden;
 			backface-visibility: hidden;
 		}
+
+		html.is-android .game-modal {
+			backdrop-filter: none !important;
+			-webkit-backdrop-filter: none !important;
+			background: rgba(10, 8, 14, 0.94) !important;
+		}
 	</style>
 
 
@@ -2166,7 +2172,7 @@
 	<script src="js/levels.js"></script>
 	<script src="js/wordscapes-scenery.js?v=26.0"></script>
 	<script src="js/colyseus.js?v=25.1"></script>
-	<script src="js/word-chain-3d.js?v=27.0"></script>
+	<script src="js/word-chain-3d.js?v=28.0"></script>
 
 	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
 	<script>

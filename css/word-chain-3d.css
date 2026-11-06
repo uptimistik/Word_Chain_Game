@@ -24,7 +24,14 @@ html, body {
 	width: 100%;
 	height: 100%;
 	z-index: 1;
-	touch-action: none;
+	touch-action: none !important;
+}
+
+#canvas-container canvas {
+	touch-action: none !important;
+	user-select: none !important;
+	-webkit-user-select: none !important;
+	-webkit-touch-callout: none !important;
 }
 
 /* ==============================================================================
@@ -2091,7 +2098,7 @@ html, body {
 	height: 100%;
 	background: rgba(10, 8, 14, 0.85);
 	backdrop-filter: blur(10px);
-	display: flex;
+	display: none;
 	justify-content: center;
 	align-items: center;
 	z-index: 120;
@@ -2100,10 +2107,29 @@ html, body {
 	transition: opacity 0.35s ease;
 }
 
+#theme-modal:not(.show),
+.game-modal:not(.show),
+#vs-lobby-modal:not(.show),
+#vs-results-modal:not(.show),
+#profile-modal:not(.show),
+#settings-modal:not(.show),
+#level-select-modal:not(.show) {
+	display: none !important;
+	visibility: hidden !important;
+	pointer-events: none !important;
+}
+
 #theme-modal.show,
-.game-modal.show {
-	opacity: 1;
-	pointer-events: auto;
+.game-modal.show,
+#vs-lobby-modal.show,
+#vs-results-modal.show,
+#profile-modal.show,
+#settings-modal.show,
+#level-select-modal.show {
+	display: flex !important;
+	visibility: visible !important;
+	opacity: 1 !important;
+	pointer-events: auto !important;
 }
 
 .theme-card {
@@ -5343,22 +5369,29 @@ body.vs-mode-active #hud-player-card {
    ========================================================================== */
 #profile-modal {
 	z-index: 160;
+	align-items: flex-start !important;
+	justify-content: center !important;
+	overflow-y: auto !important;
+	-webkit-overflow-scrolling: touch !important;
+	padding: max(14px, env(safe-area-inset-top)) 12px max(32px, env(safe-area-inset-bottom)) 12px !important;
+	box-sizing: border-box !important;
 }
 
 .profile-card {
 	background: linear-gradient(180deg, #1e293b, #0f172a);
 	border: 1.5px solid rgba(56, 189, 248, 0.45);
-	border-radius: 24px;
-	padding: 20px 20px 22px 20px;
-	max-width: 380px;
-	width: 92%;
+	border-radius: 20px;
+	padding: 16px 14px 18px 14px;
+	max-width: 370px;
+	width: 94%;
 	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(14, 99, 156, 0.3);
 	color: #ffffff;
 	text-align: center;
 	transform: scale(0.95);
 	transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-	max-height: 90vh;
-	overflow-y: auto;
+	margin: auto 0;
+	max-height: none !important;
+	overflow: visible !important;
 	box-sizing: border-box;
 }
 
@@ -5370,19 +5403,19 @@ body.vs-mode-active #hud-player-card {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	margin-bottom: 14px;
+	margin-bottom: 10px;
 }
 
 .profile-avatar-large-ring {
 	position: relative;
-	width: 84px;
-	height: 84px;
+	width: 66px;
+	height: 66px;
 	border-radius: 50%;
-	border: 4px solid #38bdf8;
+	border: 3.5px solid #38bdf8;
 	background: radial-gradient(circle at 35% 35%, #1e3a8a 0%, #0f172a 100%);
-	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.5);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.4);
 	overflow: hidden;
-	margin-bottom: 8px;
+	margin-bottom: 6px;
 }
 
 .profile-avatar-large-img {
@@ -5393,26 +5426,26 @@ body.vs-mode-active #hud-player-card {
 }
 
 .profile-sub-title {
-	font-size: 11px;
+	font-size: 10.5px;
 	font-weight: 800;
-	letter-spacing: 1px;
+	letter-spacing: 0.8px;
 	color: #94a3b8;
-	margin-bottom: 8px;
+	margin-bottom: 6px;
 	text-transform: uppercase;
 }
 
 .profile-avatar-grid {
 	display: grid;
 	grid-template-columns: repeat(5, 1fr);
-	gap: 8px;
+	gap: 6px;
 	justify-content: center;
-	margin-bottom: 14px;
-	padding: 0 4px;
+	margin-bottom: 10px;
+	padding: 0 2px;
 }
 
 .profile-avatar-option {
-	width: 48px;
-	height: 48px;
+	width: 42px;
+	height: 42px;
 	border-radius: 50%;
 	border: 2px solid rgba(148, 163, 184, 0.3);
 	overflow: hidden;
@@ -5420,17 +5453,18 @@ body.vs-mode-active #hud-player-card {
 	transition: all 0.16s ease;
 	background: #1e293b;
 	box-sizing: border-box;
+	padding: 0;
 }
 
 .profile-avatar-option:hover {
-	transform: scale(1.1);
+	transform: scale(1.08);
 	border-color: #38bdf8;
 }
 
 .profile-avatar-option.selected {
 	border-color: #facc15;
-	box-shadow: 0 0 12px rgba(250, 204, 21, 0.85);
-	transform: scale(1.12);
+	box-shadow: 0 0 10px rgba(250, 204, 21, 0.85);
+	transform: scale(1.10);
 }
 
 .profile-avatar-option img {
@@ -5441,37 +5475,37 @@ body.vs-mode-active #hud-player-card {
 }
 
 .profile-username-group {
-	margin-bottom: 16px;
+	margin-bottom: 12px;
 }
 
 .profile-stats-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 10px;
-	margin-bottom: 18px;
+	gap: 8px;
+	margin-bottom: 14px;
 	text-align: left;
 }
 
 .profile-stat-box {
 	background: rgba(15, 23, 42, 0.65);
 	border: 1px solid rgba(255, 255, 255, 0.08);
-	border-radius: 12px;
-	padding: 10px 12px;
+	border-radius: 10px;
+	padding: 8px 10px;
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 }
 
 .profile-stat-label {
-	font-size: 10px;
+	font-size: 9.5px;
 	font-weight: 800;
-	letter-spacing: 0.6px;
+	letter-spacing: 0.5px;
 	color: #94a3b8;
 	text-transform: uppercase;
 }
 
 .profile-stat-value {
-	font-size: 16px;
+	font-size: 15px;
 	font-weight: 900;
 	color: #ffffff;
 	display: flex;
@@ -5486,21 +5520,35 @@ body.vs-mode-active #hud-player-card {
 
 .profile-save-btn {
 	width: 100%;
-	padding: 13px;
-	border-radius: 14px;
-	font-size: 14px;
+	padding: 11px 16px;
+	border-radius: 12px;
+	font-size: 13.5px;
 	font-weight: 900;
 	letter-spacing: 0.8px;
 	text-transform: uppercase;
 	color: #ffffff;
 	background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
 	border: 1.5px solid #38bdf8;
-	box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
+	box-shadow: 0 4px 14px rgba(2, 132, 199, 0.40);
 	cursor: pointer;
 	transition: all 0.18s ease;
 }
 
 .profile-save-btn:hover {
 	background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-	box-shadow: 0 8px 24px rgba(14, 165, 233, 0.6);
+	box-shadow: 0 6px 18px rgba(14, 165, 233, 0.55);
+}
+
+/* Android-Specific Profile Viewport Optimization */
+html.is-android #profile-modal {
+	align-items: flex-start !important;
+	overflow-y: auto !important;
+	-webkit-overflow-scrolling: touch !important;
+	padding-top: 10px !important;
+	padding-bottom: 36px !important;
+}
+
+html.is-android .profile-card {
+	margin: 0 auto 20px auto !important;
+	max-height: none !important;
 }

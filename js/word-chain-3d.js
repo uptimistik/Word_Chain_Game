@@ -4138,12 +4138,8 @@
 				usernameInput.value = this.playerUsername || '';
 			}
 			if (modal) {
+				modal.style.display = 'flex';
 				modal.classList.add('show');
-				if (!this.playerUsername && usernameInput) {
-					setTimeout(function () {
-						try { usernameInput.focus(); } catch (e) {}
-					}, 180);
-				}
 			}
 			if (typeof AudioManager !== 'undefined') {
 				AudioManager.play('tilehit', 0.8);
@@ -4151,8 +4147,17 @@
 		},
 
 		closeProfileModal: function () {
+			if (document.activeElement && typeof document.activeElement.blur === 'function') {
+				document.activeElement.blur();
+			}
 			var modal = document.getElementById('profile-modal');
-			if (modal) modal.classList.remove('show');
+			if (modal) {
+				modal.classList.remove('show');
+				modal.style.display = 'none';
+			}
+			if (typeof window.refreshCanvasInteractionRect === 'function') {
+				window.refreshCanvasInteractionRect();
+			}
 		},
 
 		renderProfileAvatarGrid: function () {
@@ -4700,7 +4705,13 @@
 				this.resultsRevealTimeout = null;
 			}
 			var resModal = document.getElementById('vs-results-modal');
-			if (resModal) resModal.classList.remove('show');
+			if (resModal) {
+				resModal.classList.remove('show');
+				resModal.style.display = 'none';
+			}
+			if (typeof window.refreshCanvasInteractionRect === 'function') {
+				window.refreshCanvasInteractionRect();
+			}
 		},
 
 		populateMatchResultsDOM: function () {
@@ -4836,6 +4847,7 @@
 			if (!resModal) return;
 			this.populateMatchResultsDOM();
 			this.resultsInteractiveAt = performance.now() + 480;
+			resModal.style.display = 'flex';
 			resModal.classList.add('show');
 		},
 
@@ -4868,21 +4880,27 @@
 			if (stepSelect) stepSelect.style.display = canAutoSearch ? 'none' : 'block';
 			if (stepSearch) stepSearch.style.display = canAutoSearch ? 'block' : 'none';
 
+			modal.style.display = 'flex';
 			modal.classList.add('show');
 
 			if (canAutoSearch) {
 				this.startSearch();
-			} else if (!this.playerUsername && usernameInput) {
-				setTimeout(function () {
-					try { usernameInput.focus(); } catch (e) {}
-				}, 180);
 			}
 		},
 
 		closeLobby: function () {
 			this.clearSearchTimers();
+			if (document.activeElement && typeof document.activeElement.blur === 'function') {
+				document.activeElement.blur();
+			}
 			var modal = document.getElementById('vs-lobby-modal');
-			if (modal) modal.classList.remove('show');
+			if (modal) {
+				modal.classList.remove('show');
+				modal.style.display = 'none';
+			}
+			if (typeof window.refreshCanvasInteractionRect === 'function') {
+				window.refreshCanvasInteractionRect();
+			}
 			if (this.isActive && this.matchFinished) {
 				this.exitVsMode();
 				if (typeof this.showTitleScreenFn === 'function') {
@@ -5532,8 +5550,19 @@
 			this.hideMatchResults();
 			this.clearSearchTimers();
 
+			if (document.activeElement && typeof document.activeElement.blur === 'function') {
+				document.activeElement.blur();
+			}
+
 			var modal = document.getElementById('vs-lobby-modal');
-			if (modal) modal.classList.remove('show');
+			if (modal) {
+				modal.classList.remove('show');
+				modal.style.display = 'none';
+			}
+
+			if (typeof window.refreshCanvasInteractionRect === 'function') {
+				window.refreshCanvasInteractionRect();
+			}
 
 			var btnNextEl = document.getElementById('btn-vs-results-next');
 			if (btnNextEl) {
@@ -5595,6 +5624,9 @@
 			loadLevel(serverLevelIndex);
 			requestAnimationFrame(function () {
 				updateCameraFraming();
+				if (typeof window.refreshCanvasInteractionRect === 'function') {
+					window.refreshCanvasInteractionRect();
+				}
 			});
 		},
 
@@ -5697,8 +5729,19 @@
 			this.updateProfileUI();
 
 			if (wasActive) {
+				if (document.activeElement && typeof document.activeElement.blur === 'function') {
+					document.activeElement.blur();
+				}
+				var modal = document.getElementById('vs-lobby-modal');
+				if (modal) {
+					modal.classList.remove('show');
+					modal.style.display = 'none';
+				}
 				requestAnimationFrame(function () {
 					updateCameraFraming();
+					if (typeof window.refreshCanvasInteractionRect === 'function') {
+						window.refreshCanvasInteractionRect();
+					}
 				});
 			}
 		}
@@ -7772,15 +7815,21 @@
 				cachedCanvasRect.height = window.innerHeight || 844;
 			}
 		}
+		window.refreshCanvasInteractionRect = refreshCanvasRect;
 		refreshCanvasRect();
 		window.addEventListener('resize', refreshCanvasRect, { passive: true });
 		window.addEventListener('orientationchange', refreshCanvasRect, { passive: true });
+		if (window.visualViewport) {
+			window.visualViewport.addEventListener('resize', refreshCanvasRect, { passive: true });
+		}
 
 		function getPointerPos(e) {
-			var clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-			var clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-			pointer.x = ((clientX - cachedCanvasRect.left) / cachedCanvasRect.width) * 2 - 1;
-			pointer.y = -((clientY - cachedCanvasRect.top) / cachedCanvasRect.height) * 2 + 1;
+			var clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : 0));
+			var clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientY : 0));
+			var w = (cachedCanvasRect && cachedCanvasRect.width > 0) ? cachedCanvasRect.width : (window.innerWidth || 1);
+			var h = (cachedCanvasRect && cachedCanvasRect.height > 0) ? cachedCanvasRect.height : (window.innerHeight || 1);
+			pointer.x = ((clientX - cachedCanvasRect.left) / w) * 2 - 1;
+			pointer.y = -((clientY - cachedCanvasRect.top) / h) * 2 + 1;
 			return { x: clientX, y: clientY };
 		}
 
@@ -7845,6 +7894,15 @@
 				completeLevelEntranceImmediately();
 			}
 			if (isRowShaking || isCelebratingWin || isComboPlaying) return;
+
+			// Self-healing: if cached bounds mismatch current dom rect (e.g. mobile keyboard just dismissed), immediately re-sync
+			var domR = dom.getBoundingClientRect();
+			if (domR && (Math.abs(cachedCanvasRect.width - domR.width) > 2 ||
+			             Math.abs(cachedCanvasRect.height - domR.height) > 2 ||
+			             Math.abs(cachedCanvasRect.top - domR.top) > 2 ||
+			             Math.abs(cachedCanvasRect.left - domR.left) > 2)) {
+				refreshCanvasRect();
+			}
 
 			// If a previous tap is still pending (e.g. rapid alternating two-thumb typing), commit it immediately!
 			if (activeTile && !pointerHasDragged) {
@@ -9665,6 +9723,9 @@
 		applyPerspectiveMode();
 		if (typeof Star3DManager !== 'undefined' && typeof Star3DManager.onResize === 'function') {
 			Star3DManager.onResize();
+		}
+		if (typeof window.refreshCanvasInteractionRect === 'function') {
+			window.refreshCanvasInteractionRect();
 		}
 	}
 
