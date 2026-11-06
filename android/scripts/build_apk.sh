@@ -24,7 +24,16 @@ if [ ! -d "$ANDROID_SDK" ]; then
 fi
 
 # Locate build-tools (prefer stable 35/34, fallback to latest)
-BUILD_TOOLS_DIR=$(ls -d "$ANDROID_SDK/build-tools/35."* "$ANDROID_SDK/build-tools/34."* "$ANDROID_SDK/build-tools/"* 2>/dev/null | head -n 1)
+BUILD_TOOLS_DIR=""
+for v in 35.0.0 34.0.0 33.0.2 33.0.1; do
+    if [ -d "$ANDROID_SDK/build-tools/$v" ]; then
+        BUILD_TOOLS_DIR="$ANDROID_SDK/build-tools/$v"
+        break
+    fi
+done
+if [ -z "$BUILD_TOOLS_DIR" ]; then
+    BUILD_TOOLS_DIR=$(ls -d "$ANDROID_SDK/build-tools/"* 2>/dev/null | sort -V -r | head -n 1)
+fi
 if [ -z "$BUILD_TOOLS_DIR" ] || [ ! -d "$BUILD_TOOLS_DIR" ]; then
     echo "ERROR: No build-tools found in $ANDROID_SDK/build-tools" >&2
     exit 1
@@ -37,7 +46,16 @@ ZIPALIGN="$BUILD_TOOLS_DIR/zipalign"
 APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
 
 # Locate platform android.jar (prefer stable android-35 / android-34)
-PLATFORM_DIR=$(ls -d "$ANDROID_SDK/platforms/android-35" "$ANDROID_SDK/platforms/android-34" "$ANDROID_SDK/platforms/android-"* 2>/dev/null | head -n 1)
+PLATFORM_DIR=""
+for p in android-35 android-34 android-33; do
+    if [ -f "$ANDROID_SDK/platforms/$p/android.jar" ]; then
+        PLATFORM_DIR="$ANDROID_SDK/platforms/$p"
+        break
+    fi
+done
+if [ -z "$PLATFORM_DIR" ]; then
+    PLATFORM_DIR=$(ls -d "$ANDROID_SDK/platforms/android-"* 2>/dev/null | sort -V -r | head -n 1)
+fi
 ANDROID_JAR="$PLATFORM_DIR/android.jar"
 if [ ! -f "$ANDROID_JAR" ]; then
     echo "ERROR: android.jar not found at $ANDROID_JAR" >&2

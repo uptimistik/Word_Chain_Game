@@ -13,7 +13,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="css/word-chain-3d.css?v=26.0">
+	<link rel="stylesheet" href="css/word-chain-3d.css?v=27.0">
 	<script>
 		(function () {
 			var isAndroid = (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')) ||
@@ -22,6 +22,10 @@
 				document.documentElement.classList.add('is-android');
 			}
 		})();
+	</script>
+	<!-- Baked-in Live Colyseus PvP Server URL (Cloudflare Tunnel for sideloading & mobile testing) -->
+	<script>
+		window.WORD_CHAIN_SERVER_URL = "https://humanitarian-mild-trackback-blind.trycloudflare.com";
 	</script>
 	<style>
 		/* Title Screen: Semi-transparent background with sleek blur */
@@ -1912,6 +1916,11 @@
 				</div>
 
 				<div class="vs-lobby-notice" id="vs-lobby-notice" style="display: none;"></div>
+
+				<div class="vs-server-status-pill" id="vs-server-status-pill" title="Colyseus PvP Game Server">
+					<span class="vs-server-status-dot"></span>
+					<span class="vs-server-status-text" id="vs-server-status-text">Server: Connecting...</span>
+				</div>
 			</div>
 
 			<!-- Step 2: Searching for Opponent / Waiting for Friend -->
@@ -2157,7 +2166,7 @@
 	<script src="js/levels.js"></script>
 	<script src="js/wordscapes-scenery.js?v=26.0"></script>
 	<script src="js/colyseus.js?v=25.1"></script>
-	<script src="js/word-chain-3d.js?v=26.0"></script>
+	<script src="js/word-chain-3d.js?v=27.0"></script>
 
 	<!-- Patch Script: Keys (20 limit + +10 Ad), Needle Pivot, Top Win Highlight, Home Level Select & Tray Shuffle Fix -->
 	<script>

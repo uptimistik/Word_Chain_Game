@@ -3716,7 +3716,7 @@
 			var custom = null;
 			try {
 				var params = new URLSearchParams(window.location.search);
-				custom = params.get('server') || window.WORD_CHAIN_SERVER_URL || localStorage.getItem(this.SERVER_URL_KEY);
+				custom = params.get('server') || localStorage.getItem(this.SERVER_URL_KEY) || window.WORD_CHAIN_SERVER_URL;
 			} catch (e) {}
 
 			if (custom) {
@@ -3760,6 +3760,45 @@
 				this.colyseusClient = new window.Colyseus.Client(endpoints.wsBase);
 			}
 			return this.colyseusClient;
+		},
+
+		checkServerStatus: function () {
+			var pill = document.getElementById('vs-server-status-pill');
+			var textEl = document.getElementById('vs-server-status-text');
+			if (!pill || !textEl) return;
+
+			var endpoints = this.getServerEndpoints();
+			var displayHost = '';
+			try {
+				var u = new URL(endpoints.httpBase);
+				displayHost = u.hostname;
+			} catch (e) {
+				displayHost = endpoints.httpBase.replace(/^https?:\/\//, '').split('/')[0];
+			}
+
+			pill.className = 'vs-server-status-pill';
+			textEl.textContent = 'Server: Connecting to ' + displayHost + '...';
+
+			var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+			var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 4000) : null;
+
+			fetch(endpoints.httpBase + '/api/stats', {
+				method: 'GET',
+				signal: controller ? controller.signal : undefined
+			}).then(function (res) {
+				if (timeoutId) clearTimeout(timeoutId);
+				if (res.ok) {
+					pill.className = 'vs-server-status-pill online';
+					textEl.textContent = '● Online (' + displayHost + ')';
+				} else {
+					pill.className = 'vs-server-status-pill offline';
+					textEl.textContent = '● Server Error (' + res.status + ')';
+				}
+			}).catch(function () {
+				if (timeoutId) clearTimeout(timeoutId);
+				pill.className = 'vs-server-status-pill offline';
+				textEl.textContent = '● Offline (' + displayHost + ')';
+			});
 		},
 
 		// ----------------------------------------------------------------------
@@ -4805,6 +4844,7 @@
 			this.clearSearchTimers();
 			this.renderAvatarGrid();
 			this.showLobbyNotice('');
+			this.checkServerStatus();
 
 			var modal = document.getElementById('vs-lobby-modal');
 			var stepSelect = document.getElementById('vs-step-select');

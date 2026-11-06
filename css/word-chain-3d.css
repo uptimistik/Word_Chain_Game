@@ -4804,6 +4804,54 @@ body.vs-mode-active #btn-settings-all-levels {
 	line-height: 1.35;
 }
 
+.vs-server-status-pill {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	margin: 14px auto 0 auto;
+	padding: 5px 12px;
+	border-radius: 999px;
+	background: rgba(15, 23, 42, 0.65);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 11px;
+	font-weight: 700;
+	color: #94a3b8;
+	letter-spacing: 0.3px;
+	max-width: 90%;
+}
+
+.vs-server-status-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #94a3b8;
+	display: inline-block;
+	box-shadow: 0 0 6px rgba(148, 163, 184, 0.5);
+	transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.vs-server-status-pill.online .vs-server-status-dot {
+	background: #22c55e;
+	box-shadow: 0 0 8px #22c55e;
+}
+
+.vs-server-status-pill.online {
+	color: #86efac;
+	border-color: rgba(34, 197, 94, 0.3);
+}
+
+.vs-server-status-pill.offline .vs-server-status-dot {
+	background: #ef4444;
+	box-shadow: 0 0 8px #ef4444;
+}
+
+.vs-server-status-pill.offline {
+	color: #fca5a5;
+	border-color: rgba(239, 68, 68, 0.3);
+}
+
 .vs-friend-room-box {
 	margin: 0 0 14px 0;
 	padding: 12px 14px;
