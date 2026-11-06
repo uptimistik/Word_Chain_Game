@@ -86,9 +86,10 @@ html, body {
 	opacity: 1;
 }
 
-/* Real-Time Three.js 3D Alpine Ski Resort & Tropical Pier Canvases */
+/* Real-Time Three.js 3D Alpine Ski Resort, Tropical Pier & Volcano Night Canvases */
 .scenery-peaks-3d-canvas,
-.scenery-ocean-3d-canvas {
+.scenery-ocean-3d-canvas,
+.scenery-volcano-3d-canvas {
 	position: absolute;
 	top: 0;
 	left: 0;
@@ -102,7 +103,8 @@ html, body {
 }
 
 .scenery-peaks-3d-canvas.active,
-.scenery-ocean-3d-canvas.active {
+.scenery-ocean-3d-canvas.active,
+.scenery-volcano-3d-canvas.active {
 	opacity: 1;
 }
 

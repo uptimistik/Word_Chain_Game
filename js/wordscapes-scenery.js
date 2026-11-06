@@ -153,9 +153,9 @@
 	//   - soft cloud shadows drift over the hills and grass
 	//   - slowly rotating sun rays + gentle exposure "breathing"
 	// Rendered at <=30fps and capped resolution to stay cool on phones.
-	// All photographic scenes enabled for HD live ambient animation except 'peaks' and 'ocean',
-	// which render as true real-time Three.js 3D scenes (Alpine Ski Resort & Tropical Pier)!
-	var LIVE_SCENES = { sakura: true, volcano: true, snowtown: true, peaks: false, ocean: false };
+	// All photographic scenes enabled for HD live ambient animation except 'peaks', 'ocean' and 'volcano',
+	// which render as true real-time Three.js 3D scenes (Alpine Ski Resort, Tropical Pier & Volcano Night)!
+	var LIVE_SCENES = { sakura: true, volcano: false, snowtown: true, peaks: false, ocean: false };
 
 	var live = {
 		supported: null,
@@ -1169,12 +1169,14 @@
 			liveResize();
 			peaks3DResize();
 			if (typeof ocean3DResize === 'function') ocean3DResize();
+			if (typeof volcano3DResize === 'function') volcano3DResize();
 		});
 		window.addEventListener('orientationchange', function () {
 			setTimeout(function () {
 				liveResize();
 				peaks3DResize();
 				if (typeof ocean3DResize === 'function') ocean3DResize();
+				if (typeof volcano3DResize === 'function') volcano3DResize();
 			}, 250);
 		});
 	}
@@ -2152,6 +2154,14 @@
 			r.clearDepth();
 			return true;
 		}
+		if (typeof volcano3D !== 'undefined' && volcano3D.active && volcano3D.initialized && volcano3D.scene && volcano3D.camera) {
+			r.autoClear = false;
+			r.setClearColor(0x060308, 1);
+			r.clear(true, true, true);
+			r.render(volcano3D.scene, volcano3D.camera);
+			r.clearDepth();
+			return true;
+		}
 		if (r.autoClear === false) {
 			r.autoClear = true;
 			r.setClearColor(0x000000, 0);
@@ -3126,6 +3136,740 @@
 	}
 
 	// --------------------------------------------------------------------------
+	// REAL-TIME THREE.JS 3D VOLCANO NIGHT ERUPTION SCENE (MOBILE PORTRAIT)
+	// Inspired by nocturnal stratovolcano eruption (Volcán de Fuego):
+	// - Parametric composite stratovolcano cone with steep gullies & caldera crater
+	// - Procedural animated glowing lava rivers cascading down gullies
+	// - Ballistic tephra explosion fountain erupting from summit caldera
+	// - Billowing ash & smoke column backlit by crater fire
+	// - Long-exposure vertical star trails across deep obsidian night sky
+	// --------------------------------------------------------------------------
+	var volcano3D = {
+		initialized: false,
+		active: false,
+		canvas: null,
+		renderer: null,
+		scene: null,
+		camera: null,
+		width: 0,
+		height: 0,
+		startTime: 0,
+		volcanoMesh: null,
+		volcanoMaterial: null,
+		starTrails: null,
+		starTrailsMaterial: null,
+		magmaFountain: null,
+		fountainColumn: null,
+		fountainPoints: null,
+		calderaGlowLight: null,
+		ashPlumes: []
+	};
+
+	function createEruptionColumnTexture() {
+		var c = document.createElement('canvas');
+		c.width = 64;
+		c.height = 256;
+		var ctx = c.getContext('2d');
+		var grad = ctx.createLinearGradient(0, 0, 0, 256);
+		grad.addColorStop(0.00, 'rgba(255, 60, 0, 0.0)');
+		grad.addColorStop(0.25, 'rgba(255, 110, 10, 0.50)');
+		grad.addColorStop(0.55, 'rgba(255, 170, 25, 0.85)');
+		grad.addColorStop(0.82, 'rgba(255, 235, 130, 0.95)');
+		grad.addColorStop(1.00, 'rgba(255, 255, 245, 1.0)');
+		ctx.fillStyle = grad;
+		ctx.fillRect(0, 0, 64, 256);
+		var tex = new THREE.CanvasTexture(c);
+		tex.generateMipmaps = false;
+		tex.minFilter = THREE.LinearFilter;
+		tex.magFilter = THREE.LinearFilter;
+		return tex;
+	}
+
+	function createVolcanoSkyTexture() {
+		var c = document.createElement('canvas');
+		c.width = 64;
+		c.height = 512;
+		var ctx = c.getContext('2d');
+		var grad = ctx.createLinearGradient(0, 0, 0, 512);
+		grad.addColorStop(0.00, '#040206');
+		grad.addColorStop(0.28, '#08040d');
+		grad.addColorStop(0.55, '#130811');
+		grad.addColorStop(0.78, '#220b0f');
+		grad.addColorStop(0.94, '#2e0e0a');
+		grad.addColorStop(1.00, '#1c0706');
+		ctx.fillStyle = grad;
+		ctx.fillRect(0, 0, 64, 512);
+		var tex = new THREE.CanvasTexture(c);
+		tex.generateMipmaps = false;
+		tex.minFilter = THREE.LinearFilter;
+		tex.magFilter = THREE.LinearFilter;
+		return tex;
+	}
+
+	function createTephraParticleTexture() {
+		var c = document.createElement('canvas');
+		c.width = 64;
+		c.height = 64;
+		var ctx = c.getContext('2d');
+		var grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+		grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+		grad.addColorStop(0.2, 'rgba(255, 235, 170, 0.95)');
+		grad.addColorStop(0.5, 'rgba(255, 110, 20, 0.70)');
+		grad.addColorStop(0.8, 'rgba(210, 30, 0, 0.30)');
+		grad.addColorStop(1.0, 'rgba(160, 0, 0, 0.0)');
+		ctx.fillStyle = grad;
+		ctx.beginPath();
+		ctx.arc(32, 32, 30, 0, Math.PI * 2);
+		ctx.fill();
+		var tex = new THREE.CanvasTexture(c);
+		tex.generateMipmaps = false;
+		return tex;
+	}
+
+	function createVolcanoAshPlumeTexture() {
+		var c = document.createElement('canvas');
+		c.width = 128;
+		c.height = 128;
+		var ctx = c.getContext('2d');
+		var grad = ctx.createRadialGradient(64, 64, 8, 64, 64, 60);
+		grad.addColorStop(0.0, 'rgba(255, 255, 255, 0.85)');
+		grad.addColorStop(0.35, 'rgba(240, 215, 205, 0.60)');
+		grad.addColorStop(0.70, 'rgba(180, 155, 150, 0.28)');
+		grad.addColorStop(1.0, 'rgba(100, 90, 95, 0.0)');
+		ctx.fillStyle = grad;
+		ctx.beginPath();
+		ctx.arc(64, 64, 60, 0, Math.PI * 2);
+		ctx.fill();
+		var tex = new THREE.CanvasTexture(c);
+		tex.generateMipmaps = false;
+		return tex;
+	}
+
+	function buildVolcanoStarTrails() {
+		var streakCount = 140;
+		var positions = new Float32Array(streakCount * 6);
+		var colors = new Float32Array(streakCount * 6);
+
+		var starPalettes = [
+			[1.0, 0.95, 0.85],
+			[0.85, 0.92, 1.0],
+			[1.0, 0.80, 0.55],
+			[0.95, 0.88, 0.98]
+		];
+
+		for (var i = 0; i < streakCount; i++) {
+			var x = (Math.random() - 0.5) * 85.0;
+			var y = 6.0 + Math.random() * 38.0;
+			var z = -48.0 + Math.random() * 22.0;
+
+			var len = 1.8 + Math.random() * 2.8;
+			var dx = -0.08 * len;
+			var dy = len;
+
+			var pal = starPalettes[Math.floor(Math.random() * starPalettes.length)];
+			var brightness = 0.45 + Math.random() * 0.55;
+
+			var i6 = i * 6;
+			positions[i6 + 0] = x;
+			positions[i6 + 1] = y;
+			positions[i6 + 2] = z;
+			positions[i6 + 3] = x + dx;
+			positions[i6 + 4] = y - dy;
+			positions[i6 + 5] = z;
+
+			colors[i6 + 0] = pal[0] * brightness * 0.35;
+			colors[i6 + 1] = pal[1] * brightness * 0.35;
+			colors[i6 + 2] = pal[2] * brightness * 0.35;
+
+			colors[i6 + 3] = pal[0] * brightness;
+			colors[i6 + 4] = pal[1] * brightness;
+			colors[i6 + 5] = pal[2] * brightness;
+		}
+
+		var geom = new THREE.BufferGeometry();
+		geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+		geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+		var mat = new THREE.LineBasicMaterial({
+			vertexColors: true,
+			transparent: true,
+			opacity: 0.82,
+			blending: THREE.AdditiveBlending,
+			depthWrite: false
+		});
+		volcano3D.starTrailsMaterial = mat;
+
+		return new THREE.LineSegments(geom, mat);
+	}
+
+	function buildVolcanoGeometry() {
+		var radialSegs = 64;
+		var heightRings = 44;
+		var vertices = [];
+		var uvs = [];
+		var indices = [];
+
+		for (var r = 0; r <= heightRings; r++) {
+			var v = r / heightRings;
+			var y = 0;
+			var radius = 0;
+
+			if (v < 0.95) {
+				var coneT = v / 0.95;
+				y = -12.0 + coneT * 32.2;
+				radius = 28.0 * Math.pow(1.0 - coneT * 0.90, 1.45) + 1.6;
+			} else {
+				var craterT = (v - 0.95) / 0.05;
+				y = 20.2 - Math.sin(craterT * Math.PI * 0.5) * 1.4;
+				radius = 1.6 - craterT * 1.2;
+			}
+
+			for (var s = 0; s <= radialSegs; s++) {
+				var u = s / radialSegs;
+				var theta = u * Math.PI * 2.0;
+
+				var ridgeNoise = 0;
+				if (v < 0.95) {
+					var flankWeight = Math.sin(v / 0.95 * Math.PI);
+					ridgeNoise = (
+						Math.sin(theta * 7.0) * 0.70 +
+						Math.sin(theta * 13.0 + 1.2) * 0.35 +
+						Math.sin(theta * 23.0) * 0.18
+					) * flankWeight;
+
+					var frontAngle = Math.abs(theta - Math.PI * 0.5);
+					if (frontAngle < 0.55 && v > 0.85) {
+						y -= (0.55 - frontAngle) * 1.2 * ((v - 0.85) / 0.10);
+					}
+				}
+
+				var modRadius = Math.max(0.3, radius + ridgeNoise);
+				var x = Math.cos(theta) * modRadius;
+				var z = Math.sin(theta) * modRadius;
+
+				vertices.push(x, y, z);
+				uvs.push(u, v);
+			}
+		}
+
+		var rowStride = radialSegs + 1;
+		for (var ri = 0; ri < heightRings; ri++) {
+			for (var si = 0; si < radialSegs; si++) {
+				var i0 = ri * rowStride + si;
+				var i1 = (ri + 1) * rowStride + si;
+				var i2 = (ri + 1) * rowStride + (si + 1);
+				var i3 = ri * rowStride + (si + 1);
+
+				indices.push(i0, i1, i2);
+				indices.push(i0, i2, i3);
+			}
+		}
+
+		var geom = new THREE.BufferGeometry();
+		geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+		geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+		geom.setIndex(indices);
+		geom.computeVertexNormals();
+		return geom;
+	}
+
+	function buildVolcanoShaderMaterial() {
+		var vShader = [
+			'varying vec3 vWorldPosition;',
+			'varying vec3 vNormal;',
+			'varying vec2 vUv;',
+			'void main() {',
+			'    vUv = uv;',
+			'    vNormal = normalize(normalMatrix * normal);',
+			'    vec4 worldPos = modelMatrix * vec4(position, 1.0);',
+			'    vWorldPosition = worldPos.xyz;',
+			'    gl_Position = projectionMatrix * viewMatrix * worldPos;',
+			'}'
+		].join('\n');
+
+		var fShader = [
+			'uniform float uTime;',
+			'uniform float uCalderaIntensity;',
+			'varying vec3 vWorldPosition;',
+			'varying vec3 vNormal;',
+			'varying vec2 vUv;',
+			'',
+			'void main() {',
+			'    vec3 localPos = vWorldPosition - vec3(0.0, 0.0, -35.0);',
+			'    float h = clamp((localPos.y + 12.0) / 32.2, 0.0, 1.0);',
+			'    float theta = atan(localPos.x, localPos.z);',
+			'    float r = length(localPos.xz);',
+			'',
+			'    // Rugged volcanic basalt rock with light & shadow facets',
+			'    vec3 lightDir = normalize(vec3(0.4, 0.9, 0.3));',
+			'    float diffuse = clamp(dot(vNormal, lightDir), 0.0, 1.0);',
+			'    vec3 colRock = mix(vec3(0.025, 0.022, 0.032), vec3(0.065, 0.058, 0.075), h);',
+			'    colRock += vec3(0.04, 0.05, 0.08) * diffuse;',
+			'',
+			'    // Caldera crater interior churning lake of magma',
+			'    if (localPos.y >= 18.5 && r < 1.7) {',
+			'        float boil = sin(localPos.x * 5.0 + uTime * 4.5) * cos(localPos.z * 5.0 - uTime * 4.0) * 0.5 + 0.5;',
+			'        float cEdge = clamp(r / 1.6, 0.0, 1.0);',
+			'        vec3 craterLava = mix(vec3(1.0, 0.98, 0.88), vec3(1.0, 0.50, 0.04), cEdge);',
+			'        craterLava = mix(craterLava, vec3(0.85, 0.10, 0.01), cEdge * cEdge);',
+			'        craterLava *= (0.92 + 0.15 * sin(uTime * 4.0 + boil));',
+			'        gl_FragColor = vec4(craterLava * uCalderaIntensity * 1.35, 1.0);',
+			'        return;',
+			'    }',
+			'',
+			'    // Central breach flow cascading down front (theta ~ 0)',
+			'    float cPath = 0.07 * sin(h * 9.5 + 0.3) + 0.03 * sin(h * 20.0);',
+			'    float dCenter = abs(theta - cPath);',
+			'    float wCenter = 0.040 * (1.0 - h * 0.35);',
+			'    float f1 = smoothstep(0.0, 1.0, clamp(1.0 - dCenter / wCenter, 0.0, 1.0));',
+			'    float streamY1 = h * 16.0 - uTime * 0.55;',
+			'    f1 *= (0.78 + 0.22 * sin(streamY1 * 6.28 + localPos.x * 2.0));',
+			'',
+			'    // Left braided finger branching off central river',
+			'    float br1Path = cPath - 0.09 * sin(h * 13.5);',
+			'    float dBr1 = abs(theta - br1Path);',
+			'    float wBr1 = 0.026 * smoothstep(0.92, 0.65, h) * smoothstep(0.08, 0.35, h);',
+			'    float fBr1 = smoothstep(0.0, 1.0, clamp(1.0 - dBr1 / max(0.001, wBr1), 0.0, 1.0));',
+			'    fBr1 *= (0.76 + 0.24 * sin((h * 15.0 - uTime * 0.52) * 6.28));',
+			'',
+			'    // Right braided finger branching off central river',
+			'    float br2Path = cPath + 0.10 * cos(h * 14.5);',
+			'    float dBr2 = abs(theta - br2Path);',
+			'    float wBr2 = 0.026 * smoothstep(0.88, 0.60, h) * smoothstep(0.08, 0.35, h);',
+			'    float fBr2 = smoothstep(0.0, 1.0, clamp(1.0 - dBr2 / max(0.001, wBr2), 0.0, 1.0));',
+			'    fBr2 *= (0.76 + 0.24 * sin((h * 15.5 - uTime * 0.54) * 6.28));',
+			'',
+			'    // Left shoulder river (visible beside board)',
+			'    float lPath = -0.38 + 0.06 * sin(h * 9.0 + 1.2);',
+			'    float dLeft = abs(theta - lPath);',
+			'    float wLeft = 0.035 * (1.0 - h * 0.30);',
+			'    float f2 = smoothstep(0.0, 1.0, clamp(1.0 - dLeft / wLeft, 0.0, 1.0));',
+			'    float streamY2 = h * 13.0 - uTime * 0.48;',
+			'    f2 *= (0.78 + 0.22 * sin(streamY2 * 6.28 - localPos.z));',
+			'',
+			'    // Secondary tributary off left shoulder',
+			'    float lSubPath = lPath + 0.06 * sin(h * 16.0);',
+			'    float dLSub = abs(theta - lSubPath);',
+			'    float wLSub = 0.022 * smoothstep(0.80, 0.55, h) * smoothstep(0.08, 0.28, h);',
+			'    float fLSub = smoothstep(0.0, 1.0, clamp(1.0 - dLSub / max(0.001, wLSub), 0.0, 1.0));',
+			'',
+			'    // Right shoulder river (visible beside board)',
+			'    float rPath = 0.40 - 0.06 * cos(h * 9.5 + 0.7);',
+			'    float dRight = abs(theta - rPath);',
+			'    float wRight = 0.035 * (1.0 - h * 0.30);',
+			'    float f3 = smoothstep(0.0, 1.0, clamp(1.0 - dRight / wRight, 0.0, 1.0));',
+			'    float streamY3 = h * 14.0 - uTime * 0.50;',
+			'    f3 *= (0.78 + 0.22 * sin(streamY3 * 6.28 + localPos.z));',
+			'',
+			'    // Secondary tributary off right shoulder',
+			'    float rSubPath = rPath - 0.06 * cos(h * 16.5);',
+			'    float dRSub = abs(theta - rSubPath);',
+			'    float wRSub = 0.022 * smoothstep(0.80, 0.55, h) * smoothstep(0.08, 0.28, h);',
+			'    float fRSub = smoothstep(0.0, 1.0, clamp(1.0 - dRSub / max(0.001, wRSub), 0.0, 1.0));',
+			'',
+			'    // Flank braids',
+			'    float dFlankL = abs(theta - (-0.68 + 0.03 * sin(h * 11.0)));',
+			'    float wFlankL = 0.022 * smoothstep(0.88, 0.60, h) * smoothstep(0.05, 0.25, h);',
+			'    float f6 = smoothstep(0.0, 1.0, clamp(1.0 - dFlankL / max(0.001, wFlankL), 0.0, 1.0));',
+			'',
+			'    float dFlankR = abs(theta - (0.72 - 0.03 * cos(h * 11.0)));',
+			'    float wFlankR = 0.022 * smoothstep(0.88, 0.60, h) * smoothstep(0.05, 0.25, h);',
+			'    float f7 = smoothstep(0.0, 1.0, clamp(1.0 - dFlankR / max(0.001, wFlankR), 0.0, 1.0));',
+			'',
+			'    // Combine lava intensity',
+			'    float lava = max(f1, max(fBr1, max(fBr2, max(f2, max(fLSub, max(f3, max(fRSub, max(f6, f7))))))));',
+			'    float minDist = min(dCenter, min(dBr1, min(dBr2, min(dLeft, min(dRight, min(dFlankL, dFlankR))))));',
+			'',
+			'    // Tight, crisp ambient bounce onto adjacent basalt rock',
+			'    float bounce = exp(-minDist * 32.0) * 0.40;',
+			'    colRock += vec3(0.95, 0.20, 0.02) * bounce;',
+			'    if (h > 0.92) {',
+			'        colRock += vec3(0.90, 0.32, 0.04) * smoothstep(0.92, 0.99, h) * (0.50 + 0.15 * sin(uTime * 3.8));',
+			'    }',
+			'',
+			'    // Incandescent lava color ramp',
+			'    vec3 colLava = vec3(0.0);',
+			'    if (lava > 0.60) {',
+			'        colLava = mix(vec3(1.0, 0.58, 0.06), vec3(1.0, 1.0, 0.94), (lava - 0.60) / 0.40);',
+			'    } else if (lava > 0.22) {',
+			'        colLava = mix(vec3(0.92, 0.10, 0.01), vec3(1.0, 0.58, 0.06), (lava - 0.22) / 0.38);',
+			'    } else {',
+			'        colLava = mix(vec3(0.18, 0.02, 0.01), vec3(0.92, 0.10, 0.01), lava / 0.22);',
+			'    }',
+			'    colLava *= uCalderaIntensity;',
+			'',
+			'    vec3 finalColor = mix(colRock, colLava, smoothstep(0.02, 0.18, lava));',
+			'    gl_FragColor = vec4(finalColor, 1.0);',
+			'}'
+		].join('\n');
+
+		return new THREE.ShaderMaterial({
+			uniforms: {
+				uTime: { value: 0 },
+				uCalderaIntensity: { value: 1.0 }
+			},
+			vertexShader: vShader,
+			fragmentShader: fShader
+		});
+	}
+
+	function buildMagmaFountain() {
+		var group = new THREE.Group();
+
+		// 1. Incandescent Geyser / Eruption Core Column
+		var colGeom = new THREE.CylinderGeometry(0.55, 0.90, 4.8, 16, 1, true);
+		var colMat = new THREE.MeshBasicMaterial({
+			map: createEruptionColumnTexture(),
+			transparent: true,
+			opacity: 0.94,
+			blending: THREE.AdditiveBlending,
+			side: THREE.DoubleSide,
+			depthWrite: false
+		});
+		var colMesh = new THREE.Mesh(colGeom, colMat);
+		colMesh.position.set(0, 22.4, -34.8);
+		colMesh.renderOrder = 2;
+		group.add(colMesh);
+		volcano3D.fountainColumn = colMesh;
+
+		// 2. Ballistic Tephra Particles
+		var pCount = 140;
+		var positions = new Float32Array(pCount * 3);
+		var colors = new Float32Array(pCount * 3);
+		var particles = [];
+
+		for (var i = 0; i < pCount; i++) {
+			var angle = Math.random() * Math.PI * 2;
+			var rad = Math.random() * 0.75;
+			var x = Math.cos(angle) * rad;
+			var y = 19.8 + Math.random() * 0.4;
+			var z = -34.8 + Math.sin(angle) * rad;
+
+			var vx = (Math.random() - 0.5) * 3.4;
+			var vy = 11.0 + Math.random() * 12.0;
+			var vz = (Math.random() - 0.5) * 3.4;
+
+			var i3 = i * 3;
+			positions[i3 + 0] = x;
+			positions[i3 + 1] = y;
+			positions[i3 + 2] = z;
+
+			colors[i3 + 0] = 1.0;
+			colors[i3 + 1] = 0.98;
+			colors[i3 + 2] = 0.90;
+
+			particles.push({
+				x: x, y: y, z: z,
+				vx: vx, vy: vy, vz: vz,
+				life: Math.random() * 1.5,
+				maxLife: 1.1 + Math.random() * 0.9
+			});
+		}
+
+		var geom = new THREE.BufferGeometry();
+		geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+		geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+		var mat = new THREE.PointsMaterial({
+			size: 2.6,
+			map: createTephraParticleTexture(),
+			vertexColors: true,
+			transparent: true,
+			opacity: 1.0,
+			blending: THREE.AdditiveBlending,
+			depthWrite: false
+		});
+
+		var pSystem = new THREE.Points(geom, mat);
+		pSystem.renderOrder = 3;
+		pSystem.userData.particles = particles;
+		group.add(pSystem);
+		volcano3D.fountainPoints = pSystem;
+
+		return group;
+	}
+
+	function buildAshPlumes(scene) {
+		var plumeCount = 6;
+		var plumes = [];
+		var plumeTex = createVolcanoAshPlumeTexture();
+
+		var plumeConfigs = [
+			{ y: 21.5, scale: 7.5, color: 0xff4411, opacity: 0.58, riseSpeed: 0.85, rotSpeed: 0.05 },
+			{ y: 24.5, scale: 10.5, color: 0xdd3311, opacity: 0.48, riseSpeed: 0.95, rotSpeed: -0.04 },
+			{ y: 28.5, scale: 14.0, color: 0xaa2211, opacity: 0.40, riseSpeed: 1.05, rotSpeed: 0.03 },
+			{ y: 33.5, scale: 18.0, color: 0x661814, opacity: 0.32, riseSpeed: 1.15, rotSpeed: -0.03 },
+			{ y: 39.5, scale: 22.0, color: 0x331012, opacity: 0.28, riseSpeed: 1.25, rotSpeed: 0.02 },
+			{ y: 46.5, scale: 26.0, color: 0x180a0c, opacity: 0.22, riseSpeed: 1.35, rotSpeed: -0.02 }
+		];
+
+		var plumeGroup = new THREE.Group();
+
+		for (var i = 0; i < plumeCount; i++) {
+			var cfg = plumeConfigs[i];
+			var pGeom = new THREE.PlaneGeometry(16, 16);
+			var pMat = new THREE.MeshBasicMaterial({
+				map: plumeTex,
+				color: cfg.color,
+				transparent: true,
+				opacity: cfg.opacity,
+				depthWrite: false,
+				side: THREE.DoubleSide,
+				blending: THREE.AdditiveBlending
+			});
+
+			var pMesh = new THREE.Mesh(pGeom, pMat);
+			pMesh.position.set((Math.random() - 0.5) * 1.5, cfg.y, -34.5);
+			pMesh.scale.set(cfg.scale / 16, cfg.scale / 16, 1.0);
+			pMesh.rotation.z = Math.random() * Math.PI * 2;
+			pMesh.renderOrder = 4;
+
+			plumeGroup.add(pMesh);
+			plumes.push({
+				mesh: pMesh,
+				baseY: cfg.y,
+				riseSpeed: cfg.riseSpeed,
+				rotSpeed: cfg.rotSpeed,
+				baseScale: cfg.scale / 16
+			});
+		}
+
+		scene.add(plumeGroup);
+		volcano3D.ashPlumes = plumes;
+	}
+
+	function volcano3DInit() {
+		if (volcano3D.initialized) return true;
+		if (typeof THREE === 'undefined') return false;
+		var container = document.getElementById('scenery-container');
+		if (!container) return false;
+
+		try {
+			var canvas = null;
+			var renderer = null;
+			if (!IS_ANDROID) {
+				canvas = document.createElement('canvas');
+				canvas.id = 'scenery-volcano-3d-canvas';
+				canvas.className = 'scenery-volcano-3d-canvas';
+				var vignette = document.getElementById('scenery-vignette');
+				container.insertBefore(canvas, vignette || null);
+
+				renderer = new THREE.WebGLRenderer({
+					canvas: canvas,
+					antialias: true,
+					alpha: false,
+					powerPreference: 'high-performance'
+				});
+				renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+				renderer.setClearColor(0x060308, 1);
+			}
+
+			var scene = new THREE.Scene();
+			scene.fog = new THREE.FogExp2(0x060308, 0.008);
+
+			var camera = new THREE.PerspectiveCamera(48, 1.0, 0.1, 300);
+			camera.position.set(0, 4.0, 15.0);
+			camera.lookAt(0, 7.0, -35.0);
+
+			volcano3D.canvas = canvas;
+			volcano3D.renderer = renderer;
+			volcano3D.scene = scene;
+			volcano3D.camera = camera;
+			volcano3D.startTime = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+			// 1. Sky Dome Cylinder with nocturnal gradient
+			var skyGeom = new THREE.CylinderGeometry(85, 85, 95, 32, 1, true);
+			skyGeom.scale(-1, 1, 1);
+			var skyMat = new THREE.MeshBasicMaterial({
+				map: createVolcanoSkyTexture(),
+				side: THREE.BackSide,
+				depthWrite: false
+			});
+			var skyMesh = new THREE.Mesh(skyGeom, skyMat);
+			skyMesh.position.set(0, 15.0, -35.0);
+			scene.add(skyMesh);
+
+			// 2. Star Trails (long-exposure astrophotography streaks)
+			volcano3D.starTrails = buildVolcanoStarTrails();
+			scene.add(volcano3D.starTrails);
+
+			// 3. Parametric Stratovolcano with animated lava cascades
+			var vGeom = buildVolcanoGeometry();
+			volcano3D.volcanoMaterial = buildVolcanoShaderMaterial();
+			volcano3D.volcanoMesh = new THREE.Mesh(vGeom, volcano3D.volcanoMaterial);
+			volcano3D.volcanoMesh.position.set(0, 0, -35.0);
+			scene.add(volcano3D.volcanoMesh);
+
+			// 4. Billowing Ash & Smoke Plumes
+			buildAshPlumes(scene);
+
+			// 5. Ballistic Tephra Magma Fountain
+			volcano3D.magmaFountain = buildMagmaFountain();
+			scene.add(volcano3D.magmaFountain);
+
+			// 6. Dynamic Caldera Point Light
+			volcano3D.calderaGlowLight = new THREE.PointLight(0xff5500, 3.6, 50);
+			volcano3D.calderaGlowLight.position.set(0, 20.0, -34.5);
+			scene.add(volcano3D.calderaGlowLight);
+
+			// 7. Ambient & Directional Moonlight
+			var ambLight = new THREE.AmbientLight(0x281214, 1.2);
+			scene.add(ambLight);
+
+			var moonLight = new THREE.DirectionalLight(0x1a243a, 0.45);
+			moonLight.position.set(8, 32, 15);
+			scene.add(moonLight);
+
+			volcano3D.initialized = true;
+			volcano3DResize();
+			return true;
+		} catch (e) {
+			console.error('WordChain: volcano3DInit exception', e);
+			return false;
+		}
+	}
+
+	function volcano3DResize() {
+		if (!volcano3D.initialized || !volcano3D.camera) return;
+		var w = window.innerWidth;
+		var h = window.innerHeight;
+		if (w === volcano3D.width && h === volcano3D.height) return;
+		volcano3D.width = w;
+		volcano3D.height = h;
+
+		if (volcano3D.renderer) {
+			volcano3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+			volcano3D.renderer.setSize(w, h, false);
+		}
+
+		var aspect = w / h;
+		volcano3D.camera.aspect = aspect;
+		volcano3D.camera.fov = (aspect < 0.65) ? 48 : 45;
+		volcano3D.camera.updateProjectionMatrix();
+	}
+
+	function volcano3DUpdate(dt, now) {
+		if (!volcano3D.active || !volcano3D.initialized) return;
+
+		var t = ((now - volcano3D.startTime) * 0.001);
+
+		// Subtle atmospheric camera breathing
+		var camX = Math.sin(t * 0.12) * 0.22;
+		var camY = 4.0 + Math.cos(t * 0.15) * 0.15;
+		volcano3D.camera.position.set(camX, camY, 15.0);
+		volcano3D.camera.lookAt(camX * 0.20, 7.0, -35.0);
+
+		// Update volcano shader uniforms (molten flow + eruption breathing)
+		if (volcano3D.volcanoMaterial && volcano3D.volcanoMaterial.uniforms) {
+			volcano3D.volcanoMaterial.uniforms.uTime.value = t;
+			volcano3D.volcanoMaterial.uniforms.uCalderaIntensity.value = 1.0 + 0.15 * Math.sin(t * 3.8);
+		}
+
+		// Caldera point light pulsation
+		if (volcano3D.calderaGlowLight) {
+			volcano3D.calderaGlowLight.intensity = 3.2 + 0.8 * Math.sin(t * 4.2) + 0.4 * Math.cos(t * 7.5);
+		}
+
+		// Eruption Column pulsation
+		if (volcano3D.fountainColumn) {
+			var colScaleX = 1.0 + 0.12 * Math.sin(t * 7.5);
+			var colScaleY = 1.0 + 0.15 * Math.sin(t * 5.2);
+			volcano3D.fountainColumn.scale.set(colScaleX, colScaleY, colScaleX);
+			volcano3D.fountainColumn.rotation.y = t * 0.4;
+		}
+
+		// Update ballistic tephra particles
+		if (volcano3D.fountainPoints) {
+			var pGeom = volcano3D.fountainPoints.geometry;
+			var posAttr = pGeom.getAttribute('position');
+			var colAttr = pGeom.getAttribute('color');
+			var pPositions = posAttr.array;
+			var pColors = colAttr.array;
+			var pData = volcano3D.fountainPoints.userData.particles;
+			var pCount = pData.length;
+
+			for (var pi = 0; pi < pCount; pi++) {
+				var p = pData[pi];
+				p.life += dt;
+				p.vy -= 12.0 * dt;
+				p.x += p.vx * dt;
+				p.y += p.vy * dt;
+				p.z += p.vz * dt;
+
+				if (p.life >= p.maxLife || p.y < 18.5) {
+					var angle = Math.random() * Math.PI * 2;
+					var rad = Math.random() * 0.75;
+					p.x = Math.cos(angle) * rad;
+					p.y = 19.8 + Math.random() * 0.4;
+					p.z = -34.8 + Math.sin(angle) * rad;
+					p.vx = (Math.random() - 0.5) * 2.6;
+					p.vy = 10.5 + Math.random() * 11.5;
+					p.vz = (Math.random() - 0.5) * 2.6;
+					p.life = 0;
+					p.maxLife = 1.1 + Math.random() * 0.9;
+				}
+
+				var idx = pi * 3;
+				pPositions[idx + 0] = p.x;
+				pPositions[idx + 1] = p.y;
+				pPositions[idx + 2] = p.z;
+
+				// Color cools down over life: white-hot -> orange -> red
+				var lifeFrac = p.life / p.maxLife;
+				if (lifeFrac < 0.35) {
+					pColors[idx + 0] = 1.0;
+					pColors[idx + 1] = 0.98 - lifeFrac * 0.6;
+					pColors[idx + 2] = 0.90 - lifeFrac * 2.0;
+				} else {
+					pColors[idx + 0] = Math.max(0.4, 1.0 - (lifeFrac - 0.35) * 0.8);
+					pColors[idx + 1] = Math.max(0.1, 0.50 - (lifeFrac - 0.35) * 0.6);
+					pColors[idx + 2] = 0.05;
+				}
+			}
+			posAttr.needsUpdate = true;
+			colAttr.needsUpdate = true;
+		}
+
+		// Update billowing ash plumes
+		if (volcano3D.ashPlumes) {
+			for (var api = 0; api < volcano3D.ashPlumes.length; api++) {
+				var plume = volcano3D.ashPlumes[api];
+				plume.mesh.position.y += plume.riseSpeed * dt;
+				plume.mesh.rotation.z += plume.rotSpeed * dt;
+				// Wrap around at top
+				if (plume.mesh.position.y > 48.0) {
+					plume.mesh.position.y = 21.5;
+					plume.mesh.position.x = (Math.random() - 0.5) * 1.8;
+					plume.mesh.position.z = -35.0 + (Math.random() - 0.5) * 1.8;
+				}
+			}
+		}
+
+		// Star trails subtle twinkling
+		if (volcano3D.starTrailsMaterial) {
+			volcano3D.starTrailsMaterial.opacity = 0.72 + 0.12 * Math.sin(t * 1.6);
+		}
+
+		if (volcano3D.renderer) {
+			volcano3D.renderer.render(volcano3D.scene, volcano3D.camera);
+		}
+	}
+
+	function volcano3DSetActive(isActive) {
+		if (isActive) {
+			if (volcano3DInit()) {
+				volcano3D.active = true;
+				volcano3DResize();
+				if (volcano3D.canvas) volcano3D.canvas.classList.add('active');
+				volcano3DUpdate(0.016, typeof performance !== 'undefined' ? performance.now() : Date.now());
+			}
+		} else {
+			volcano3D.active = false;
+			if (volcano3D.canvas) volcano3D.canvas.classList.remove('active');
+		}
+	}
+
+	// --------------------------------------------------------------------------
 	// DOM PLATE MANAGEMENT (100% VISIBLE, HARDWARE-ACCELERATED KEN BURNS DRIFT)
 	// --------------------------------------------------------------------------
 	function ensureDOMContainers() {
@@ -3138,7 +3882,7 @@
 			SCENERY_CYCLE_ORDER.forEach(function (key) {
 				var plate = document.createElement('div');
 				plate.id = 'scenery-plate-' + key;
-				plate.className = 'scenery-photo-plate' + (key === currentScenery ? ' active' : '');
+				plate.className = 'scenery-photo-plate' + (key === currentScenery && currentScenery !== 'peaks' && currentScenery !== 'ocean' && currentScenery !== 'volcano' ? ' active' : '');
 				plate.style.backgroundImage = "url('" + SCENERIES[key].photo + "')";
 				sceneryContainer.appendChild(plate);
 			});
@@ -3790,11 +4534,11 @@
 			localStorage.setItem('word_chain_scenery', scId);
 		} catch (e) {}
 
-		// 1. Update DOM Photo Plates (Silky Smooth 1s Cross-Fade; 'peaks' and 'ocean' use real-time Three.js 3D scenes instead of photo plates)
+		// 1. Update DOM Photo Plates (Silky Smooth 1s Cross-Fade; 'peaks', 'ocean' and 'volcano' use real-time Three.js 3D scenes instead of photo plates)
 		SCENERY_CYCLE_ORDER.forEach(function (key) {
 			var plate = document.getElementById('scenery-plate-' + key);
 			if (plate) {
-				if (key === scId && scId !== 'peaks' && scId !== 'ocean') {
+				if (key === scId && scId !== 'peaks' && scId !== 'ocean' && scId !== 'volcano') {
 					plate.classList.add('active');
 				} else {
 					plate.classList.remove('active');
@@ -3811,7 +4555,7 @@
 		// 3. Update Ambient Glow (live scenes and 3D scenes light themselves)
 		var glow = document.getElementById('scenery-ambient-glow');
 		if (glow) {
-			glow.className = 'scenery-ambient-glow' + ((LIVE_SCENES[scId] || scId === 'peaks' || scId === 'ocean') ? '' : ' ' + SCENERIES[scId].glowClass);
+			glow.className = 'scenery-ambient-glow' + ((LIVE_SCENES[scId] || scId === 'peaks' || scId === 'ocean' || scId === 'volcano') ? '' : ' ' + SCENERIES[scId].glowClass);
 		}
 
 		// 3b. Live animated backdrop (WebGL) for supported 2D shader scenes
@@ -3823,6 +4567,11 @@
 		// 3d. Real-Time Three.js 3D Tropical Pier Scene for 'ocean'
 		if (typeof ocean3DSetActive === 'function') {
 			ocean3DSetActive(scId === 'ocean');
+		}
+
+		// 3e. Real-Time Three.js 3D Volcano Night Scene for 'volcano'
+		if (typeof volcano3DSetActive === 'function') {
+			volcano3DSetActive(scId === 'volcano');
 		}
 
 		// 4. Update Three.js 3D Lighting
@@ -3895,12 +4644,14 @@
 	function update(dt, now) {
 		dt = Math.min(dt || 0.016, 0.05);
 
-		// 0. Living backdrop (self-throttled to ~30fps) & Real-Time Three.js 3D Alpine Ski Resort & Tropical Pier
+		// 0. Living backdrop (self-throttled to ~30fps) & Real-Time Three.js 3D Alpine Ski Resort, Tropical Pier & Volcano Night
 		liveUpdate();
 		if (currentScenery === 'peaks') {
 			peaks3DUpdate(dt, now);
 		} else if (currentScenery === 'ocean' && typeof ocean3DUpdate === 'function') {
 			ocean3DUpdate(dt, now);
+		} else if (currentScenery === 'volcano' && typeof volcano3DUpdate === 'function') {
+			volcano3DUpdate(dt, now);
 		}
 
 		// 1. Update & Render Background Particles (BEHIND the 3D board)
